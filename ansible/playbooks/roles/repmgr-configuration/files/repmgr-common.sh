@@ -26,10 +26,10 @@ for key in "${!psql_conf[@]}"; do
 done
 
 declare -A hba_entries=(
-  [entry1]="host    replication     repmgr          ${PSQL_NETWORK}/24         trust"
-  [entry2]="host    repmgr          repmgr          127.0.0.1/32               trust"
-  [entry3]="host    repmgr          repmgr          ${PSQL_NETWORK}/24         trust"
-  [entry4]="local   repmgr          repmgr                                     trust"
+  [entry1]="local   repmgr          repmgr                                     trust"
+  [entry2]="host    replication     repmgr          ${PSQL_NETWORK}/24         trust"
+  [entry3]="host    repmgr          repmgr          127.0.0.1/32               trust"
+  [entry4]="host    repmgr          repmgr          ${PSQL_NETWORK}/24         trust"
 )
 
 # Loop through each entry and append it to the pg_hba.conf file

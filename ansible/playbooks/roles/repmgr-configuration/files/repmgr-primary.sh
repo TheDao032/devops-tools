@@ -2,7 +2,7 @@
 
 set -e
 PSQL_REPMGR_CONFIG_PATH=$1
-NODE_ID=$2
+# NODE_ID=$2
 
 if ! command -v repmgr &> /dev/null
 then
@@ -10,15 +10,21 @@ then
     exit 1
 fi
 
-# Check the cluster status
-output=$(repmgr -f ${PSQL_REPMGR_CONFIG_PATH} cluster show)
+repmgr -f ${PSQL_REPMGR_CONFIG_PATH} primary register --force
+sudo su -c "repmgrd -f ${PSQL_REPMGR_CONFIG_PATH}" postgres
+exit 0
 
-# Check if the current node is listed as primary
-if echo "$output" | grep -q '1'
-then
-    echo "This node is registered as the primary."
-else
-    echo "This node is NOT registered as the primary."
-    repmgr -f ${PSQL_REPMGR_CONFIG_PATH} primary register
-    exit 0
-fi
+
+# Check the cluster status
+# output=$(cd /var/lib/postgresql && sudo su -c "psql -tAc \"SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'repmgr';\"" postgres)
+#
+# # Check if the current node is listed as primary
+# if echo "$output" | grep -q 'repmgr'
+# then
+#     echo "This node is registered as the primary."
+#     exit 0
+# else
+#     echo "This node is NOT registered as the primary."
+#     repmgr -f ${PSQL_REPMGR_CONFIG_PATH} primary register
+#     exit 0
+# fi

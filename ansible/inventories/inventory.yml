@@ -7,6 +7,8 @@ all:
       ansible_host: 192.168.10.21
     slave2:
       ansible_host: 192.168.10.22
+  vars:
+    psql_version: 15
   children:
     master:
     slave:

@@ -1,7 +1,24 @@
 ---
 # tasks file for dependencies
-- name: Install PostgreSQL v14
+- name: Install PostgreSQL
   block:
+    # - name: Upddate apt packages
+    #   ansible.builtin.apt:
+    #     update_cache: yes
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ common_packages }}"
+    - name: Prepare PostgreSQL packages
+      ansible.builtin.shell: |
+        sudo install -d /usr/share/postgresql-common/pgdg
+        sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+
+        # Create the repository configuration file:
+        sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+      args:
+        executable: /bin/bash
     - name: Upddate apt packages
       ansible.builtin.apt:
         update_cache: yes
@@ -9,4 +26,4 @@
       ansible.builtin.apt:
         name: "{{ item }}"
         state: present
-      with_items: "{{ common_packages }}"
+      with_items: "{{ psql_packages }}"

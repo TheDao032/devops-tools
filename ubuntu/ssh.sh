@@ -12,5 +12,12 @@ then
     chown vagrant:vagrant /home/vagrant/.ssh
 fi
 
-sh -c 'sudo apt-get update -y' &> /dev/null
-sh -c 'sudo apt-get install -y sshpass' &> /dev/null
+
+if [ "$(hostname)" = "master1" ]
+then
+    sh -c 'sudo apt update -y' &> /dev/null
+    sh -c 'sudo apt-get install -y sshpass' &> /dev/null
+fi
+
+# sh -c 'sudo apt-get update' &> /dev/null
+# sh -c 'sudo apt-get install -y sshpass' &> /dev/null
