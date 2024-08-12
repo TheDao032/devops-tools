@@ -34,16 +34,12 @@ declare -A hba_entries=(
 
 # Loop through each entry and append it to the pg_hba.conf file
 for key in ${!hba_entries[@]}; do
-  # add_entry_command="echo '${hba_entries[${key}]}' >> ${PSQL_HBA_CONFIG_PATH}"
-  # sudo su -c "${add_entry_command}" postgres
   entry="${hba_entries[${key}]}"
   if ! sudo grep -Fxq "$entry" "$PSQL_HBA_CONFIG_PATH"; then
     sudo su -c "echo \"$entry\" >> $PSQL_HBA_CONFIG_PATH" postgres
   else
     echo "Entry '$entry' already exists in $PSQL_HBA_CONFIG_PATH"
   fi
-  # sudo su -c "echo \"${hba_entries[${key}]}\" >> ${PSQL_HBA_CONFIG_PATH}" postgres
 done
 
 sudo -u postgres psql -f ${PSQL_REPMGR_SQL_PATH}
-# sudo systemctl restart postgresql
