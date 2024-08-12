@@ -1,0 +1,27 @@
+---
+- name: repmgr-setup
+  hosts: all
+  become: true
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: dependencies
+    - role: repmgr-configuration
+      # become_user: vagrant
+
+- name: psql-master-setup
+  hosts: master
+  become: true
+  tasks:
+    - name: Ping master cluster
+      ansible.builtin.ping:
+  # roles:
+
+- name: psql-slave-setup
+  hosts: slave
+  become: true
+  tasks:
+    - name: Ping slave cluster
+      ansible.builtin.ping:
+  # roles:

@@ -1,0 +1,21 @@
+---
+all:
+  hosts:
+    master1:
+      ansible_host: 192.168.10.11
+    slave1:
+      ansible_host: 192.168.10.21
+    slave2:
+      ansible_host: 192.168.10.22
+  children:
+    master:
+    slave:
+
+master:
+  hosts:
+    master1:
+
+slave:
+  hosts:
+    slave1:
+    slave2:

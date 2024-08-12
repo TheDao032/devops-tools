@@ -1,0 +1,7 @@
+---
+# vars file for dependencies
+psql_version: 14
+common_packages:
+  - postgresql-{{ psql_version }}
+  - postgresql-{{ psql_version }}-repmgr
+  - postgresql-contrib

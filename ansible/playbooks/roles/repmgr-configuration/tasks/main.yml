@@ -1,0 +1,92 @@
+---
+# tasks file for repmgr-configuration
+- name: Copy repmgr.conf file for repmgr configuration from templates
+  ansible.builtin.template:
+    src: repmgr.conf.j2
+    dest: "{{ psql_repmgr_conf_path }}"
+    owner: vagrant
+    group: vagrant
+    mode: '0644'
+
+- name: Copy repmgr scripts to the remote host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ psql_scripts_repmgr_path }}"
+    owner: vagrant
+    group: vagrant
+    mode: '0755'
+  with_items: "{{ repmgr_scripts }}"
+
+# - name: Set correct permissions on a repmgr scripts
+#   ansible.builtin.file:
+#     path: "{{ psql_scripts_repmgr_path }}/{{ item }}"
+#     owner: postgres
+#     mode: '0755'
+#   become: yes
+#   become_user: root
+#   with_items: "{{ repmgr_scripts }}"
+
+# - name: Set correct permissions on a repmgr scripts
+#   ansible.builtin.file:
+#     path: "{{ item }}"
+#     owner: postgres
+#     mode: '0644'
+#   become: yes
+#   become_user: root
+#   with_items: "{{ psql_conf_path }}"
+
+# - name: Check if repmgr user exists
+#   ansible.builtin.shell:
+#     cmd: cd /var/lib/postgresql && sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='repmgr';"
+#   args:
+#     chdir: /var/lib/postgresql
+#     executable: /bin/bash
+#   register: psql_user_check
+#   changed_when: false
+#   failed_when: false
+#
+# - name: Trigger handler to create repmgr user if not exists
+#   ansible.builtin.debug:
+#     msg: "User repmgr does not exist, triggering handler to create it."
+#   when: psql_user_check.stdout == ''
+#   notify: setup_repmgr_db
+
+- name: Execute repmgr scripts for master and slave cluster
+  become_user: vagrant
+  block:
+    # - name: Set correct permissions on a postgresql conf files
+    #   become: yes
+    #   become_user: root
+    #   ansible.builtin.file:
+    #     path: "{{ item }}"
+    #     owner: postgres
+    #     group: postgres
+    #     mode: '0755'
+    #   with_items: "{{ psql_conf_path }}"
+    - name: Repmgr command scripts for both master and slave cluster
+      ansible.builtin.shell:
+        cmd: "bash -c '{{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }} {{ ansible_host }}'"
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
+    - name: Systemd restart postgresql
+      become: yes
+      become_user: root
+      ansible.builtin.systemd_service:
+        name: postgresql
+        state: restarted
+        enabled: true
+    - name: Repmgr primary scripts for master cluster
+      ansible.builtin.shell:
+        cmd: "bash -c '{{ psql_scripts_repmgr_path }}/repmgr-primary.sh {{ psql_repmgr_conf_path }}'"
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
+      when: "'master' in ansible_hostname"
+    - name: Repmgr standby scripts for slave cluster
+      ansible.builtin.shell:
+        cmd: "bash -c '{{ psql_scripts_repmgr_path }}/repmgr-standby.sh {{ psql_version }} {{ hostvars['master1']['ansible_host'] }} {{ psql_repmgr_conf_path }} {{ psql_data_directory_path }}'"
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
+      when: "'slave' in ansible_hostname"

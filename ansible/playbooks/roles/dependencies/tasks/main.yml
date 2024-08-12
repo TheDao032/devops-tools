@@ -1,0 +1,12 @@
+---
+# tasks file for dependencies
+- name: Install PostgreSQL v14
+  block:
+    - name: Upddate apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ common_packages }}"
