@@ -1,3 +1,4 @@
 ---
 node_id: 1
 node_name: primary
+node_priority: 100

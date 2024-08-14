@@ -9,7 +9,7 @@ repmgr_scripts:
   - repmgr-common.sh
   - repmgr-primary.sh
   - repmgr-standby.sh
-  - setup_repmgr.sql
+  - setup-repmgr.sql
 psql_conf_path:
   - /etc/postgresql/{{ psql_version }}/main/postgresql.conf
   - /etc/postgresql/{{ psql_version }}/main/pg_hba.conf

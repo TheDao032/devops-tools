@@ -1,6 +1,5 @@
 ---
 # vars file for dependencies
-# psql_version: 16
 common_packages:
   - curl
   - ca-certificates
@@ -8,3 +7,4 @@ psql_packages:
   - postgresql-{{ psql_version }}
   - postgresql-{{ psql_version }}-repmgr
   - postgresql-contrib
+psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"

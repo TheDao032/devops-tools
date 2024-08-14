@@ -20,13 +20,15 @@
 - name: Execute repmgr scripts for master and slave cluster
   become_user: vagrant
   block:
-    - name: Repmgr command scripts for both master and slave cluster
+    - name: Repmgr common scripts for both master and slave cluster
+      vars:
+        repmgr_sql_file: setup-repmgr.sql
       ansible.builtin.shell:
-        cmd: "bash -c '{{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }} {{ ansible_host }}'"
+        cmd: "bash -c '{{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }} {{ ansible_host }} {{ psql_scripts_repmgr_path }}/{{ repmgr_sql_file }}'"
       args:
         chdir: /var/lib/postgresql
         executable: /bin/bash
-    - name: Systemd restart postgresql
+    - name: Systemd restart PostgreSQL
       become: yes
       become_user: root
       ansible.builtin.systemd_service:

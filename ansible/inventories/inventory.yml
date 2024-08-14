@@ -9,6 +9,8 @@ all:
       ansible_host: 192.168.10.22
   vars:
     psql_version: 15
+    citus_version: 11.3
+    network_cidr_range: 192.168.10.0/24
   children:
     master:
     slave:

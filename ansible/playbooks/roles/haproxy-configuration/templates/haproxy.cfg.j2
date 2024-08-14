@@ -1,0 +1,76 @@
+global
+        log /dev/log    local0
+        log /dev/log    local1 notice
+        chroot /var/lib/haproxy
+        stats socket /run/haproxy/admin.sock mode 660 level admin expose-fd listeners
+        stats timeout 30s
+        user haproxy
+        group haproxy
+        daemon
+
+        # Default SSL material locations
+        ca-base /etc/ssl/certs
+        crt-base /etc/ssl/private
+
+        # See: https://ssl-config.mozilla.org/#server=haproxy&server-version=2.0.3&config=intermediate
+        ssl-default-bind-ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+        ssl-default-bind-ciphersuites TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256
+        ssl-default-bind-options ssl-min-ver TLSv1.2 no-tls-tickets
+
+defaults
+        log     global
+        mode    tcp
+        option  tcplog
+        option  dontlognull
+        timeout connect 5000
+        timeout client  50000
+        timeout server  50000
+        errorfile 400 /etc/haproxy/errors/400.http
+        errorfile 403 /etc/haproxy/errors/403.http
+        errorfile 408 /etc/haproxy/errors/408.http
+        errorfile 500 /etc/haproxy/errors/500.http
+        errorfile 502 /etc/haproxy/errors/502.http
+        errorfile 503 /etc/haproxy/errors/503.http
+        errorfile 504 /etc/haproxy/errors/504.http
+
+frontend pgsql_frontend
+    bind *:5435
+    mode tcp
+    option tcplog
+
+    # ACLs to detect write transactions
+    acl is_write req.payload(0,7) -m reg -i ^(INSERT|UPDATE|DELETE|ALTER|CREATE|DROP)
+
+    # ACL for checking if it's a SELECT query
+    acl is_read req.payload(0,6) -m reg -i ^SELECT
+
+    # Capture the first 128 bytes of the payload for logging the SQL query
+    tcp-request inspect-delay 5s
+    tcp-request content capture req.payload(0,0) len 128
+
+    # Log the query type and backend it is routed to
+    log-format "%ci:%cp [%t] %f %b %s - %ST/%B [%hrl] %hr %hs {Query: %[capture.req.hdr(0)]}"
+    # log-format "%ci:%cp [%t] %f %b %s - %ST/%B [%hrl] %hr %hs {Query: %H}"
+
+    # Route based on query type
+    use_backend pgsql_write_backend if is_write
+    use_backend pgsql_read_backend if is_read
+
+    # Default backend if neither is matched (for safety)
+    default_backend pgsql_default_backend
+
+backend pgsql_write_backend
+    mode tcp
+    balance roundrobin
+    server master1 192.168.10.11:5432 check
+
+backend pgsql_read_backend
+    mode tcp
+    balance source
+    server slave1 192.168.10.21:5432 check
+    server slave2 192.168.10.22:5432 check
+
+backend pgsql_default_backend
+    mode tcp
+    balance roundrobin
+    server master1 192.168.10.11:5432 check

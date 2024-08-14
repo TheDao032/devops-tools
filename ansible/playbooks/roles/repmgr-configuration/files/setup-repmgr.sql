@@ -10,3 +10,4 @@ $$;
 -- Check if the database "repmgr" exists, and create it with "repmgr" as the owner if it doesn't exist.
 \c postgres
 SELECT 'CREATE DATABASE repmgr OWNER repmgr' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'repmgr')\gexec
+-- SELECT 'CREATE EXTENSION repmgr' WHERE NOT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'repmgr');\gexec
