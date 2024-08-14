@@ -17,6 +17,8 @@ RAM_SIZE = 16
 # More powerful slaves will be created if you have more
 CPU_CORES = 8
 
+# VBoxGuest
+VBOX_GUEST_DISK_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
@@ -163,7 +165,7 @@ Vagrant.configure("2") do |config|
         vb.name = "master#{i}"
         vb.memory = RESOURCES["master"][i > 2 ? 2 : i]["ram"]
         vb.cpus = RESOURCES["master"][i > 2 ? 2 : i]["cpu"]
-        vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"]
+        vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
       end
 
       # config.vm.provision "shell", inline: <<-SHELL
@@ -200,7 +202,7 @@ Vagrant.configure("2") do |config|
         vb.name = "slave#{i}"
         vb.memory = RESOURCES["slave"]["ram"]
         vb.cpus = RESOURCES["slave"]["cpu"]
-        vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"]
+        vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
       end
 
       # config.vm.provision "shell", inline: <<-SHELL
