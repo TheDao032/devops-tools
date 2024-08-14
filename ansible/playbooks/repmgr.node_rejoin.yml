@@ -6,4 +6,4 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    # - role: repmgr-node-rejoin
+    # - role: postgresql/repmgr-node-rejoin

@@ -46,11 +46,11 @@ frontend pgsql_frontend
 
     # Capture the first 128 bytes of the payload for logging the SQL query
     tcp-request inspect-delay 5s
-    tcp-request content capture req.payload(0,0) len 128
+    tcp-request content capture req.payload(0,128) len 128
 
     # Log the query type and backend it is routed to
-    log-format "%ci:%cp [%t] %f %b %s - %ST/%B [%hrl] %hr %hs {Query: %[capture.req.hdr(0)]}"
     # log-format "%ci:%cp [%t] %f %b %s - %ST/%B [%hrl] %hr %hs {Query: %H}"
+    log-format "%ci:%cp [%t] %f %b %s - %ST/%B [%hrl] %hr %hs {Query: %[capture.req.hdr(0)]}"
 
     # Route based on query type
     use_backend pgsql_write_backend if is_write
@@ -62,15 +62,15 @@ frontend pgsql_frontend
 backend pgsql_write_backend
     mode tcp
     balance roundrobin
-    server master1 192.168.10.11:5432 check
+    server master1 {{ master_ip }}:5432 check
 
 backend pgsql_read_backend
     mode tcp
     balance source
-    server slave1 192.168.10.21:5432 check
-    server slave2 192.168.10.22:5432 check
+    server slave1 {{ slave1_ip }}:5432 check
+    server slave2 {{ slave2_ip }}:5432 check
 
 backend pgsql_default_backend
     mode tcp
     balance roundrobin
-    server master1 192.168.10.11:5432 check
+    server master1 {{ master_ip }}:5432 check

@@ -6,5 +6,5 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    # - role: dependencies
-    - role: citus-configuration
+    - role: postgresql/dependencies
+    - role: postgresql/citus-configuration
