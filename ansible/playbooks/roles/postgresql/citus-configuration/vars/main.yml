@@ -9,5 +9,5 @@ citus_scripts:
   - citus-connect.sh
   - create-distribute-table-func.sql
 slave_ips:
-  - "{{ hostvars['slave1']['ansible_host'] }}"
-  - "{{ hostvars['slave2']['ansible_host'] }}"
+  - "{{ hostvars['slave1']['private_ip'] }}"
+  - "{{ hostvars['slave2']['private_ip'] }}"

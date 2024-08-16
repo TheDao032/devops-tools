@@ -1,0 +1,29 @@
+---
+all:
+  hosts:
+    master1:
+      ansible_host: 0.0.0.0
+      ansible_port: 2751
+    slave1:
+      ansible_host: 0.0.0.0
+      ansible_port: 2761
+    slave2:
+      ansible_host: 0.0.0.0
+      ansible_port: 2762
+  vars:
+    psql_version: 15
+    citus_version: 11.3
+    network_cidr_range: 172.17.0.0/16
+
+  children:
+    master:
+    slave:
+
+master:
+  hosts:
+    master1:
+
+slave:
+  hosts:
+    slave1:
+    slave2:

@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  master1:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile
+      args:
+        SSH_PASSWORD: pass123
+    container_name: master1
+    ports:
+      - "2221:22"  # Map port 22 of the container to port 2221 on the host
+    environment:
+      - SSH_PASSWORD=pass123  # You can use this environment variable in the Dockerfile if you modify it
+    networks:
+      - mynetwork
+
+  slave1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SSH_PASSWORD: pass123
+    container_name: slave1
+    ports:
+      - "2222:22"  # Map port 22 of the container to port 2222 on the host
+    environment:
+      - SSH_PASSWORD=pass123  # You can use this environment variable in the Dockerfile if you modify it
+    networks:
+      - mynetwork
+
+  slave2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SSH_PASSWORD: pass123
+    container_name: slave2
+    ports:
+      - "2223:22"  # Map port 22 of the container to port 2223 on the host
+      # You can use this environment variable in the Dockerfile if you modify it
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge
