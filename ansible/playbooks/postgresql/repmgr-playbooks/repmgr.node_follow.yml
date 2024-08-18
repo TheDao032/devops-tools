@@ -2,9 +2,8 @@
 - name: repmgr-setup
   hosts: all
   become: true
-  become_user: root
   tasks:
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    - role: postgresql/repmgr-configuration
+    # - role: postgresql/repmgr-node-follow

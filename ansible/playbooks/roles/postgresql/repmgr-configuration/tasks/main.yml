@@ -1,5 +1,10 @@
 ---
 # tasks file for repmgr-configuration
+- name: Install required packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ repmgr_packages }}"
 - name: Copy repmgr.conf file for repmgr configuration from templates
   ansible.builtin.template:
     src: repmgr.conf.j2
@@ -7,7 +12,6 @@
     owner: root
     group: root
     mode: '0644'
-
 - name: Copy repmgr scripts to the remote host
   ansible.builtin.copy:
     src: "{{ item }}"
@@ -16,7 +20,6 @@
     group: root
     mode: '0755'
   with_items: "{{ repmgr_scripts }}"
-
 - name: Execute repmgr scripts for master and slave cluster
   block:
     - name: Repmgr common scripts for both master and slave cluster

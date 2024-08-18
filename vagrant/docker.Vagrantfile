@@ -133,6 +133,14 @@ Vagrant.configure("2") do |config|
         docker.remains_running = true
         docker.has_ssh = false
         docker.privileged = true
+        docker.volumes = [
+          # "/mnt/data",
+          # "psql_config:/mnt/data"
+        ]
+        # docker.volumes << "vagrant:/etc/postgresql/15/main/"
+        # (1..NUM_SLAVE_CLUSTERS).each do |j|
+        #   docker.link = "slave-docker-#{i}:slave-docker-#{i}"
+        # end
         # docker.ports = ["#{2250 + i}:2222"]
       end
 
@@ -159,6 +167,17 @@ Vagrant.configure("2") do |config|
         docker.remains_running = true
         docker.has_ssh = false
         docker.privileged = true
+        docker.volumes = [
+          # "/mnt/data",
+        ]
+        # (1..NUM_SLAVE_CLUSTERS).each do |j|
+        #   if j != i
+        #     docker.link("slave-docker-#{j}:slave-docker-#{j}")
+        #   end
+        # end
+        # (1..NUM_MASTER_CLUSTERS).each do |j|
+        #   docker.link("master-docker-#{j}:master-docker-#{j}")
+        # end
       end
 
       node.vm.hostname = "slave-docker-#{i}"
