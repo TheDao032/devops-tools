@@ -1,0 +1,12 @@
+---
+# vars file for docker-configuration
+common_packages:
+  - curl
+  - ca-certificates
+
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin

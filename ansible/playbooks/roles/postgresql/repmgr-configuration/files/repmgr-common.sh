@@ -24,9 +24,9 @@ declare -A psql_conf=(
 for key in "${!psql_conf[@]}"; do
   key="${key}"
   value="${psql_conf[${key}]}"
-  sudo su -c "sed -i \"/${key}/c\\${value}\" ${PSQL_CONFIG_PATH}" postgres
+  sed -i "/${key}/c\\${value}" ${PSQL_CONFIG_PATH}
 done
 
-sudo -u postgres psql -f ${PSQL_REPMGR_SQL_PATH}
+su -c "psql -f ${PSQL_REPMGR_SQL_PATH}" postgres
 
 exit 0

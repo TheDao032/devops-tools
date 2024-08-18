@@ -1,5 +1,0 @@
----
-node_id: 3
-node_name: standby2
-node_priority: 80
-private_ip: "{{ ansible_host }}"

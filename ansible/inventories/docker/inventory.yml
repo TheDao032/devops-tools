@@ -27,3 +27,7 @@ slave:
   hosts:
     slave1:
     slave2:
+
+replication:
+  hosts:
+    master1:

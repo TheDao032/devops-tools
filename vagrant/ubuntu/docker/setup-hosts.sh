@@ -2,12 +2,13 @@
 #
 # Set up /etc/hosts so we can resolve all the nodes
 set -e
-NUM_MASTER_CLUSTERS=$1
-NUM_SLAVE_CLUSTERS=$2
+DOCKER_NETWORK_SUBNET=$1
+NUM_MASTER_CLUSTERS=$2
+NUM_SLAVE_CLUSTERS=$3
 
 # Determine machine IP from route table -
 # Interface that routes to default GW that isn't on the NAT network.
-MY_IP="$(ip route | grep default | grep -Pv '10\.\d+\.\d+\.\d+' | awk '{ print $9 }')"
+MY_IP="$(ip route | grep ${DOCKER_NETWORK_SUBNET} | grep -Pv '10\.\d+\.\d+\.\d+' | awk '{ print $9 }')"
 
 # From this, determine the network (which for average broadband we assume is a /24)
 MY_NETWORK=$(echo $MY_IP | awk 'BEGIN {FS="."} ; { printf("%s.%s.%s", $1, $2, $3) }')
@@ -15,7 +16,7 @@ MY_NETWORK=$(echo $MY_IP | awk 'BEGIN {FS="."} ; { printf("%s.%s.%s", $1, $2, $3
 # Create a script that will return this machine's IP to the bridge post-provisioner.
 cat <<EOF > /usr/local/bin/public-ip
 #!/usr/bin/env sh
-echo -n "$(ip route | grep default | grep -Pv '10\.\d+\.\d+\.\d+' | awk '{ print $9 }')"
+echo -n "$(ip route | grep ${DOCKER_NETWORK_SUBNET} | grep -Pv '10\.\d+\.\d+\.\d+' | awk '{ print $9 }')"
 EOF
 chmod +x /usr/local/bin/public-ip
 
@@ -29,17 +30,15 @@ echo "PRIMARY_IP=${MY_IP}" >> /etc/environment
 # Export architecture as environment variable to download correct versions of software
 echo "ARCH=amd64"  | sudo tee -a /etc/environment > /dev/null
 
-[ "$BUILD_MODE" = "BRIDGE" ] && exit 0
-
 # Update /etc/hosts about other hosts (NAT mode)
 for i in $(seq 1 $NUM_MASTER_CLUSTERS)
 do
     num=$(( $MASTER_IP_START + $i ))
-    echo "${MY_NETWORK}.${num} master${i}" >> /etc//hosts
+    echo "${MY_NETWORK}.${num} master-docker-${i}" >> /etc//hosts
 done
 for i in $(seq 1 $NUM_SLAVE_CLUSTERSS)
 do
     num=$(( $SLAVE_IP_START + $i ))
-    echo "${MY_NETWORK}.${num} slave${i}" >> /etc//hosts
+    echo "${MY_NETWORK}.${num} slave-docker-${i}" >> /etc//hosts
 done
 

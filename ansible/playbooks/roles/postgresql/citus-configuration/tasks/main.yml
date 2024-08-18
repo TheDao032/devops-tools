@@ -24,7 +24,6 @@
         mode: '0755'
       with_items: "{{ citus_scripts }}"
     - name: Citus config script for master
-      become_user: vagrant
       vars:
         trigger_sql_func: create-distribute-table-func.sql
       ansible.builtin.shell:
@@ -34,16 +33,15 @@
         executable: /bin/bash
     - name: Systemd restart PostgreSQL
       become: yes
-      become_user: root
       ansible.builtin.systemd_service:
         name: postgresql
         state: restarted
         enabled: true
     - name: Citus setup connect script for master
-      become_user: vagrant
       ansible.builtin.shell:
         cmd: "bash -c '{{ psql_scripts_citus_path }}/citus-connect.sh {{ private_ip }} {{ citus_dbname }} {{ slave_ips | join(' ') }}'"
       args:
         chdir: /var/lib/postgresql
         executable: /bin/bash
       when: "'master' in ansible_hostname"
+  when: "'replica' not in ansible_hostname"

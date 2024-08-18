@@ -7,9 +7,8 @@ PSQL_DBNAME=$2
 shift 2
 SLAVE_IPS=("$@")
 
-sudo -i -u postgres psql -d ${PSQL_DBNAME} -c \
-  "SELECT citus_set_coordinator_host('${MASTER_IP}', 5432);"
+su -c "psql -d ${PSQL_DBNAME} -c \"SELECT citus_set_coordinator_host('${MASTER_IP}', 5432);\"" postgres
 
 for ip in "${SLAVE_IPS[@]}"; do
-  sudo -i -u postgres psql -d ${PSQL_DBNAME} -c "SELECT * from citus_add_node('${ip}', 5432);"
+  su -c "psql -d ${PSQL_DBNAME} -c \"SELECT * from citus_add_node('${ip}', 5432);\"" postgres
 done
