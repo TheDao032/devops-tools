@@ -1,0 +1,15 @@
+---
+# tasks file for repmgr-primary-register
+- name: Copy repmgr.conf file for repmgr configuration from templates
+  ansible.builtin.template:
+    src: repmgr.conf.j2
+    dest: "{{ psql_repmgr_conf_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+- name: Repmgr primary scripts for master cluster
+  ansible.builtin.shell: |
+    {{ psql_scripts_repmgr_path }}/repmgr-primary.sh {{ psql_repmgr_conf_path }}
+  args:
+    chdir: /var/lib/postgresql
+    executable: /bin/bash

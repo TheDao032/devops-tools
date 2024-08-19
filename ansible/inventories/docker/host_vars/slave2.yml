@@ -2,4 +2,5 @@
 node_id: 3
 node_name: standby2
 node_priority: 80
+psql_port: 5444
 private_ip: 172.20.10.22

@@ -2,4 +2,5 @@
 node_id: 1
 node_name: primary
 node_priority: 100
+psql_port: 5433
 private_ip: 172.20.10.11

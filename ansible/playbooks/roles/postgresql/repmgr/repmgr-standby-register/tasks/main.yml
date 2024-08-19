@@ -1,0 +1,15 @@
+---
+# tasks file for repmgr-standby-register
+- name: Copy repmgr.conf file for repmgr configuration from templates
+  ansible.builtin.template:
+    src: repmgr.conf.j2
+    dest: "{{ psql_repmgr_conf_path }}"
+    owner: root
+    group: root
+    mode: '0644'
+- name: Repmgr primary scripts for master cluster
+  ansible.builtin.shell: |
+    {{ psql_scripts_repmgr_path }}/repmgr-standby.sh {{ psql_version }} {{ hostvars['master1']['private_ip'] }} {{ psql_repmgr_conf_path }} {{ psql_data_directory_path }}
+  args:
+    chdir: /var/lib/postgresql
+    executable: /bin/bash

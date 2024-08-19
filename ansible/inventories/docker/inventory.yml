@@ -7,13 +7,14 @@ all:
     slave1:
       ansible_host: 0.0.0.0
       ansible_port: 2761
-    # slave2:
-    #   ansible_host: 0.0.0.0
-    #   ansible_port: 2762
+    slave2:
+      ansible_host: 0.0.0.0
+      ansible_port: 2762
   vars:
     psql_version: 15
     citus_version: 11.3
     network_cidr_range: 172.20.10.0/24
+    docker_cidr_range: 172.17.0.0/16
 
   children:
     master:
@@ -26,4 +27,8 @@ master:
 slave:
   hosts:
     slave1:
-    # slave2:
+    slave2:
+
+repmgr:
+  hosts:
+    master1:
