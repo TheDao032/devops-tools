@@ -5,9 +5,9 @@ PSQL_VERSION=$1
 PSQL_CITUS_TRIGGER_SQL_PATH=$2
 PSQL_CONFIG_PATH=/etc/postgresql/${PSQL_VERSION}/main/postgresql.conf
 
-# [#listen_addresses]="listen_addresses = '*'"
 declare -A psql_conf=(
- [shared_preload_libraries]="shared_preload_libraries = 'citus,repmgr'"
+  [#listen_addresses]="listen_addresses = '*'"
+  [#shared_preload_libraries]="shared_preload_libraries = 'citus'"
 )
 
 for key in "${!psql_conf[@]}"; do

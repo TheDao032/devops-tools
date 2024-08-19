@@ -1,7 +1,7 @@
 # Use a base image with the desired OS (e.g., Ubuntu, Debian, etc.)
 FROM ubuntu:22.04
 
-ARG AUTHORIZED_KEY
+# ARG AUTHORIZED_KEY
 ARG VAGRANT_PASS
 
 # Create an SSH user
@@ -15,7 +15,7 @@ RUN mkdir -p /home/vagrant/.ssh && \
     chmod 700 /home/vagrant/.ssh && \
     touch /home/vagrant/.ssh/authorized_keys && \
     chmod 600 /home/vagrant/.ssh/authorized_keys && \
-    echo ${AUTHORIZED_KEY} > /home/vagrant/.ssh/authorized_keys && \
+    # echo ${AUTHORIZED_KEY} > /home/vagrant/.ssh/authorized_keys && \
     chown -R vagrant /home/vagrant/.ssh
 
 # Configure SSH
