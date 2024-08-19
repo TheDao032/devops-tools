@@ -13,7 +13,7 @@ all:
   vars:
     psql_version: 15
     citus_version: 11.3
-    network_cidr_range: 172.17.10.0/24
+    network_cidr_range: 172.20.10.0/24
 
   children:
     master:
