@@ -16,4 +16,3 @@
       args:
         chdir: /var/lib/postgresql
         executable: /bin/bash
-      when: "'master' in ansible_hostname"

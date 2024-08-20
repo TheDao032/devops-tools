@@ -6,5 +6,4 @@ psql_packages:
   - postgresql-{{ psql_version }}-citus-{{ citus_version }}
 citus_scripts:
   - citus-conf.sh
-  - citus-connect.sh
   - create-distribute-table-func.sql
