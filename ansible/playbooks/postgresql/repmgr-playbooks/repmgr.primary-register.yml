@@ -1,0 +1,10 @@
+---
+- name: repmgr-primary-register
+  hosts: master
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../roles/postgresql/repmgr/repmgr-primary-register

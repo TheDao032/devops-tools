@@ -5,13 +5,6 @@
     name: "{{ item }}"
     state: present
   with_items: "{{ common_packages }}"
-- name: Copy repmgr.conf file for repmgr configuration from templates
-  ansible.builtin.template:
-    src: repmgr.conf.j2
-    dest: "{{ psql_repmgr_conf_path }}"
-    owner: root
-    group: root
-    mode: '0644'
 - name: Copy repmgr scripts to the remote host
   ansible.builtin.copy:
     src: "{{ item }}"
@@ -26,7 +19,7 @@
       vars:
         repmgr_sql_file: setup-repmgr.sql
       ansible.builtin.shell: |
-        {{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }} {{ psql_scripts_repmgr_path }}/{{ repmgr_sql_file }}
+        {{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }}  {{ psql_bindir_path }} {{ psql_scripts_repmgr_path }}/{{ repmgr_sql_file }}
       args:
         chdir: /var/lib/postgresql
         executable: /bin/bash

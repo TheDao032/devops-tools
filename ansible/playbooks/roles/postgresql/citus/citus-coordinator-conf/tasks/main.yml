@@ -1,0 +1,19 @@
+---
+# tasks file for citus-coordinator-conf
+- name: Configure Citus
+  block:
+    - name: Copy citus scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ psql_scripts_citus_path }}"
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+      with_items: "{{ citus_scripts }}"
+    - name: Citus setup connect script for master
+      ansible.builtin.shell:
+        cmd: "bash -c '{{ psql_scripts_citus_path }}/citus-connect.sh {{ private_ip }} {{ citus_dbname }} {{ slave_ips | join(' ') }}'"
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
+      when: "'master' in ansible_hostname"

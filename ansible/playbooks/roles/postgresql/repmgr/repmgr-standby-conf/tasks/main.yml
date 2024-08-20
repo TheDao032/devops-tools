@@ -1,12 +1,5 @@
 ---
 # tasks file for repmgr-standby-conf
-- name: Copy repmgr.conf file for repmgr configuration from templates
-  ansible.builtin.template:
-    src: repmgr.conf.j2
-    dest: "{{ psql_repmgr_conf_path }}"
-    owner: root
-    group: root
-    mode: '0644'
 - name: Copy repmgr scripts to the remote host
   ansible.builtin.copy:
     src: "{{ item }}"
@@ -15,13 +8,34 @@
     group: root
     mode: '0755'
   with_items: "{{ repmgr_scripts }}"
+
+# - name: Config PostgreSQL
+#   block:
+#     - name: Copy pg_hba.conf file for psql configuration from templates
+#       ansible.builtin.template:
+#         src: pg_hba.conf.j2
+#         dest: "{{ psql_conf_folder_path }}/pg_hba.conf"
+#         mode: '0755'
+#     - name: Set correct permissions on pg_hba.conf
+#       ansible.builtin.file:
+#         path: "{{ psql_conf_folder_path }}/pg_hba.conf"
+#         owner: postgres
+#         mode: '0755'
+#       become: yes
+#     - name: Systemd restart PostgreSQL
+#       become: yes
+#       ansible.builtin.systemd_service:
+#         name: postgresql
+#         state: restarted
+#         enabled: true
+
 - name: Execute repmgr scripts for master
   block:
     - name: Repmgr common scripts for standby cluster
       vars:
         repmgr_sql_file: setup-repmgr.sql
       ansible.builtin.shell: |
-        {{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }} {{ psql_scripts_repmgr_path }}/{{ repmgr_sql_file }}
+        {{ psql_scripts_repmgr_path }}/repmgr-common.sh {{ psql_version }} {{ psql_bindir_path }} {{ psql_scripts_repmgr_path }}/{{ repmgr_sql_file }}
       args:
         chdir: /var/lib/postgresql
         executable: /bin/bash

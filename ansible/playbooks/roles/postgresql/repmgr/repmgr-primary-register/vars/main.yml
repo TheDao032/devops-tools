@@ -1,2 +1,11 @@
 ---
 # vars file for repmgr-primary-register
+psql_data_directory_path: "/var/lib/postgresql/{{ psql_version }}/main"
+psql_repmgr_conf_path: "/etc/postgresql/{{ psql_version }}/main/repmgr.conf"
+psql_bindir_path: "/usr/lib/postgresql/{{ psql_version }}/bin"
+psql_scripts_repmgr_path: "/usr/bin"
+repmgr_scripts:
+  - repmgr-primary.sh
+psql_conf_path:
+  - /etc/postgresql/{{ psql_version }}/main/postgresql.conf
+  - /etc/postgresql/{{ psql_version }}/main/pg_hba.conf

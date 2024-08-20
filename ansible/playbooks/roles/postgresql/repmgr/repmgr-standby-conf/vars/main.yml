@@ -10,3 +10,4 @@ repmgr_scripts:
 psql_conf_path:
   - /etc/postgresql/{{ psql_version }}/main/postgresql.conf
   - /etc/postgresql/{{ psql_version }}/main/pg_hba.conf
+psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"

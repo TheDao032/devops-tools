@@ -134,8 +134,8 @@ Vagrant.configure("2") do |config|
         docker.has_ssh = false
         docker.privileged = true
         docker.volumes = [
-          # "/mnt/data",
-          # "psql_config:/mnt/data"
+          "/etc/postgresql/15/main/",
+          "/var/lib/postgresql/15/main/"
         ]
         # docker.volumes << "vagrant:/etc/postgresql/15/main/"
         # (1..NUM_SLAVE_CLUSTERS).each do |j|
@@ -147,7 +147,7 @@ Vagrant.configure("2") do |config|
       node.vm.hostname = "master-docker-#{i}"
       node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{MASTER_IP_START + i}", name: DOCKER_NETWORK_NAME
       node.vm.network :forwarded_port, guest: 22, host: "#{2750 + i}"
-      node.vm.network :forwarded_port, guest: 5432, host: "#{5432 + i}"
+      node.vm.network :forwarded_port, guest: 5432, host: "#{5442 + i}"
       # provision_kubernetes_node node
 
       # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
@@ -168,7 +168,8 @@ Vagrant.configure("2") do |config|
         docker.has_ssh = false
         docker.privileged = true
         docker.volumes = [
-          # "/mnt/data",
+          "/etc/postgresql/15/main/",
+          "/var/lib/postgresql/15/main/"
         ]
         # (1..NUM_SLAVE_CLUSTERS).each do |j|
         #   if j != i
@@ -183,7 +184,7 @@ Vagrant.configure("2") do |config|
       node.vm.hostname = "slave-docker-#{i}"
       node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{SLAVE_IP_START + i}", name: DOCKER_NETWORK_NAME
       node.vm.network :forwarded_port, guest: 22, host: "#{2760 + i}"
-      node.vm.network :forwarded_port, guest: 5432, host: "#{5442 + i}"
+      node.vm.network :forwarded_port, guest: 5432, host: "#{5452 + i}"
       # provision_kubernetes_node node
 
       node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"

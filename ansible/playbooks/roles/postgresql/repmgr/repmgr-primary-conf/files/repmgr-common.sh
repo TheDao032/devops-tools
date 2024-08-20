@@ -2,7 +2,7 @@
 
 set -e
 PSQL_VERSION=$1
-PSQL_PORT=$2
+PSQL_BINDIR_PATH=$2
 PSQL_REPMGR_SQL_PATH=$3
 PSQL_CONFIG_PATH=/etc/postgresql/${PSQL_VERSION}/main/postgresql.conf
 
@@ -16,6 +16,7 @@ declare -A psql_conf=(
  [#wal_level]='wal_level = hot_standby'
  [#log_statement]="log_statement = 'all'"
  [#archive_command]="archive_command = '/bin/true'"
+ [#max_prepared_transactions]='max_prepared_transactions = 200'
  [shared_preload_libraries]="shared_preload_libraries = 'citus,repmgr'"
 )
 
@@ -25,6 +26,7 @@ for key in "${!psql_conf[@]}"; do
   sed -i "/${key}/c\\${value}" ${PSQL_CONFIG_PATH}
 done
 
-su -c "psql -p ${PSQL_PORT} -f ${PSQL_REPMGR_SQL_PATH}" postgres
+# systemctl restart postgresql
+su -c "${PSQL_BINDIR_PATH}/psql -f ${PSQL_REPMGR_SQL_PATH}" postgres
 
 exit 0

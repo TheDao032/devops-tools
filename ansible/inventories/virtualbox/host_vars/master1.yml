@@ -3,3 +3,4 @@ node_id: 1
 node_name: primary
 node_priority: 100
 private_ip: "{{ ansible_host }}"
+psql_port: 5453
