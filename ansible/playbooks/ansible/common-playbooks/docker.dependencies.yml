@@ -1,5 +1,5 @@
 ---
-- name: repmgr-setup
+- name: dependencies-setup
   hosts: all
   become: true
   become_user: root
@@ -7,4 +7,4 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    - role: ../../roles/postgresql/citus/citus-configuration
+    - role: roles/docker/dependencies

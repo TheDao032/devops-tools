@@ -95,8 +95,9 @@ local   all             postgres                                  peer
 local   all             all                                       peer
 # IPv4 local connections:
 host    all             all             127.0.0.1/32              trust
-host    all             all             {{ network_cidr_range }}  trust
-host    all             all             {{ docker_cidr_range }}   trust
+host    all             all             {{ server_cidr_range }}          trust
+host    all             all             {{ docker_network_cidr_range }}  trust
+host    all             all             {{ docker_default_cidr_range }}  trust
 # IPv6 local connections:
 host    all             all             ::1/128                   trust
 # Allow replication connections from localhost, by a user with the
@@ -104,11 +105,13 @@ host    all             all             ::1/128                   trust
 local   replication     all                                       peer
 host    replication     all             127.0.0.1/32              scram-sha-256
 host    replication     all             ::1/128                   scram-sha-256
-host    replication     repmgr          {{ network_cidr_range }}  trust
-host    replication     repmgr          {{ docker_cidr_range }}   trust
+host    replication     repmgr          {{ server_cidr_range }}           trust
+host    replication     repmgr          {{ docker_network_cidr_range }}   trust
+host    replication     repmgr          {{ docker_default_cidr_range }}   trust
 
 # repmgr
 local   repmgr          repmgr                                     trust
 host    repmgr          repmgr          127.0.0.1/32               trust
-host    repmgr          repmgr          {{ network_cidr_range }}   trust
-host    repmgr          repmgr          {{ docker_cidr_range }}    trust
+host    repmgr          repmgr          {{ server_cidr_range }}            trust
+host    repmgr          repmgr          {{ docker_network_cidr_range }}    trust
+host    repmgr          repmgr          {{ docker_default_cidr_range }}    trust
