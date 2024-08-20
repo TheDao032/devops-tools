@@ -1,10 +1,7 @@
 ---
 # tasks file for dependencies
-- name: Install PostgreSQL
+- name: Install PostgreSQL Debian OS
   block:
-    # - name: Upddate apt packages
-    #   ansible.builtin.apt:
-    #     update_cache: yes
     - name: Install required packages
       ansible.builtin.apt:
         name: "{{ item }}"
@@ -27,7 +24,35 @@
       ansible.builtin.apt:
         name: "{{ item }}"
         state: present
-      with_items: "{{ psql_packages }}"
+      with_items: "{{ debian_psql_packages }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install PostgreSQL RedHat OS
+  block:
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ common_packages }}"
+    - name: Prepare PostgreSQL packages
+      ansible.builtin.shell: |
+        # PostgreSQL
+        # Install the repository RPM:
+        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+        # Disable the built-in PostgreSQL module:
+        dnf -qy module disable postgresql
+      args:
+        executable: /bin/bash
+    - name: Upddate apt packages
+      ansible.builtin.dnf:
+        update_cache: yes
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ redhat_psql_packages }}"
+  when: ansible_facts['os_family'] == "RedHat"
 
 - name: Config PostgreSQL
   block:
@@ -35,8 +60,6 @@
       ansible.builtin.template:
         src: pg_hba.conf.j2
         dest: "{{ psql_conf_folder_path }}/pg_hba.conf"
-        # owner: postgres
-        # group: postgres
         mode: '0755'
     - name: Set correct permissions on pg_hba.conf
       ansible.builtin.file:
