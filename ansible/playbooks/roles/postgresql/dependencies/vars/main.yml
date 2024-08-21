@@ -3,7 +3,9 @@
 common_packages:
   - curl
   - ca-certificates
-psql_packages:
+debian_psql_packages:
   - postgresql-{{ psql_version }}
   - postgresql-contrib
+redhat_psql_packages:
+  - postgresql{{ psql_version }}-server
 psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"
