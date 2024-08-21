@@ -9,3 +9,8 @@ repmgr_scripts:
 psql_conf_path:
   - /etc/postgresql/{{ psql_version }}/main/postgresql.conf
   - /etc/postgresql/{{ psql_version }}/main/pg_hba.conf
+
+psql_primary_list:
+  - { psql_repmgr_conf_path: "/etc/postgresql/{{ psql_version }}/main/repmgr-5443.conf", psql_port: 5443}
+  - { psql_repmgr_conf_path: "/etc/postgresql/{{ psql_version }}/main/repmgr-5453.conf", psql_port: 5453}
+  - { psql_repmgr_conf_path: "/etc/postgresql/{{ psql_version }}/main/repmgr-5454.conf", psql_port: 5454}

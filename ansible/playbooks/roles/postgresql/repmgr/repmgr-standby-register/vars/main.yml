@@ -1,5 +1,6 @@
 ---
 # vars file for repmgr-standby-register
+server_psql_ipaddress:
 psql_data_directory_path: "/var/lib/postgresql/{{ psql_version }}/main"
 psql_repmgr_conf_path: "/etc/postgresql/{{ psql_version }}/main/repmgr.conf"
 psql_bindir_path: "/usr/lib/postgresql/{{ psql_version }}/bin"
@@ -9,3 +10,8 @@ repmgr_scripts:
 psql_conf_path:
   - /etc/postgresql/{{ psql_version }}/main/postgresql.conf
   - /etc/postgresql/{{ psql_version }}/main/pg_hba.conf
+
+psql_repmgr_list:
+  - { coordinator_psql_port: 5443, worker_psql_port: 5443 }
+  - { coordinator_psql_port: 5453, worker_psql_port: 5453 }
+  - { coordinator_psql_port: 5454, worker_psql_port: 5454 }

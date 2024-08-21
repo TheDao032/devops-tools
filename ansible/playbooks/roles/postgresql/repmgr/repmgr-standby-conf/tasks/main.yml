@@ -8,27 +8,6 @@
     group: root
     mode: '0755'
   with_items: "{{ repmgr_scripts }}"
-
-# - name: Config PostgreSQL
-#   block:
-#     - name: Copy pg_hba.conf file for psql configuration from templates
-#       ansible.builtin.template:
-#         src: pg_hba.conf.j2
-#         dest: "{{ psql_conf_folder_path }}/pg_hba.conf"
-#         mode: '0755'
-#     - name: Set correct permissions on pg_hba.conf
-#       ansible.builtin.file:
-#         path: "{{ psql_conf_folder_path }}/pg_hba.conf"
-#         owner: postgres
-#         mode: '0755'
-#       become: yes
-#     - name: Systemd restart PostgreSQL
-#       become: yes
-#       ansible.builtin.systemd_service:
-#         name: postgresql
-#         state: restarted
-#         enabled: true
-
 - name: Execute repmgr scripts for master
   block:
     - name: Repmgr common scripts for standby cluster

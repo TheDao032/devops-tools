@@ -1,23 +1,20 @@
 ---
 # tasks file for repmgr-standby-register
-- name: Copy repmgr.conf file for repmgr configuration from templates
-  ansible.builtin.template:
-    src: repmgr.conf.j2
-    dest: "{{ psql_repmgr_conf_path }}"
-    owner: root
-    group: root
-    mode: '0644'
-- name: Copy repmgr scripts to the remote host
-  ansible.builtin.copy:
-    src: "{{ item }}"
-    dest: "{{ psql_scripts_repmgr_path }}"
-    owner: root
-    group: root
-    mode: '0755'
-  with_items: "{{ repmgr_scripts }}"
-- name: Repmgr primary scripts for standby cluster
-  ansible.builtin.shell: |
-    {{ psql_scripts_repmgr_path }}/repmgr-standby.sh {{ psql_version }} {{ hostvars['master1']['private_ip'] }} {{ psql_repmgr_conf_path }} {{ psql_data_directory_path }} {{ master_psql_port }}
-  args:
-    chdir: /var/lib/postgresql
-    executable: /bin/bash
+- name: Register replication
+  block:
+    - name: Copy repmgr.conf file for repmgr configuration from templates
+      vars:
+        worker_psql_port: "{{ item.worker_psql_port }}"
+      ansible.builtin.template:
+        src: repmgr.conf.j2
+        dest: "{{ psql_repmgr_conf_path }}"
+        owner: root
+        group: root
+        mode: '0644'
+    - name: Repmgr primary scripts for standby cluster
+      ansible.builtin.shell: |
+        {{ psql_scripts_repmgr_path }}/repmgr-standby.sh {{ psql_version }} {{ server_ip }} {{ psql_repmgr_conf_path }} {{ psql_data_directory_path }} {{ item.coordinator_psql_port }}
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
+  with_items: "{{ psql_repmgr_list }}"

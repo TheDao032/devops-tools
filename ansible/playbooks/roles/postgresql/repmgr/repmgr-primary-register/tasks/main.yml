@@ -1,12 +1,17 @@
 ---
 # tasks file for repmgr-primary-register
+# - name: register repmgr for list primary
+#   block:
 - name: Copy repmgr.conf file for repmgr configuration from templates
+  vars:
+    psql_port: "{{ item.psql_port }}"
   ansible.builtin.template:
     src: repmgr.conf.j2
-    dest: "{{ psql_repmgr_conf_path }}"
+    dest: "{{ item.psql_repmgr_conf_path }}"
     owner: root
     group: root
     mode: '0644'
+  with_items: "{{ psql_primary_list }}"
 - name: Copy repmgr scripts to the remote host
   ansible.builtin.copy:
     src: "{{ item }}"
@@ -17,7 +22,8 @@
   with_items: "{{ repmgr_scripts }}"
 - name: Repmgr primary scripts for master cluster
   ansible.builtin.shell: |
-    {{ psql_scripts_repmgr_path }}/repmgr-primary.sh {{ psql_repmgr_conf_path }}
+    {{ psql_scripts_repmgr_path }}/repmgr-primary.sh {{ item.psql_repmgr_conf_path }}
   args:
     chdir: /var/lib/postgresql
     executable: /bin/bash
+  with_items: "{{ psql_primary_list }}"

@@ -33,5 +33,5 @@ slave:
 repmgr:
   hosts:
     master1:
-    # slave1:
-    # slave2:
+    slave1:
+    slave2:
