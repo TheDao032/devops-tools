@@ -1,0 +1,16 @@
+---
+# tasks file for primary-register
+- name: Copy repmgr scripts to the remote host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ psql_scripts_repmgr_path }}"
+    owner: root
+    group: root
+    mode: '0755'
+  with_items: "{{ repmgr_scripts }}"
+- name: Repmgr primary scripts for coordinator cluster
+  ansible.builtin.shell: |
+    {{ psql_scripts_repmgr_path }}/repmgr-primary.sh {{ psql_repmgr_conf_path }}
+  args:
+    chdir: /var/lib/postgresql
+    executable: /bin/bash

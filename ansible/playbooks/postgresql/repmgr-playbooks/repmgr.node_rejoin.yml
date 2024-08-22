@@ -1,9 +1,0 @@
----
-- name: repmgr-setup
-  hosts: all
-  become: true
-  tasks:
-    - name: Ping all nodes
-      ansible.builtin.ping:
-  roles:
-    # - role: postgresql/repmgr-node-rejoin
