@@ -1,5 +1,0 @@
----
-# vars file for repmgr-common
-common_packages:
-  # - postgresql-{{ psql_version }}
-  - postgresql-{{ psql_version }}-repmgr

@@ -1,0 +1,26 @@
+---
+all:
+  hosts:
+    coordinator1:
+      ansible_host: 192.168.10.11
+    worker1:
+      ansible_host: 192.168.10.21
+  vars:
+    psql_version: 15
+    citus_version: 11.3
+    server_ip: 172.29.139.102
+    server_cidr_range: 172.29.139.0/24
+    docker_network_cidr_range: 172.20.10.0/24
+    docker_default_cidr_range: 172.17.0.0/16
+
+  children:
+    coordinator:
+    worker:
+
+coordinator:
+  hosts:
+    coordinator1:
+
+worker:
+  hosts:
+    worker1:

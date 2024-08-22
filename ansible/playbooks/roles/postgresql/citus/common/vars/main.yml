@@ -1,0 +1,9 @@
+---
+# vars file for common
+psql_scripts_citus_path: "/usr/bin"
+citus_dbname: citusdb
+psql_packages:
+  - postgresql-{{ psql_version }}-citus-{{ citus_version }}
+citus_scripts:
+  - citus-conf.sh
+  - create-distribute-table-func.sql

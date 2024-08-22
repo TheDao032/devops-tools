@@ -1,6 +1,0 @@
----
-node_id: 2
-node_name: standby1
-node_priority: 90
-psql_port: 5453
-private_ip: 172.20.10.21

@@ -1,0 +1,12 @@
+node_id={{ node_id }}
+node_name={{ node_name }}
+priority={{ node_priority }}
+conninfo='host={{ replica_server_ip }} port={{ worker_psql_port }} user=repmgr dbname=repmgr connect_timeout=2'
+data_directory='{{ psql_data_directory_path }}'
+failover=automatic
+promote_command='{{ psql_bindir_path }}/repmgr standby promote -f {{ psql_repmgr_conf_path }} --log-to-file && {{ psql_bindir_path }}/repmgr -f {{ psql_repmgr_conf_path }} node service --action=restart --checkpoint'
+follow_command='{{ psql_bindir_path }}/repmgr standby follow -f {{ psql_repmgr_conf_path }} --log-to-file upstream-node-id=%n'
+pg_bindir='{{ psql_bindir_path }}/'
+log_file='/var/lib/postgresql/{{ psql_version }}/repmgr.log'
+use_replication_slots=1
+upstream_node_id={{ upstream_node_id }}

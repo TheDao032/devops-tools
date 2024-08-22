@@ -1,0 +1,18 @@
+---
+# tasks file for coordinator-conn-worker
+- name: Configure Citus Coordinator Connect To Worker
+  block:
+    - name: Copy citus scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ psql_scripts_citus_path }}"
+        owner: vagrant
+        group: vagrant
+        mode: '0755'
+      with_items: "{{ citus_scripts }}"
+    - name: Citus setup connect script for coordinator
+      ansible.builtin.shell:
+        cmd: "bash -c '{{ psql_scripts_citus_path }}/citus-connect.sh {{ private_ip }} {{ citus_dbname }} {{ worker_ips | join(' ') }}'"
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
