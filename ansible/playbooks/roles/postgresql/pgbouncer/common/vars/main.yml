@@ -6,6 +6,6 @@ pgbouncer_scripts_path: /usr/bin
 pgbouncer_scripts:
   - pgbouner-ini-conf.sh
 auth_user: "postgres"
-db_host: "{{ hostvars['coordinator1']['private_ip'] }}"
 db_name: "postgres"
-db_port: "{{ docker_psql_port }}"
+db_host: "{{ psql_coordinator_ip }}"
+db_port: "{{ psql_coordinator_port }}"

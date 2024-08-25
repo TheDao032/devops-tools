@@ -22,6 +22,12 @@ all:
     coordinator:
     worker:
 
+connection-pool:
+  hosts:
+    conn-pool:
+      ansible_host: 0.0.0.0
+      ansible_port: 2771
+
 coordinator:
   hosts:
     coordinator1:

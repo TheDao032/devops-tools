@@ -154,6 +154,7 @@ Vagrant.configure("2") do |config|
     node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{MASTER_IP_START + 1}", name: DOCKER_NETWORK_NAME
     node.vm.network :forwarded_port, guest: 22, host: 2751
     node.vm.network :forwarded_port, guest: 5432, host: 5443
+    # node.vm.network :forwarded_port, guest: 6432, host: 6432
     # provision_kubernetes_node node
 
     # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
@@ -191,6 +192,7 @@ Vagrant.configure("2") do |config|
       node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{SLAVE_IP_START + i}", name: DOCKER_NETWORK_NAME
       node.vm.network :forwarded_port, guest: 22, host: "#{2760 + i}"
       node.vm.network :forwarded_port, guest: 5432, host: "#{5452 + i}"
+      # node.vm.network :forwarded_port, guest: 6432, host: 6432
       # provision_kubernetes_node node
 
       node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"

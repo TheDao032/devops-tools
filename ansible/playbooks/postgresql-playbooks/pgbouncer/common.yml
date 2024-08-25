@@ -1,6 +1,6 @@
 ---
 - name: pgbouncer-commmon-conf
-  hosts: coordinator
+  hosts: connection-pool
   become: true
   become_user: root
   tasks:
