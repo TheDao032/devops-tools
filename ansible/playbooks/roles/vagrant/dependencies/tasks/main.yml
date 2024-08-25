@@ -1,2 +1,25 @@
 ---
 # tasks file for dependencies
+- name: Install Vagrant Package Debian OS
+  block:
+    - name: Update cache
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install Debian Packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian_packages }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Vagrant Package RedHat OS
+  block:
+    - name: Update cache
+      ansible.builtin.dnf:
+        update_cache: yes
+    - name: Install RHEL Packages
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ rhel_packages }}"
+  when: ansible_facts['os_family'] == "RedHat"

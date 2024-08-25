@@ -12,5 +12,5 @@ then
     chown vagrant:vagrant /home/vagrant/.ssh
 fi
 
-sh -c 'sudo apt-get update' &> /dev/null
-sh -c 'sudo apt-get install -y sshpass' &> /dev/null
+sh -c 'sudo yum update -y' &> /dev/null
+sh -c  'sudo yum install sshpass -y &> /dev/null'

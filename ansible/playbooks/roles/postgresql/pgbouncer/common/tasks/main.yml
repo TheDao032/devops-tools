@@ -1,0 +1,34 @@
+---
+# tasks file for common
+- name: Install required packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  with_items: "{{ common_packages }}"
+
+- name: Configure Pgbouncer
+  block:
+    - name: Copy pgbouncer scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ pgbouncer_scripts_path }}"
+        mode: '0755'
+      with_items: "{{ pgbouncer_scripts }}"
+    - name: Set correct permissions on pgbouner-ini-conf.sh
+      ansible.builtin.file:
+        path: "{{ pgbouncer_scripts_path }}/pgbouner-ini-conf.sh"
+        owner: postgres
+        mode: '0755'
+      become: yes
+    - name: Pgbouncer config script for both coordinator and worker
+      ansible.builtin.shell:
+        cmd: "bash -c '{{ pgbouncer_scripts_path }}/pgbouner-ini-conf.sh {{ auth_user }} {{ db_host }} {{ db_name }} {{ db_port }}'"
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash
+    - name: Systemd restart PostgreSQL
+      become: yes
+      ansible.builtin.systemd_service:
+        name: pgbouncer
+        state: restarted
+        enabled: true

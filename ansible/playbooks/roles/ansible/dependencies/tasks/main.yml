@@ -1,2 +1,35 @@
 ---
 # tasks file for dependencies
+- name: Install Ansible Package Debian OS
+  block:
+    - name: Update cache
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install Ansible Package Debian OS
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian_packages }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Ansible Package RedHat OS
+  block:
+    - name: Update cache
+      ansible.builtin.dnf:
+        update_cache: yes
+    - name: Install Ansible Package RedHat OS
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ rhel_packages }}"
+  when: ansible_facts['os_family'] == "RedHat"
+
+- name: Prepare pip cli for Python
+  become_user: vagrant
+  ansible.builtin.shell: |
+    sudo curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+    python3 get-pip.py
+
+    python3 -m pip install ansible
+  args:
+    executable: /bin/bash
