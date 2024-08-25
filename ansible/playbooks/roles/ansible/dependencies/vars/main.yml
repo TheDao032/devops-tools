@@ -1,2 +1,7 @@
 ---
 # vars file for dependencies
+debian_packages:
+  - python3
+
+rhel_packages:
+  - python3

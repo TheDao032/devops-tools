@@ -1,6 +1,27 @@
 # -*- mode: ruby -*-
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
+# require 'getoptlong'
+#
+# opts = GetoptLong.new(
+#   [ '--rhel-username', GetoptLong::OPTIONAL_ARGUMENT ],
+#   [ '--rhel-password', GetoptLong::OPTIONAL_ARGUMENT ]
+# )
+#
+rhelUsername = ENV['RHEL_USERNAME']
+rhelPassword = ENV['RHEL_PASSWORD']
+#
+# opts.each do |opt, arg|
+#   case opt
+#     when '--rhel-username'
+#       rhelUsername=arg
+#     when '--rhel-password'
+#       rhelPassword=arg
+#   end
+# end
+
+# RHEL Env Vars
+
 # Vagrant provider
 PROVIDER = "virtualbox"
 
@@ -127,13 +148,24 @@ def setup_dns(node)
 end
 
 # Runs provisioning steps that are required by masters and slaves
-def provision_kubernetes_node(node)
+def provision_ubuntu_vm(node)
   # Set up DNS
   setup_dns node
   # Set up kernel parameters, modules and tunables
   # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
   # Set up ssh
   node.vm.provision "setup-ssh", :type => "shell", :path => "ubuntu/ssh.sh"
+  # Set up guest additions
+  # node.vm.provision "setup-guest-additions", :type => "shell", :path => "ubuntu/vagrant/install-guest-additions.sh"
+end
+
+def provision_rhel_vm(node)
+  # Set up DNS
+  setup_dns node
+  # Set up kernel parameters, modules and tunables
+  # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
+  # Set up ssh
+  node.vm.provision "setup-ssh", :type => "shell", :path => "rhel/ssh.sh"
   # Set up guest additions
   # node.vm.provision "setup-guest-additions", :type => "shell", :path => "ubuntu/vagrant/install-guest-additions.sh"
 end
@@ -151,7 +183,6 @@ Vagrant.configure("2") do |config|
   # boxes at https://vagrantcloud.com/search.
   # config.vm.box = "base"
 
-  config.vm.box = "ubuntu/jammy64"
   config.vm.boot_timeout = 900
 
   # Disable automatic box update checking. If you disable this, then
@@ -164,6 +195,7 @@ Vagrant.configure("2") do |config|
   (1..NUM_MASTER_CLUSTERS).each do |i|
     config.vm.define "master#{i}" do |node|
       # Name shown in the GUI
+      node.vm.box = "ubuntu/jammy64"
       node.vm.provider "virtualbox" do |vb|
         vb.name = "master#{i}"
         vb.memory = RESOURCES["master"][i > 2 ? 2 : i]["ram"]
@@ -188,7 +220,7 @@ Vagrant.configure("2") do |config|
         node.vm.network :private_network, ip: IP_NW + ".#{MASTER_IP_START + i}"
         node.vm.network "forwarded_port", guest: 22, host: "#{2730 + i}"
       end
-      provision_kubernetes_node node
+      provision_ubuntu_vm node
       # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
       if i == 1
         node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
@@ -197,26 +229,23 @@ Vagrant.configure("2") do |config|
     end
   end
 
-  config.vm.box = "alvistack/rhel-9"
-
   # Provision Slave Clusters
   (1..NUM_SLAVE_CLUSTERS).each do |i|
     config.vm.define "slave#{i}" do |node|
+      node.vm.box = "alvistack/rhel-9"
       node.vm.provider "virtualbox" do |vb|
         vb.name = "slave#{i}"
         vb.memory = RESOURCES["slave"]["ram"]
         vb.cpus = RESOURCES["slave"]["cpu"]
-        vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
+        # vb.customize ["storagectl", :id, "--name", "IDE Controller", "--add", "ide"]
+        # vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
+        # vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
+        vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
       end
 
-      # config.vm.provision "shell", inline: <<-SHELL
-      #   if ! mount | grep -q "/mnt"; then
-      #     sudo mkdir -p /mnt
-      #     sudo mount /dev/cdrom /mnt
-      #     sudo apt install bzip2 -y
-      #     sudo sh /mnt/VBoxLinuxAdditions.run || true
-      #   fi
-      # SHELL
+      config.vm.provision "shell", inline: <<-SHELL
+        sudo subscription-manager register --username #{rhelUsername} --password #{rhelPassword}
+      SHELL
 
       node.vm.hostname = "slave#{i}"
       if BUILD_MODE == "BRIDGE"
@@ -225,7 +254,12 @@ Vagrant.configure("2") do |config|
         node.vm.network :private_network, ip: IP_NW + ".#{SLAVE_IP_START + i}"
         node.vm.network "forwarded_port", guest: 22, host: "#{2740 + i}"
       end
-      provision_kubernetes_node node
+
+      # node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/#{PROVIDER}/setup-hosts.sh" do |s|
+      #   s.args = [IP_NW, BUILD_MODE, NUM_MASTER_CLUSTERS, NUM_SLAVE_CLUSTERS, MASTER_IP_START, SLAVE_IP_START]
+      # end
+      # node.vm.provision "setup-ssh", :type => "shell", :path => "ubuntu/ssh.sh"
+      provision_rhel_vm node
     end
   end
 

@@ -1,2 +1,7 @@
 ---
 # vars file for dependencies
+debian_packages:
+  - vagrant
+
+rhel_packages:
+  - vagrant

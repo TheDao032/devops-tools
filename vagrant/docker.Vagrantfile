@@ -4,17 +4,19 @@
 # Docker image
 VAGRANT_PROVIDER = "docker"
 DOCKER_IMG = "nthedao/ubuntu:latest"
+# POOL_DOCKER_IMG = "edoburu/pgbouncer:latest"
 DOCKER_NETWORK_NAME = "vagrant"
 DOCKER_NETWORK_SUBNET = "172.20.10.0/24"
 DOCKER_NETWORK = "172.20.10"
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
-NUM_MASTER_CLUSTERS = 1
+# NUM_MASTER_CLUSTERS = 1
 NUM_SLAVE_CLUSTERS = 2
 
 MASTER_IP_START = 10
 SLAVE_IP_START = 20
+POOL_IP_START = 30
 
 # Host operating sysem detection
 module OS
@@ -64,12 +66,16 @@ end
 
 # Helper method to determine whether all clusters are up
 def all_clusters_up()
-  (1..NUM_MASTER_CLUSTERS).each do |i|
-    if get_machine_id("master-docker-#{i}").nil?
-      return false
-    end
+  # (1..NUM_MASTER_CLUSTERS).each do |i|
+  if get_machine_id("coordinator").nil?
+    return false
   end
+  # end
 
+  if get_machine_id("connection-pool").nil?
+    return false
+  end
+#
   (1..NUM_SLAVE_CLUSTERS).each do |i|
     if get_machine_id("slave-docker-#{i}").nil?
       return false
@@ -79,26 +85,26 @@ def all_clusters_up()
 end
 
 # Sets up hosts file and DNS
-def setup_dns(node)
-  # Set up /etc/hosts
-  node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/#{VAGRANT_PROVIDER}/setup-hosts.sh" do |s|
-    s.args = [DOCKER_NETWORK_SUBNET, NUM_MASTER_CLUSTERS, NUM_SLAVE_CLUSTERS]
-  end
-  # Set up DNS resolution
-  node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
-end
+# def setup_dns(node)
+#   # Set up /etc/hosts
+#   node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/#{VAGRANT_PROVIDER}/setup-hosts.sh" do |s|
+#     s.args = [DOCKER_NETWORK_SUBNET, NUM_SLAVE_CLUSTERS]
+#   end
+#   # Set up DNS resolution
+#   node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
+# end
 
 # Runs provisioning steps that are required by masters and slaves
-def provision_kubernetes_node(node)
-  # Set up DNS
-  setup_dns node
-  # Set up kernel parameters, modules and tunables
-  # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
-  # Set up ssh
-  node.vm.provision "setup-ssh", :type => "shell", :path => "ubuntu/ssh.sh"
-  # Set up guest additions
-  # node.vm.provision "setup-guest-additions", :type => "shell", :path => "ubuntu/vagrant/install-guest-additions.sh"
-end
+# def provision_kubernetes_node(node)
+#   # Set up DNS
+#   setup_dns node
+#   # Set up kernel parameters, modules and tunables
+#   # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
+#   # Set up ssh
+#   node.vm.provision "setup-ssh", :type => "shell", :path => "ubuntu/ssh.sh"
+#   # Set up guest additions
+#   # node.vm.provision "setup-guest-additions", :type => "shell", :path => "ubuntu/vagrant/install-guest-additions.sh"
+# end
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
@@ -123,45 +129,45 @@ Vagrant.configure("2") do |config|
   config.vbguest.auto_update = true
 
   # Provision Master Clusters
-  (1..NUM_MASTER_CLUSTERS).each do |i|
-    config.vm.define "master-docker-#{i}" do |node|
-      # Name shown in the GUI
-      config.vm.provider "docker" do |docker|
-        # docker.name = "master-docker-#{i}"
-        docker.image = DOCKER_IMG
-        # docker.build_dir = "."
-        docker.remains_running = true
-        docker.has_ssh = false
-        docker.privileged = true
-        docker.volumes = [
-          "/etc/postgresql/15/main/",
-          "/var/lib/postgresql/15/main/"
-        ]
-        # docker.volumes << "vagrant:/etc/postgresql/15/main/"
-        # (1..NUM_SLAVE_CLUSTERS).each do |j|
-        #   docker.link = "slave-docker-#{i}:slave-docker-#{i}"
-        # end
-        # docker.ports = ["#{2250 + i}:2222"]
-      end
-
-      node.vm.hostname = "master-docker-#{i}"
-      node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{MASTER_IP_START + i}", name: DOCKER_NETWORK_NAME
-      node.vm.network :forwarded_port, guest: 22, host: "#{2750 + i}"
-      node.vm.network :forwarded_port, guest: 5432, host: "#{5442 + i}"
-      # provision_kubernetes_node node
-
-      # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
-      node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
-      node.vm.provision "file", source: "./ubuntu/.vimrc", destination: "$HOME/.vimrc"
+  # (1..NUM_MASTER_CLUSTERS).each do |i|
+  config.vm.define "coordinator" do |node|
+    # Name shown in the GUI
+    node.vm.provider "docker" do |docker|
+      # docker.name = "coordinator-cn-#{i}"
+      docker.image = DOCKER_IMG
+      # docker.build_dir = "."
+      docker.remains_running = true
+      docker.has_ssh = false
+      docker.privileged = true
+      docker.volumes = [
+        "/etc/postgresql/15/main/",
+        "/var/lib/postgresql/15/main/"
+      ]
+      # docker.volumes << "vagrant:/etc/postgresql/15/main/"
+      # (1..NUM_SLAVE_CLUSTERS).each do |j|
+      #   docker.link = "slave-docker-#{i}:slave-docker-#{i}"
+      # end
+      # docker.ports = ["#{2250 + i}:2222"]
     end
+
+    node.vm.hostname = "coordinator"
+    node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{MASTER_IP_START + 1}", name: DOCKER_NETWORK_NAME
+    node.vm.network :forwarded_port, guest: 22, host: 2751
+    node.vm.network :forwarded_port, guest: 5432, host: 5443
+    # provision_kubernetes_node node
+
+    # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
+    node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
+    node.vm.provision "file", source: "./ubuntu/.vimrc", destination: "$HOME/.vimrc"
   end
+  # end
 
   # Provision Slave Clusters
   (1..NUM_SLAVE_CLUSTERS).each do |i|
-    config.vm.define "slave-docker-#{i}" do |node|
+    config.vm.define "worker-#{i}" do |node|
 
-      config.vm.provider "docker" do |docker|
-        # docker.name = "slave-docker-#{i}"
+      node.vm.provider "docker" do |docker|
+        # docker.name = "worker-cn-#{i}"
         docker.image = DOCKER_IMG
         # docker.build_dir = "."
         docker.remains_running = true
@@ -181,7 +187,7 @@ Vagrant.configure("2") do |config|
         # end
       end
 
-      node.vm.hostname = "slave-docker-#{i}"
+      node.vm.hostname = "worker-#{i}"
       node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{SLAVE_IP_START + i}", name: DOCKER_NETWORK_NAME
       node.vm.network :forwarded_port, guest: 22, host: "#{2760 + i}"
       node.vm.network :forwarded_port, guest: 5432, host: "#{5452 + i}"
@@ -190,6 +196,45 @@ Vagrant.configure("2") do |config|
       node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
       node.vm.provision "file", source: "./ubuntu/.vimrc", destination: "$HOME/.vimrc"
     end
+  end
+
+  config.vm.define "connection-pool" do |node|
+    # Name shown in the GUI
+    node.vm.provider "docker" do |docker|
+      # docker.name = "coordinator-cn-#{i}"
+      docker.image = DOCKER_IMG
+      # docker.build_dir = "."
+      docker.remains_running = true
+      docker.has_ssh = false
+      docker.privileged = true
+      docker.volumes = [
+        "/etc/pgbouncer",
+      ]
+      docker.env = {
+        "DB_USER" => "postgres",
+        "DB_PASSWORD" => "postgres",
+        "DB_PORT" => "5443",
+        "DB_HOST" => "#{DOCKER_NETWORK}.#{MASTER_IP_START + 1}",
+        "POOL_MODE" => "session",
+        "ADMIN_USERS" => "postgres"
+      }
+
+      # docker.volumes << "vagrant:/etc/postgresql/15/main/"
+      # (1..NUM_SLAVE_CLUSTERS).each do |j|
+      #   docker.link = "slave-docker-#{i}:slave-docker-#{i}"
+      # end
+      # docker.ports = ["#{2250 + i}:2222"]
+    end
+
+    node.vm.hostname = "connection-pool"
+    node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{POOL_IP_START}", name: DOCKER_NETWORK_NAME
+    node.vm.network :forwarded_port, guest: 22, host: 2771
+    node.vm.network :forwarded_port, guest: 6432, host: 6432
+    # provision_kubernetes_node node
+
+    # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
+    node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
+    node.vm.provision "file", source: "./ubuntu/.vimrc", destination: "$HOME/.vimrc"
   end
 
   config.trigger.after :up do |trigger|
@@ -203,11 +248,12 @@ Vagrant.configure("2") do |config|
         ips = []
 
         # Collecting cluster names
-        (1..NUM_MASTER_CLUSTERS).each do |i|
-          clusters.push("master-docker-#{i}")
-        end
+        # (1..NUM_MASTER_CLUSTERS).each do |i|
+        clusters.push("coordinator")
+        clusters.push("connection-pool")
+        # end
         (1..NUM_SLAVE_CLUSTERS).each do |i|
-          clusters.push("slave-docker-#{i}")
+          clusters.push("worker-#{i}")
         end
 
         # Retrieve container IDs and IPs using Docker CLI
@@ -247,9 +293,9 @@ Vagrant.configure("2") do |config|
         container_id = %x{docker ps --filter "name=#{machine.name}" --format "{{.ID}}"}.chomp
         if File.exist?("hosts.tmp.#{machine.name}")
           system("docker cp hosts.tmp.#{machine.name} #{container_id}:/tmp/hosts.tmp")
-          system("docker exec #{container_id} bash -c 'cat /tmp/hosts.tmp | sudo tee -a /etc/hosts'")
+          system("docker exec #{container_id} sh -c 'cat /tmp/hosts.tmp | sudo tee -a /etc/hosts'")
           system("docker cp ~/.ssh/id_rsa.pub #{container_id}:/tmp/id_rsa.pub")
-          system("docker exec #{container_id} bash -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
+          system("docker exec #{container_id} sh -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
         else
           puts "hosts.tmp file not found, skipping container #{container_id}."
         end
