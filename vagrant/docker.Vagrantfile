@@ -80,7 +80,7 @@ def all_clusters_up()
   end
 #
   (1..NUM_SLAVE_CLUSTERS).each do |i|
-    if get_machine_id("slave-docker-#{i}").nil?
+    if get_machine_id("worker-#{i}").nil?
       return false
     end
   end
