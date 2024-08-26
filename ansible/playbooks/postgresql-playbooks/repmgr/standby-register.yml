@@ -1,6 +1,6 @@
 ---
 - name: repmgr-standby-register
-  hosts: all
+  hosts: psql-clusters
   become: true
   become_user: root
   tasks:

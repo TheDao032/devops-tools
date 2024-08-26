@@ -27,13 +27,23 @@ coordinator:
   hosts:
     coordinator1:
 
+psql-clusters:
+  hosts:
+    coordinator1:
+    worker1:
+    worker2:
+
+  children:
+    coordinator:
+    worker:
+
 worker:
   hosts:
     worker1:
     worker2:
 
-repmgr:
-  hosts:
-    coordinator1:
-    worker1:
-    worker2:
+# repmgr:
+#   hosts:
+#     coordinator1:
+#     worker1:
+#     worker2:

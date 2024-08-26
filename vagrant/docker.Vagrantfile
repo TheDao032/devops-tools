@@ -2,8 +2,11 @@
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
 # Docker image
+REPOSITORY = ENV["REPOSITORY"]
+IMG_NAME = ENV["IMAGE"]
+IMG_TAG = ENV["TAG"]
 VAGRANT_PROVIDER = "docker"
-DOCKER_IMG = "nthedao/ubuntu:latest"
+DOCKER_IMG = "#{REPOSITORY}/#{IMG_NAME}:#{IMG_TAG}"
 # POOL_DOCKER_IMG = "edoburu/pgbouncer:latest"
 DOCKER_NETWORK_NAME = "vagrant"
 DOCKER_NETWORK_SUBNET = "172.20.10.0/24"

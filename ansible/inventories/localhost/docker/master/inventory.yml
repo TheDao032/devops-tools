@@ -28,6 +28,17 @@ connection-pool:
       ansible_host: 0.0.0.0
       ansible_port: 2771
 
+psql-clusters:
+  hosts:
+    coordinator1:
+    worker1:
+    worker2:
+
+  children:
+    coordinator:
+    worker:
+
+
 coordinator:
   hosts:
     coordinator1:
@@ -37,8 +48,8 @@ worker:
     worker1:
     worker2:
 
-repmgr:
-  hosts:
-    coordinator1:
-    worker1:
-    worker2:
+# repmgr:
+#   hosts:
+#     coordinator1:
+#     worker1:
+#     worker2:
