@@ -13,7 +13,8 @@ all:
   vars:
     psql_version: 15
     citus_version: 11.3
-    server_ip: 172.29.139.102
+    master_server_ip: 172.29.139.102
+    replica_server_ip: 172.29.139.184
     server_cidr_range: 172.29.139.0/24
     docker_network_cidr_range: 172.20.10.0/24
     docker_default_cidr_range: 172.17.0.0/16
@@ -26,13 +27,23 @@ coordinator:
   hosts:
     coordinator1:
 
+psql-clusters:
+  hosts:
+    coordinator1:
+    worker1:
+    worker2:
+
+  children:
+    coordinator:
+    worker:
+
 worker:
   hosts:
     worker1:
     worker2:
 
-repmgr:
-  hosts:
-    coordinator1:
-    worker1:
-    worker2:
+# repmgr:
+#   hosts:
+#     coordinator1:
+#     worker1:
+#     worker2:

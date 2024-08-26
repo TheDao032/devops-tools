@@ -1,6 +1,8 @@
 ---
-node_id: 2
+node_id: 5
 node_name: standby-2
-node_priority: 100
-psql_port: 5453
+node_priority: 90
+coordinator_psql_port: 5453
+worker_psql_port: 5453
+upstream_node_id: 2
 private_ip: 172.20.10.21
