@@ -301,6 +301,9 @@ Vagrant.configure("2") do |config|
           system("docker exec #{container_id} sh -c 'cat /tmp/hosts.tmp | sudo tee -a /etc/hosts'")
           system("docker cp ~/.ssh/id_rsa.pub #{container_id}:/tmp/id_rsa.pub")
           system("docker exec #{container_id} sh -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
+
+          system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf'")
+          system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.4.4\" >> /etc/resolv.conf'")
         else
           puts "hosts.tmp file not found, skipping container #{container_id}."
         end
