@@ -64,14 +64,12 @@ docker_init() {
 }
 
 ansible_exec() {
-
   local group=$1
   log_info "Running setup PostgreSQL as ${group}."
-
-  if [ ${group} -eq "master" ]; then
+  if [ "${group}" = "master" ]; then
     # PostgreSQL Common Packages
     log_info "Running setup PostgreSQL common packages as ${group}."
-    ansible-playbook ansible/playbooks/postgresql-playbooks/common/dependencies.yml -i ansible/inventories/${LOCATION}/${PROVIDER}/master -vvv
+    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/common/dependencies.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
     if [ $? -eq 0 ]; then
         log_info "log" "Ansible PostgreSQL common packages for ${group} exec successfully."
     else
@@ -83,7 +81,7 @@ ansible_exec() {
     # PostgreSQL Citus Setup
     log_info "Running setup PostgreSQL Citus as ${group}."
     ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/citus/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/playbooks/postgresql-playbooks/citus/coordinator-conn-worker.yml -i ansible/inventories/${LOCATION}/${PROVIDER}/master -vvv
+    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/citus/coordinator-conn-worker.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
     log_success "Running setup PostgreSQL Citus as ${group} successfully."
 
     # PostgreSQL Repmgr Setup
