@@ -35,13 +35,24 @@ declare vagrant_plugins=(
 vagrant_init() {
   local vagrant_plugins=$1
   for plugin in "${vagrant_plugins[@]}"; do
-      log_info "Installing Vagrant plugin: ${plugin}"
-
-      vagrant plugin install "${plugin}"
-      if [ $? -eq 0 ]; then
-          log_info "${plugin} installed successfully."
+      # log_info "Installing Vagrant plugin: ${plugin}"
+      #
+      # vagrant plugin install "${plugin}"
+      # if [ $? -eq 0 ]; then
+      #     log_info "${plugin} installed successfully."
+      # else
+      #     log_error "Failed to install ${plugin}."
+      # fi
+      if vagrant plugin list | grep -q "^${plugin} "; then
+        log_info "Vagrant plugin '${plugin}' is already installed."
       else
-          log_error "Failed to install ${plugin}."
+        log_info "Installing Vagrant plugin: ${plugin}"
+        vagrant plugin install "${plugin}"
+        if [ $? -eq 0 ]; then
+          log_info "Vagrant plugin '${plugin}' installed successfully."
+        else
+          log_error "Failed to install Vagrant plugin '${plugin}'."
+        fi
       fi
   done
 
