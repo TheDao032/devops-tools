@@ -35,3 +35,8 @@
         state: present
       with_items: "{{ rhel_packages }}"
   when: ansible_facts['os_family'] == "RedHat"
+
+- name: Add Docker's official GPG key
+  become_user: vagrant
+  ansible.builtin.shell: |
+    usermod -aG docker $(whoami)

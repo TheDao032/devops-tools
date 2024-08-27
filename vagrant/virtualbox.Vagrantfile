@@ -138,19 +138,19 @@ def all_clusters_up()
 end
 
 # Sets up hosts file and DNS
-def setup_dns(node)
+def setup_dns(node, os)
   # Set up /etc/hosts
-  node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/#{PROVIDER}/setup-hosts.sh" do |s|
+  node.vm.provision "setup-hosts", :type => "shell", :path => "#{os}/#{PROVIDER}/setup-hosts.sh" do |s|
     s.args = [IP_NW, BUILD_MODE, NUM_MASTER_CLUSTERS, NUM_SLAVE_CLUSTERS, MASTER_IP_START, SLAVE_IP_START]
   end
   # Set up DNS resolution
-  node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
+  node.vm.provision "setup-dns", type: "shell", :path => "#{os}/update-dns.sh"
 end
 
 # Runs provisioning steps that are required by masters and slaves
 def provision_ubuntu_vm(node)
   # Set up DNS
-  setup_dns node
+  setup_dns(node, "ubuntu")
   # Set up kernel parameters, modules and tunables
   # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
   # Set up ssh
@@ -161,7 +161,7 @@ end
 
 def provision_rhel_vm(node)
   # Set up DNS
-  setup_dns node
+  setup_dns(node, "rhel")
   # Set up kernel parameters, modules and tunables
   # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
   # Set up ssh
@@ -243,7 +243,7 @@ Vagrant.configure("2") do |config|
         vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", VBOX_GUEST_DISK_PATH]
       end
 
-      config.vm.provision "shell", inline: <<-SHELL
+      node.vm.provision "shell", inline: <<-SHELL
         sudo subscription-manager register --username #{rhelUsername} --password #{rhelPassword}
       SHELL
 
