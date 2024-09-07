@@ -1,0 +1,37 @@
+---
+# tasks file for common
+- name: Install Docker Package Debian OS
+  block:
+    - name: Add Docker's official GPG key
+      ansible.builtin.shell: |
+        apt-get update
+        apt-get install ca-certificates curl
+        install -m 0755 -d /etc/apt/keyrings
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+        chmod a+r /etc/apt/keyrings/docker.asc
+
+        # Add the repository to Apt sources:
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
+          $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+        apt-get update
+    - name: Install Ansible Package Debian OS
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian_packages }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Ansible Package RedHat OS
+  block:
+    - name: Add Docker's official GPG key
+      ansible.builtin.shell: |
+        yum install -y yum-utils
+        yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+    - name: Install Ansible Package RedHat OS
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ rhel_packages }}"
+  when: ansible_facts['os_family'] == "RedHat"
