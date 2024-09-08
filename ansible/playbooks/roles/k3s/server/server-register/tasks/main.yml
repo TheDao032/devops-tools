@@ -11,7 +11,7 @@
 
 - name: Repmgr common scripts for coordinator cluster
   ansible.builtin.shell: |
-    {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_password }}
+    {{ psql_k3s_scripts_path }}/server-register.sh {{ psql_k3s_url }}
   args:
     chdir: /var/lib/postgresql
     executable: /bin/bash
@@ -19,7 +19,7 @@
 
 - name: Repmgr common scripts for coordinator cluster
   ansible.builtin.shell: |
-    {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_password }} {{ server_token }}
+    {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_url }} {{ server_token }}
   args:
     chdir: /var/lib/postgresql
     executable: /bin/bash

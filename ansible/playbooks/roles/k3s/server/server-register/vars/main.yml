@@ -2,3 +2,4 @@
 # vars file for server-register
 k3s_server_scripts:
   - server-register.sh
+psql_k3s_url: "postgres://k3s:k3s@${{ hostvars['server-1']['psql_url'] }}/k3s"

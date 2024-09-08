@@ -3,13 +3,13 @@
 - name: Copy k3s agent scripts to the remote host
   ansible.builtin.copy:
     src: "{{ item }}"
-    dest: "{{ psql_k3s_agent_scripts_path }}"
+    dest: "{{ psql_k3s_scripts_path }}"
     owner: root
     group: root
     mode: '0755'
   with_items: "{{ k3s_agent_scripts }}"
 
-- name: Generate kubeadm join command
+- name: Generate k3s join token
   ansible.builtin.shell:
     cmd: sudo k3s token generate
   register: k3s_join_token
