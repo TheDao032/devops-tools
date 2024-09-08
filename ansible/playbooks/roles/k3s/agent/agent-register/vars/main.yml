@@ -3,3 +3,4 @@
 k3s_agent_scripts:
   - agent-register.sh
 server_url: "{{ hostvars['worker1']['ansible_host'] }}:{{ hostvars['worker1']['load_balancer_port'] }}"
+psql_k3s_scripts_path: "/usr/bin"
