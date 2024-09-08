@@ -1,0 +1,5 @@
+---
+# vars file for agent-register
+k3s_agent_scripts:
+  - agent-register.sh
+server_url: "{{ hostvars['worker1']['ansible_host'] }}:{{ hostvars['worker1']['load_balancer_port'] }}"

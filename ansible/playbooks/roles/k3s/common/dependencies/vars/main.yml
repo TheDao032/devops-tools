@@ -1,0 +1,13 @@
+---
+# vars file for dependencies
+debian_packages:
+  - curl
+  - ca-certificates
+
+rhel_packages:
+  - curl
+  - ca-certificates
+
+centos_packages:
+  - curl
+  - ca-certificates

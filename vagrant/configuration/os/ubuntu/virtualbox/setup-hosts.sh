@@ -46,7 +46,7 @@ echo "ARCH=amd64" | sudo tee -a /etc/environment > /dev/null
 # Update /etc/hosts with the list of machines
 for machine in "${MACHINE_ARRAY[@]}"; do
   IFS=':' read -r name ip <<< "$machine"
-  echo "${ip} ${name}" >> /etc/hosts
+  echo "${ip} ${name}" >> /etc//hosts
 done
 
 [ "$BUILD_MODE" = "BRIDGE" ] && exit 0

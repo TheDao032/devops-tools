@@ -1,0 +1,26 @@
+---
+# tasks file for server-register
+- name: Copy k3s server scripts to the remote host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ psql_k3s_server_scripts_path }}"
+    owner: root
+    group: root
+    mode: '0755'
+  with_items: "{{ k3s_server_scripts }}"
+
+- name: Repmgr common scripts for coordinator cluster
+  ansible.builtin.shell: |
+    {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_password }}
+  args:
+    chdir: /var/lib/postgresql
+    executable: /bin/bash
+  when: ""
+
+- name: Repmgr common scripts for coordinator cluster
+  ansible.builtin.shell: |
+    {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_password }} {{ server_token }}
+  args:
+    chdir: /var/lib/postgresql
+    executable: /bin/bash
+  when: ""

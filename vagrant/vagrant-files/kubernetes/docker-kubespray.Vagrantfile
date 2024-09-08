@@ -1,103 +1,132 @@
 # -*- mode: ruby -*-
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
-# Docker image
-VAGRANT_PROVIDER = "docker"
-DOCKER_IMG = "nthedao/ubuntu-appadm:latest"
-DOCKER_NETWORK_NAME = "vagrant"
-DOCKER_NETWORK_SUBNET = "172.20.10.0/24"
-DOCKER_NETWORK = "172.20.10"
+require_relative '../../utils/env'
+require_relative '../../containers/virtualbox'
+require_relative '../../utils/machine/virtualbox_mc'
+
+
+virtuaboxConfig = VirtualboxConfig.new
+virtuaboxConfig.display_config
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
-NUM_MASTER_CLUSTERS = 1
-NUM_SLAVE_CLUSTERS = 1
+NUM_SERVERS = 2
+NUM_AGENTS = 2
 
-MASTER_IP_START = 10
-SLAVE_IP_START = 20
+# Network parameters for NAT mode
+IP_NW = "192.168.10"
+# Host address start points
+SERVER_IP_START = 10
+AGENT_IP_START = 20
 
-# Host operating sysem detection
-module OS
-  def OS.windows?
-    (/cygwin|mswin|mingw|bccwin|wince|emx/ =~ RUBY_PLATFORM) != nil
-  end
+# Define how much memory your computer has in GB (e.g., 8, 16)
+# Larger clusters will be created if you have more.
+RAM_SIZE = 8 # Replace with actual RAM size in GB
 
-  def OS.mac?
-    (/darwin/ =~ RUBY_PLATFORM) != nil
-  end
+# Define how many CPU cores you have.
+# More powerful nodes will be created if you have more.
+CPU_CORES = 4 # Replace with actual CPU core count
 
-  def OS.unix?
-    !OS.windows?
-  end
+# Ensure minimum required resources are met
+MIN_RAM = 8 # GB
+MIN_CPU = 4 # Cores
 
-  def OS.linux?
-    OS.unix? and not OS.mac?
-  end
-
-  def OS.jruby?
-    RUBY_ENGINE == "jruby"
-  end
+if RAM_SIZE < MIN_RAM
+  raise "Insufficient memory #{RAM_SIZE}GB. Minimum required is #{MIN_RAM}GB."
 end
 
-# Determine host adpater for bridging in BRIDGE mode
-def get_bridge_adapter()
-  if OS.windows?
-    return %x{powershell -Command "Get-NetRoute -DestinationPrefix 0.0.0.0/0 | Get-NetAdapter | Select-Object -ExpandProperty InterfaceDescription"}.chomp
-  elsif OS.linux?
-    return %x{ip route | grep default | awk '{ print $5 }'}.chomp
-  elsif OS.mac?
-    return %x{macos/macos-bridge.sh}.chomp
-  end
+if CPU_CORES < MIN_CPU
+  raise "Insufficient CPU cores #{CPU_CORES}. Minimum required is #{MIN_CPU} cores."
 end
 
-# Helper method to get the machine ID of a node.
-# This will only be present if the node has been
-# created in Docker.
-def get_machine_id(vm_name)
-  machine_id_filepath = ".vagrant/machines/#{vm_name}/#{VAGRANT_PROVIDER}/id"
-  if not File.exist? machine_id_filepath
-    return nil
-  else
-    return File.read(machine_id_filepath)
-  end
+# Calculate resources for master nodes
+total_master_ram = (RAM_SIZE * 1024) * 0.25  # 25% of total RAM for all masters
+total_master_cpu = CPU_CORES * 0.25          # 25% of total CPU for all masters
+
+ram_per_master = (total_master_ram / NUM_SERVERS).to_i
+cpu_per_master = (total_master_cpu / NUM_AGENTS).to_i
+
+# Ensure minimum resources per master node
+ram_per_master = [ram_per_master, 2048].max # At least 2 GB RAM per master
+cpu_per_master = [cpu_per_master, 2].max    # At least 2 CPU cores per master
+
+# Calculate resources for worker nodes
+remaining_ram = (RAM_SIZE * 1024) - total_master_ram
+remaining_cpu = CPU_CORES - total_master_cpu
+
+ram_per_worker = (remaining_ram / NUM_AGENTS).to_i
+cpu_per_worker = (remaining_cpu / NUM_AGENTS).to_i
+
+# Ensure minimum resources per worker node
+ram_per_worker = [ram_per_worker, 2048].max # At least 2 GB RAM per worker
+cpu_per_worker = [cpu_per_worker, 1].max    # At least 1 CPU core per worker
+
+# Resource allocation summary
+RESOURCES = {
+  server: {
+    ram: ram_per_master, # RAM in MB per master node
+    cpu: cpu_per_master, # CPU cores per master node
+  },
+  agent: {
+    ram: ram_per_worker, # RAM in MB per worker node
+    cpu: cpu_per_worker, # CPU cores per worker node
+  },
+}
+
+# Output the calculated resources
+NUM_SERVERS.times do |i|
+  puts "Server Node #{i+1} Resources: #{RESOURCES[:server][:ram]}MB RAM, #{RESOURCES[:server][:cpu]} CPU cores"
+end
+NUM_AGENTS.times do |i|
+  puts "Agent Node #{i+1} Resources: #{RESOURCES[:agent][:ram]}MB RAM, #{RESOURCES[:agent][:cpu]} CPU cores"
 end
 
-# Helper method to determine whether all clusters are up
-def all_clusters_up()
-  (1..NUM_MASTER_CLUSTERS).each do |i|
-    if get_machine_id("master-docker-#{i}").nil?
-      return false
-    end
-  end
-
-  (1..NUM_SLAVE_CLUSTERS).each do |i|
-    if get_machine_id("slave-docker-#{i}").nil?
-      return false
-    end
-  end
-  return true
+machines = []
+(1..NUM_SERVERS).each do |i|
+  machines.push(
+    {
+      name: "server-#{i}",
+      box: virtuaboxConfig.os_systems[:ubuntu][:box],
+      os: virtuaboxConfig.os_systems[:ubuntu][:os],
+      cpu: RESOURCES[:server][:cpu],
+      ram: RESOURCES[:server][:ram],
+      network: {
+        name: "",
+        ports: [
+          { guest: 22, host: 2730 + i }
+        ],
+        ip: "#{IP_NW}.#{SERVER_IP_START + i}"
+      },
+      files: [
+        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:ubuntu][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:ubuntu][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+      ]
+    }
+  )
 end
 
-# Sets up hosts file and DNS
-def setup_dns(node)
-  # Set up /etc/hosts
-  node.vm.provision "setup-hosts", :type => "shell", :path => "ubuntu/#{VAGRANT_PROVIDER}/setup-hosts.sh" do |s|
-    s.args = [DOCKER_NETWORK_SUBNET, NUM_MASTER_CLUSTERS, NUM_SLAVE_CLUSTERS]
-  end
-  # Set up DNS resolution
-  node.vm.provision "setup-dns", type: "shell", :path => "ubuntu/update-dns.sh"
-end
-
-# Runs provisioning steps that are required by masters and slaves
-def provision_kubernetes_node(node)
-  # Set up DNS
-  setup_dns node
-  # Set up kernel parameters, modules and tunables
-  # node.vm.provision "setup-kernel", :type => "shell", :path => "ubuntu/setup-kernel.sh"
-  # Set up ssh
-  node.vm.provision "setup-ssh", :type => "shell", :path => "ubuntu/ssh.sh"
-  # Set up guest additions
-  # node.vm.provision "setup-guest-additions", :type => "shell", :path => "ubuntu/vagrant/install-guest-additions.sh"
+(1..NUM_AGENTS).each do |i|
+  machines.push(
+    {
+      name: "agent-#{i}",
+      box: virtuaboxConfig.os_systems[:ubuntu][:box],
+      os: virtuaboxConfig.os_systems[:ubuntu][:os],
+      cpu: RESOURCES[:agent][:cpu],
+      ram: RESOURCES[:agent][:ram],
+      network: {
+        name: "",
+        ports: [
+          { guest: 22, host: 2740 + i }
+        ],
+        ip: "#{IP_NW}.#{AGENT_IP_START + i}"
+      },
+      files: [
+        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:ubuntu][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:ubuntu][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+      ]
+    }
+  )
 end
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
@@ -113,7 +142,6 @@ Vagrant.configure("2") do |config|
   # boxes at https://vagrantcloud.com/search.
   # config.vm.box = "base"
 
-  # config.vm.box = "nthedao/ubuntu-latest"
   config.vm.boot_timeout = 900
 
   # Disable automatic box update checking. If you disable this, then
@@ -122,163 +150,36 @@ Vagrant.configure("2") do |config|
   config.vm.box_check_update = false
   config.vbguest.auto_update = true
 
-  # Provision Master Clusters
-  (1..NUM_MASTER_CLUSTERS).each do |i|
-    config.vm.define "master-docker-#{i}" do |node|
-      # Name shown in the GUI
-      config.vm.provider "docker" do |docker|
-        # docker.name = "master-docker-#{i}"
-        docker.image = DOCKER_IMG
-        # docker.build_dir = "."
-        docker.remains_running = true
-        docker.has_ssh = false
-        docker.privileged = true
-        docker.volumes = [
-          "/etc/postgresql/15/main/",
-          "/var/lib/postgresql/15/main/"
-        ]
-        # docker.volumes << "vagrant:/etc/postgresql/15/main/"
-        # (1..NUM_SLAVE_CLUSTERS).each do |j|
-        #   docker.link = "slave-docker-#{i}:slave-docker-#{i}"
-        # end
-        # docker.ports = ["#{2250 + i}:2222"]
-      end
+  machines.each do |machine|
+    vm = VirtualBoxVM.new(
+      box = machine[:box],
+      config = config,
+      name = machine[:name],
+      hostname = machine[:name],
+      ip = machine[:network][:ip],
+      network_mode = virtuaboxConfig.network_mode,
+      vbox_guest_path = virtuaboxConfig.vbox_guest_disk,
+      ports = machine[:network][:ports],
+      provisioning_files = machine[:files],
+      memory = machine[:ram],
+      cpus = machine[:cpu],
+    )
 
-      node.vm.hostname = "master-docker-#{i}"
-      node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{MASTER_IP_START + i}", name: DOCKER_NETWORK_NAME
-      node.vm.network :forwarded_port, guest: 22, host: "#{2750 + i}"
-      node.vm.network :forwarded_port, guest: 5432, host: "#{5442 + i}"
-      # provision_kubernetes_node node
-
-      # Install (opinionated) configs for vim and tmux on master-1. These used by the author for CKA exam.
-      node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
-      node.vm.provision "file", source: "./ubuntu/.vimrc", destination: "$HOME/.vimrc"
-    end
+    vm.define(
+      os = machine[:os],
+      ip_nw = IP_NW,
+      machines = machines
+    )
   end
 
-  # Provision Slave Clusters
-  (1..NUM_SLAVE_CLUSTERS).each do |i|
-    config.vm.define "slave-docker-#{i}" do |node|
+  virtualMC = VirtualBoxMC.new(
+    config = config,
+    os = OS,
+    adapter = "",
+    machines = machines,
+    provider = virtuaboxConfig.provider,
+    network_mode = virtuaboxConfig.network_mode
+  )
 
-      config.vm.provider "docker" do |docker|
-        # docker.name = "slave-docker-#{i}"
-        docker.image = DOCKER_IMG
-        # docker.build_dir = "."
-        docker.remains_running = true
-        docker.has_ssh = false
-        docker.privileged = true
-        docker.volumes = [
-          "/etc/postgresql/15/main/",
-          "/var/lib/postgresql/15/main/"
-        ]
-        # (1..NUM_SLAVE_CLUSTERS).each do |j|
-        #   if j != i
-        #     docker.link("slave-docker-#{j}:slave-docker-#{j}")
-        #   end
-        # end
-        # (1..NUM_MASTER_CLUSTERS).each do |j|
-        #   docker.link("master-docker-#{j}:master-docker-#{j}")
-        # end
-      end
-
-      node.vm.hostname = "slave-docker-#{i}"
-      node.vm.network :private_network, ip: "#{DOCKER_NETWORK}.#{SLAVE_IP_START + i}", name: DOCKER_NETWORK_NAME
-      node.vm.network :forwarded_port, guest: 22, host: "#{2760 + i}"
-      node.vm.network :forwarded_port, guest: 5432, host: "#{5452 + i}"
-      # provision_kubernetes_node node
-
-      node.vm.provision "file", source: "./ubuntu/.tmux.conf", destination: "$HOME/.tmux.conf"
-      node.vm.provision "file", source: "./ubuntu/.vimrc", destination: "$HOME/.vimrc"
-    end
-  end
-
-  config.trigger.after :up do |trigger|
-    trigger.name = "Post provisioner"
-    trigger.ignore = [:destroy, :halt]
-    trigger.ruby do |env, machine|
-      if all_clusters_up()
-        puts "    Gathering IP addresses of clusters..."
-        clusters = []
-        container_ids = []
-        ips = []
-
-        # Collecting cluster names
-        (1..NUM_MASTER_CLUSTERS).each do |i|
-          clusters.push("master-docker-#{i}")
-        end
-        (1..NUM_SLAVE_CLUSTERS).each do |i|
-          clusters.push("slave-docker-#{i}")
-        end
-
-        # Retrieve container IDs and IPs using Docker CLI
-        clusters.each do |n|
-          container_id = %x{docker ps --filter "name=#{n}" --format "{{.ID}}"}.chomp
-          container_ids.push(container_id)
-          ip = %x{docker inspect -f '{{.NetworkSettings.Networks.#{DOCKER_NETWORK_NAME}.IPAddress}}' #{container_id}}.chomp
-          ips.push(ip)
-        end
-
-        puts "container_ids: #{container_ids}"
-
-        # Prepare the hosts file content
-        hosts = ""
-        ips.each_with_index do |ip, i|
-          hosts << ip << "  " << clusters[i] << "\n"
-        end
-
-        # unique_ips = ips.uniq
-        #
-        # # Prepare the hosts file content
-        # hosts = unique_ips.join("\n")
-        # puts "hosts: #{hosts}"
-
-        # Create hosts.tmp file
-        begin
-          File.open("hosts.tmp.#{machine.name}", "w") { |file| file.write(hosts) }
-          puts "hosts.tmp file created successfully."
-        rescue => e
-          puts "Error creating hosts.tmp file: #{e.message}"
-          raise
-        end
-
-        # Output and set /etc/hosts on each container
-        puts "    Setting /etc/hosts on clusters..."
-        # clusters.each do |cluster|
-        container_id = %x{docker ps --filter "name=#{machine.name}" --format "{{.ID}}"}.chomp
-        if File.exist?("hosts.tmp.#{machine.name}")
-          system("docker cp hosts.tmp.#{machine.name} #{container_id}:/tmp/hosts.tmp")
-          system("docker exec #{container_id} bash -c 'cat /tmp/hosts.tmp | sudo tee -a /etc/hosts'")
-          system("docker cp ~/.ssh/id_rsa.pub #{container_id}:/tmp/id_rsa.pub")
-          system("docker exec #{container_id} bash -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
-          system("docker exec #{container_id} bash -c 'cat /tmp/id_rsa.pub >> /home/appadm/.ssh/authorized_keys'")
-        else
-          puts "hosts.tmp file not found, skipping container #{container_id}."
-        end
-        # end
-
-        # Clean up
-        if File.exist?("hosts.tmp.#{machine.name}")
-          File.delete("hosts.tmp.#{machine.name}")
-          puts "hosts.tmp.#{machine.name} file deleted successfully."
-        else
-          puts "hosts.tmp.#{machine.name} file not found during cleanup."
-        end
-
-        puts <<~EOF
-
-               VM build complete!
-
-               Use either of the following to access any NodePort services you create from your browser
-               replacing "port_number" with the number of your NodePort.
-
-             EOF
-        ips.each do |ip|
-          puts "  http://#{ip}:port_number"
-        end
-        puts ""
-      else
-        puts "    Nothing to do here"
-      end
-    end
-  end
+  virtualMC.trigger
 end

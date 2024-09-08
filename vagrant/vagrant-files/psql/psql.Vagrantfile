@@ -5,40 +5,8 @@ require_relative '../../containers/docker'
 require_relative '../../utils/machine/docker_mc'
 require_relative '../../utils/env'
 
-OS_SYSTEM = {
-  ubuntu: {
-    box: "ubuntu/jammy64",
-    os: "ubuntu"
-  },
-  redhat: {
-    box: "alvistack/rhel-9",
-    os: "rhel"
-  },
-}
-
-config = DockerConfig.new
-config.display_config
-# REPOSITORY = ENV["REPOSITORY"]
-# IMG_NAME = ENV["IMAGE"]
-# IMG_TAG = ENV["TAG"]
-# DOCKER_IMG = "#{REPOSITORY}/#{IMG_NAME}:#{IMG_TAG}"
-# DOCKER_NETWORK_NAME = ENV["DOCKER_NETWORK_NAME"] # "vagrant"
-# DOCKER_NETWORK_SUBNET = ENV["DOCKER_NETWORK_SUBNET"] # "172.20.10.0/24"
-# DOCKER_NETWORK = ENV["DOCKER_NETWORK"] # "172.20.10"
-
-# Vagrant provider
-# PROVIDER = "docker"
-
-# Set the build mode
-# "BRIDGE" - Places VMs on your local network so cluster can be accessed from browser.
-#            You must have enough spare IPs on your network for the clusters.
-# "NAT"    - Places VMs in a private virtual network. Cluster cannot be accessed
-#            without setting up a port forwarding rule for every NodePort exposed.
-#            Use this mode if for some reason BRIDGE doesn't work for you.
-# NETWORK_MODE = "NAT"
-
-# VBoxGuest
-VBOX_GUEST_DISK_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
+dockerConfig = DockerConfig.new
+dockerConfig.display_config
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
@@ -118,8 +86,8 @@ machines = []
   machines.push(
     {
       name: "server-#{i}",
-      box: OS_SYSTEM[:ubuntu][:box],
-      os: OS_SYSTEM[:ubuntu][:os],
+      box: dockerConfig[:ubuntu][:box],
+      os: dockerConfig[:ubuntu][:os],
       cpu: RESOURCES[:server][:cpu],
       ram: RESOURCES[:server][:ram],
       network: {
@@ -130,8 +98,8 @@ machines = []
         ip: "#{IP_NW}.#{SERVER_IP_START + i}"
       },
       files: [
-        { source: "./configuration/os/#{OS_SYSTEM[:ubuntu][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-        { source: "./configuration/os/#{OS_SYSTEM[:ubuntu][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+        { source: "./configuration/os/#{dockerConfig[:ubuntu][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{dockerConfig[:ubuntu][:os]}/.vimrc", destination: "$HOME/.vimrc" }
       ]
     }
   )
@@ -141,8 +109,8 @@ end
   machines.push(
     {
       name: "agent-#{i}",
-      box: OS_SYSTEM[:ubuntu][:box],
-      os: OS_SYSTEM[:ubuntu][:os],
+      box: config[:ubuntu][:box],
+      os: config[:ubuntu][:os],
       cpu: RESOURCES[:agent][:cpu],
       ram: RESOURCES[:agent][:ram],
       network: {
@@ -153,8 +121,8 @@ end
         ip: "#{IP_NW}.#{AGENT_IP_START + i}"
       },
       files: [
-        { source: "./configuration/os/#{OS_SYSTEM[:ubuntu][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-        { source: "./configuration/os/#{OS_SYSTEM[:ubuntu][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+        { source: "./configuration/os/#{dockerConfig[:ubuntu][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{dockerConfig[:ubuntu][:os]}/.vimrc", destination: "$HOME/.vimrc" }
       ]
     }
   )

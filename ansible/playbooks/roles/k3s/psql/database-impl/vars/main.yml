@@ -1,0 +1,6 @@
+---
+# vars file for database-impl
+k3s_scripts:
+  - k3s-db-impl.sh
+  - k3s-db-impl.sql
+psql_k3s_scripts_path: "/usr/bin"

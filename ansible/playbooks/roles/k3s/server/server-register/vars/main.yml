@@ -1,0 +1,4 @@
+---
+# vars file for server-register
+k3s_server_scripts:
+  - server-register.sh

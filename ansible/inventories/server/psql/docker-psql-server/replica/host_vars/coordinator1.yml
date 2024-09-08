@@ -1,0 +1,8 @@
+---
+node_id: 4
+node_name: standby-1
+node_priority: 90
+coordinator_psql_port: 5443
+worker_psql_port: 5443
+upstream_node_id: 1
+private_ip: 172.20.10.11

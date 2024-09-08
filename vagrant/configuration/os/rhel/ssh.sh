@@ -12,5 +12,6 @@ then
     chown vagrant:vagrant /home/vagrant/.ssh
 fi
 
+sh -c 'sudo subscription-manager register --username #{rhelUsername} --password #{rhelPassword}' > /tmp/subscription-register.log 2>&1
 sh -c 'sudo yum update -y' > /dev/null 2>&1 &
 sh -c 'sudo yum install sshpass -y' > /dev/null 2>&1 &

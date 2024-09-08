@@ -2,16 +2,17 @@
 #
 # Set up /etc/hosts so we can resolve all the nodes
 set -e
+
 IP_NW=$1
 BUILD_MODE=$2
-NUM_CONTROLLER_NODES=$3
-NUM_WORKER_NODES=$4
-MASTER_IP_START=$5
-NODE_IP_START=$6
-LOADBALANCER_IP_START=$7
+shift 2  # Shift arguments to the left by 2 to get the list of machines
 
-if [ "$BUILD_MODE" = "BRIDGE" ]
-then
+# List of machines
+MACHINES=("$@")  # Remaining arguments are the machine list
+# Convert the space-separated string into an array
+IFS=' ' read -r -a MACHINE_ARRAY <<< "$MACHINES"
+
+if [ "$BUILD_MODE" = "BRIDGE" ]; then
     # Determine machine IP from route table -
     # Interface that routes to default GW that isn't on the NAT network.
     MY_IP="$(ip route | grep default | grep -Pv '10\.\d+\.\d+\.\d+' | awk '{ print $9 }')"
@@ -33,27 +34,21 @@ else
 fi
 
 # Remove unwanted entries
-sed -e '/^.*ubuntu-jammy.*/d' -i /etc/hosts
+# sed -e '/^.*ubuntu-jammy.*/d' -i /etc/hosts
 sed -e "/^.*${HOSTNAME}.*/d" -i /etc/hosts
 
 # Export PRIMARY IP as an environment variable
 echo "PRIMARY_IP=${MY_IP}" >> /etc/environment
 
 # Export architecture as environment variable to download correct versions of software
-echo "ARCH=amd64"  | sudo tee -a /etc/environment > /dev/null
+echo "ARCH=amd64" | sudo tee -a /etc/environment > /dev/null
+
+# Update /etc/hosts with the list of machines
+for machine in "${MACHINE_ARRAY[@]}"; do
+  IFS=':' read -r name ip <<< "$machine"
+  echo "${ip} ${name}" >> /etc//hosts
+done
 
 [ "$BUILD_MODE" = "BRIDGE" ] && exit 0
 
-# Update /etc/hosts about other hosts (NAT mode)
-echo "${MY_NETWORK}.${LOADBALANCER_IP_START} loadbalancer" >> /etc//hosts
-for i in $(seq 1 $NUM_CONTROLLER_NODES)
-do
-    num=$(( $MASTER_IP_START + $i ))
-    echo "${MY_NETWORK}.${num} controlplane${i}" >> /etc//hosts
-done
-for i in $(seq 1 $NUM_WORKER_NODES)
-do
-    num=$(( $NODE_IP_START + $i ))
-    echo "${MY_NETWORK}.${num} node${i}" >> /etc//hosts
-done
-
+exit 0
