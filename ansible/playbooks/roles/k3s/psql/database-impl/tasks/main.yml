@@ -1,0 +1,20 @@
+---
+# tasks file for database-impl
+- name: Copy k3s scripts to the remote host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ psql_k3s_scripts_path }}"
+    owner: root
+    group: root
+    mode: '0755'
+  with_items: "{{ k3s_scripts }}"
+- name: Execute k3s scripts for coordinator
+  block:
+    - name: Repmgr common scripts for coordinator cluster
+      vars:
+        k3s_sql_file: k3s-db-impl.sql
+      ansible.builtin.shell: |
+        {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_password }} {{ psql_k3s_scripts_path }}/{{ k3s_sql_file }}
+      args:
+        chdir: /var/lib/postgresql
+        executable: /bin/bash

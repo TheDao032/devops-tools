@@ -15,6 +15,10 @@ class Config
         box: "ubuntu/jammy64",
         os: "ubuntu"
       },
+      centos: {
+        box: "centos/7",
+        os: "centos"
+      },
       redhat: {
         box: "alvistack/rhel-9",
         os: "rhel",

@@ -1,0 +1,25 @@
+---
+# tasks file for agent-register
+- name: Copy k3s agent scripts to the remote host
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ psql_k3s_agent_scripts_path }}"
+    owner: root
+    group: root
+    mode: '0755'
+  with_items: "{{ k3s_agent_scripts }}"
+
+- name: Generate kubeadm join command
+  ansible.builtin.shell:
+    cmd: sudo k3s token generate
+  register: k3s_join_token
+- name: Setting host facts using complex arguments
+  ansible.builtin.set_fact:
+    join_server_token: "{{ k3s_join_token.stdout }}"
+- name: K3s common scripts for coordinator cluster
+  ansible.builtin.shell: |
+    {{ psql_k3s_scripts_path }}/agent-register.sh {{ server_url }} {{ join_server_token }}
+  args:
+    chdir: /var/lib/postgresql
+    executable: /bin/bash
+  when: ""

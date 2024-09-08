@@ -1,0 +1,4 @@
+---
+psql_coordinator_ip: " {{ hostvars['coordinator1']['private_ip'] }}"
+psql_coordinator_port: 5432
+private_ip: 172.20.10.30
