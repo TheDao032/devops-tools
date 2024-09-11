@@ -1,2 +1,15 @@
 ---
 # tasks file for load-balancer
+- name: Prepare Self Sign Certificate scripts and templates
+  block:
+    - name: Copy tls.conf file for k3s configuration from templates
+      ansible.builtin.template:
+        src: load-balancer.conf.j2
+        dest: "{{ nginx_modules_path }}/load-balancer.conf"
+        mode: '0755'
+    - name: Systemd restart Nginx
+      become: true
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: restarted
+        enabled: true

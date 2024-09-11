@@ -1,0 +1,16 @@
+{# load-balancer.conf.j2 #}
+
+stream {
+    upstream k3s_servers {
+        {% for ip, port in servers %}
+        server {{ ip }}:{{ port }};
+        {% endfor %}
+    }
+
+    server {
+        listen 6444;  # Change this to an available port
+        proxy_pass k3s_servers;
+        proxy_timeout 3s;
+        proxy_connect_timeout 1s;
+    }
+}

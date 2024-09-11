@@ -27,10 +27,10 @@
 - name: Install Ansible Package Centos OS
   block:
     - name: Update cache
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         update_cache: yes
     - name: Install Ansible Package CentOS OS
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         name: "{{ item }}"
         state: present
       with_items: "{{ centos_packages }}"

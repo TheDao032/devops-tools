@@ -1,4 +1,8 @@
 #!/bin/bash
+set -e
+RHEL_USERNAME=$1
+RHEL_PASSWORD=$2
+
 
 # Enable password auth in sshd so we can use ssh-copy-id
 sed -i 's/#PasswordAuthentication/PasswordAuthentication/' /etc/ssh/sshd_config
@@ -12,6 +16,7 @@ then
     chown vagrant:vagrant /home/vagrant/.ssh
 fi
 
-sh -c 'sudo subscription-manager register --username #{rhelUsername} --password #{rhelPassword}' > /tmp/subscription-register.log 2>&1
-sh -c 'sudo yum update -y' > /dev/null 2>&1 &
-sh -c 'sudo yum install sshpass -y' > /dev/null 2>&1 &
+sh -c "sudo subscription-manager register --username ${RHEL_USERNAME} --password ${RHEL_PASSWORD} --auto-attach"
+sh -c 'sudo yum update -y && sudo yum install sshpass -y' > /dev/null 2>&1 &
+
+exit 0

@@ -1,9 +1,8 @@
 class Machine
-  attr_accessor :config, :os, :adapter, :machines, :provider, :network_mode
+  attr_accessor :config, :adapter, :machines, :provider, :network_mode
 
-  def initialize(config, os, adapter, machines = [], provider, network_mode)
+  def initialize(config, adapter, machines = [], provider, network_mode)
     @config = config
-    @os = os
     @adapter = adapter
     @machines = machines
     @provider = provider

@@ -9,13 +9,11 @@ END
 $$;
 
 -- Check if the database "k3s" exists, and create it with "k3s" as the owner if it doesn't exist.
-\c postgres
-SELECT 'CREATE DATABASE k3s OWNER k3s' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'k3s')\gexec
-GRANT ALL PRIVILEGES ON DATABASE k3s TO k3s\gexec
-
-\c k3s
 DO $$
 BEGIN
+    SELECT 'CREATE DATABASE k3s OWNER k3s' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'k3s');
+
+    GRANT ALL PRIVILEGES ON DATABASE k3s TO k3s;
     GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO k3s;
     GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO k3s;
 END

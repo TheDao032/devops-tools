@@ -1,17 +1,21 @@
 ---
 all:
   hosts:
-    coordinator1:
+    server-1:
       ansible_host: 192.168.10.11
-    worker1:
+    server-2:
+      ansible_host: 192.168.10.12
+    agent-1:
       ansible_host: 192.168.10.21
+    agent-2:
+      ansible_host: 192.168.10.22
   vars:
-    psql_version: 15
-    citus_version: 11.3
+    rhel_version: 9
     server_ip: 172.29.139.102
-    server_cidr_range: 172.29.139.0/24
-    docker_network_cidr_range: 172.20.10.0/24
-    docker_default_cidr_range: 172.17.0.0/16
+    psql_k3s_port: 5432
+    psql_k3s_url: "{{ server_ip }}:{{ psql_k3s_port }}"
+    psql_k3s_user: "k3s"
+    psql_k3s_pass: "k3s"
 
   children:
     coordinator:

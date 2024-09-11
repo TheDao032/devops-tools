@@ -1,2 +1,33 @@
 ---
 # tasks file for self-certificate
+- name: Prepare Self Sign Certificate scripts and templates
+  block:
+    - name: Copy self signed certificate scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ crt_scripts_path }}"
+        owner: root
+        group: root
+        mode: '0755'
+      with_items: "{{ crt_scripts }}"
+
+- name: Setup Self Sign Certificate
+  become: true
+  become_user: root
+  block:
+    - name: Prepare Certificate
+      ansible.builtin.shell: |
+        mkdir {{ nginx_crt_path }}
+        {{ crt_scripts_path }}/gen_self_sign_crt.sh {{ nginx_crt_key_path }} {{ nginx_crt_path }}
+      args:
+        executable: /bin/bash
+    - name: Copy tls.conf file for k3s configuration from templates
+      ansible.builtin.template:
+        src: tls.conf.j2
+        dest: "{{ tls_conf_path }}/tls.conf"
+        mode: '0755'
+    - name: Systemd restart Nginx
+      ansible.builtin.systemd_service:
+        name: nginx
+        state: restarted
+        enabled: true

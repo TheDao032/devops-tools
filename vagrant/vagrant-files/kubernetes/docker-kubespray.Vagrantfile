@@ -75,12 +75,12 @@ RESOURCES = {
 }
 
 # Output the calculated resources
-NUM_SERVERS.times do |i|
-  puts "Server Node #{i+1} Resources: #{RESOURCES[:server][:ram]}MB RAM, #{RESOURCES[:server][:cpu]} CPU cores"
-end
-NUM_AGENTS.times do |i|
-  puts "Agent Node #{i+1} Resources: #{RESOURCES[:agent][:ram]}MB RAM, #{RESOURCES[:agent][:cpu]} CPU cores"
-end
+# NUM_SERVERS.times do |i|
+#   puts "Server Node #{i+1} Resources: #{RESOURCES[:server][:ram]}MB RAM, #{RESOURCES[:server][:cpu]} CPU cores"
+# end
+# NUM_AGENTS.times do |i|
+#   puts "Agent Node #{i+1} Resources: #{RESOURCES[:agent][:ram]}MB RAM, #{RESOURCES[:agent][:cpu]} CPU cores"
+# end
 
 machines = []
 (1..NUM_SERVERS).each do |i|

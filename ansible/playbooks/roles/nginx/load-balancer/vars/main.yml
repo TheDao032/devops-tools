@@ -1,2 +1,6 @@
 ---
 # vars file for load-balancer
+nginx_modules_path: /usr/share/nginx/modules
+servers:
+  "{{ hostvars['server-1']['ansible_host'] }}": 6443
+  "{{ hostvars['server-2']['ansible_host'] }}": 6443

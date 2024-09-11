@@ -3,11 +3,11 @@
 
 require_relative '../../utils/env'
 require_relative '../../containers/virtualbox'
+require_relative '../../containers/rhel'
 require_relative '../../utils/machine/virtualbox_mc'
 
-
 virtuaboxConfig = VirtualboxConfig.new
-virtuaboxConfig.display_config
+# virtuaboxConfig.display_config
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
@@ -75,12 +75,12 @@ RESOURCES = {
 }
 
 # Output the calculated resources
-NUM_SERVERS.times do |i|
-  puts "Server Node #{i+1} Resources: #{RESOURCES[:server][:ram]}MB RAM, #{RESOURCES[:server][:cpu]} CPU cores"
-end
-NUM_AGENTS.times do |i|
-  puts "Agent Node #{i+1} Resources: #{RESOURCES[:agent][:ram]}MB RAM, #{RESOURCES[:agent][:cpu]} CPU cores"
-end
+# NUM_SERVERS.times do |i|
+#   puts "Server Node #{i+1} Resources: #{RESOURCES[:server][:ram]}MB RAM, #{RESOURCES[:server][:cpu]} CPU cores"
+# end
+# NUM_AGENTS.times do |i|
+#   puts "Agent Node #{i+1} Resources: #{RESOURCES[:agent][:ram]}MB RAM, #{RESOURCES[:agent][:cpu]} CPU cores"
+# end
 
 machines = []
 (1..NUM_SERVERS).each do |i|
@@ -148,10 +148,10 @@ Vagrant.configure("2") do |config|
   # boxes will only be checked for updates when the user runs
   # `vagrant box outdated`. This is not recommended.
   config.vm.box_check_update = false
-  config.vbguest.auto_update = true
+  config.vbguest.auto_update = false
 
   machines.each do |machine|
-    vm = VirtualBoxVM.new(
+    vm = RhelVM.new(
       box = machine[:box],
       config = config,
       name = machine[:name],
@@ -168,13 +168,13 @@ Vagrant.configure("2") do |config|
     vm.define(
       os = machine[:os],
       ip_nw = IP_NW,
-      machines = machines
+      machines = machines,
+      os_system_info = virtuaboxConfig.os_systems[:redhat]
     )
   end
 
   virtualMC = VirtualBoxMC.new(
     config = config,
-    os = OS,
     adapter = "",
     machines = machines,
     provider = virtuaboxConfig.provider,

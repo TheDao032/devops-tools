@@ -1,24 +1,27 @@
 set -e
 
-PROVIDER="virtualbox"
-VBOX_GUEST_DISK="/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
 NETWORK_MODE="NAT"
+PROVIDER="virtualbox"
+VAGRANTFILE="vagrant-files/kubernetes/k3s.Vagrantfile"
+VBOX_GUEST_DISK="/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
 
-VM_NAME=${1:-""}
-VAGRANT_ACTION=${2}
+VAGRANT_ACTION=${1}
+RHEL_USERNAME=${2}
+RHEL_PASSWORD=${3}
+VM_NAME=${4:-""}
 
-# shift 1
-#
-# ARGS="$@"
+shift 4
+
+ARGS="$@"
 
 if [[ -z "${VAGRANT_ACTION}" ]]; then
   exit 1
 fi
 
-if [[ -z "${VM_NAME}" ]]; then
-  cd vagrant && VAGRANT_VAGRANTFILE=vagrant-files/kubernetes/k3s.Vagrantfile vagrant ${VAGRANT_ACTION}
+if [[ -z ${VM_NAME} ]]; then
+  cd vagrant && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant ${VAGRANT_ACTION} ${ARGS}
 else
-  cd vagrant && VAGRANT_VAGRANTFILE=vagrant-files/kubernetes/k3s.Vagrantfile vagrant ${VAGRANT_ACTION} ${VM_NAME}
+  cd vagrant && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant ${VAGRANT_ACTION} ${VM_NAME} ${ARGS}
 fi
 
 exit 0
