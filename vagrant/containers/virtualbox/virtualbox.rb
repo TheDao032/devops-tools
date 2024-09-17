@@ -1,6 +1,6 @@
 # virtualbox.rb
-require_relative 'vm'
-require_relative '../utils/utils'
+require_relative '../vm'
+require_relative '../../utils/utils'
 
 class VirtualBoxVM < VM
   attr_accessor :memory, :cpu, :disk_size, :vbox_guest_path, :box

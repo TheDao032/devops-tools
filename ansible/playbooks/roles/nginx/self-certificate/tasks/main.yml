@@ -12,12 +12,10 @@
       with_items: "{{ crt_scripts }}"
 
 - name: Setup Self Sign Certificate
-  become: true
-  become_user: root
   block:
     - name: Prepare Certificate
       ansible.builtin.shell: |
-        mkdir {{ nginx_crt_path }}
+        mkdir {{ nginx_crt_dir }}
         {{ crt_scripts_path }}/gen_self_sign_crt.sh {{ nginx_crt_key_path }} {{ nginx_crt_path }}
       args:
         executable: /bin/bash

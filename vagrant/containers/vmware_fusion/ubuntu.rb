@@ -1,9 +1,9 @@
-# virtualbox.rb
-require_relative 'vm'
-require_relative '../utils/utils'
+# ubuntu.rb
+require_relative 'vmware_fusion'
+require_relative '../../utils/utils'
 
-class VirtualBoxVM < VM
-  attr_accessor :memory, :cpu, :disk_size, :vbox_guest_path, :box
+class UbuntuVMFusion < VMWareFusionVM
+  attr_accessor :memory, :cpu, :disk_size, :box
   include Utils
 
   def initialize(
@@ -13,23 +13,22 @@ class VirtualBoxVM < VM
     hostname,
     ip,
     network_mode,
-    vbox_guest_path,
     ports = [],
     provisioning_files = [],
     memory = 1024,
     cpus = 1,
     disk_size = 10
   )
-    super(box, config, name, hostname, ip, network_mode, vbox_guest_path, ports, provisioning_files, memory, cpus, disk_size)
+    super(box, config, name, hostname, ip, network_mode, ports, provisioning_files, memory, cpus, disk_size)
   end
 
   def provider(node)
-    node.vm.provider "virtualbox" do |vb|
-      vb.name = @name
-      vb.memory = @memory
-      vb.cpus = @cpus
-      vb.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", @vbox_guest_path]
+    node.vm.provider @provider do |v|
+      v.vmx["memorize"] = @memory
+      v.vmx["numvcpus"] = @cpus
 
+      # vb.name = @name
+      # vb.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", @vbox_guest_path]
       # vb.customize ["createhd", "--filename", "#{@name}.vdi", "--size", @disk_size * 1024]
       # vb.customize ["storagectl", :id, "--name", "SATA Controller", "--add", "sata", "--controller", "IntelAHCI"]
       # vb.customize ["storageattach", :id, "--storagectl", "SATA Controller", "--port", 0, "--device", 0, "--type", "hdd", "--medium", "#{@name}.vdi"]

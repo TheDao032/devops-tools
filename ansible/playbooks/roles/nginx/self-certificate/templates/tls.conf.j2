@@ -6,7 +6,7 @@ server {
     root         /usr/share/nginx/html;
 
     ssl_certificate {{ nginx_crt_path }};
-    ssl_certificate_key {{ nginx_key_path }};
+    ssl_certificate_key {{ nginx_crt_key_path }};
 
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:SSL:1m;

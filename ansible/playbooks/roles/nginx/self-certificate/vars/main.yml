@@ -4,5 +4,9 @@ crt_scripts_path: "/usr/bin"
 tls_conf_path: "/etc/nginx/conf.d"
 
 nginx_crt_name: nginx-selfsigned
+nginx_crt_dir: /etc/nginx/ssl
 nginx_crt_path: "/etc/nginx/ssl/{{ nginx_crt_name }}.key"
 nginx_crt_key_path: "/etc/nginx/ssl/{{ nginx_crt_name }}.crt"
+
+crt_scripts:
+  - gen_self_sign_crt.sh

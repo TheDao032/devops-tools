@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+set -e
+
+NETWORK_MODE="BRIDGE"
+NETWORK_NAME="vmnet2"
+PROVIDER="vmware_fusion"
+VAGRANTFILE="vagrant-files/kubernetes/k3s.${PROVIDER}.Vagrantfile"
+VBOX_GUEST_DISK="/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
+
+VAGRANT_ACTION=${1}
+RHEL_USERNAME=${2}
+RHEL_PASSWORD=${3}
+VM_NAME=${4:-""}
+
+shift 4
+
+ARGS="$@"
+
+if [[ -z "${VAGRANT_ACTION}" ]]; then
+  exit 1
+fi
+
+if [[ -z ${VM_NAME} ]]; then
+  cd vagrant && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant ${VAGRANT_ACTION} ${ARGS}
+else
+  cd vagrant && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant ${VAGRANT_ACTION} ${VM_NAME} ${ARGS}
+fi
+
+exit 0

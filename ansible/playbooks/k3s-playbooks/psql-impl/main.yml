@@ -1,0 +1,10 @@
+---
+- name: Postgresql Database Setup
+  hosts: server-1
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../roles/k3s/psql/database-impl

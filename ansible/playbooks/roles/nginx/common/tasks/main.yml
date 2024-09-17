@@ -1,12 +1,12 @@
 ---
 # tasks file for common
-- name: Prepare Yum repos for Nginx by add nginx.repo file to yum repos folder
-  block:
-    - name: Copy tls.conf file for k3s configuration from templates
-      ansible.builtin.template:
-        src: nginx.repo.j2
-        dest: "{{ yum_repos_path }}/nginx.repo"
-        mode: '0755'
+# - name: Prepare Yum repos for Nginx by add nginx.repo file to yum repos folder
+#   block:
+#     - name: Copy tls.conf file for k3s configuration from templates
+#       ansible.builtin.template:
+#         src: nginx.repo.j2
+#         dest: "{{ yum_repos_path }}/nginx.repo"
+#         mode: '0755'
 - name: Install Nginx Package Debian OS
   block:
     - name: Update cache

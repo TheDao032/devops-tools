@@ -2,29 +2,31 @@
 all:
   hosts:
     server-1:
-      ansible_host: 192.168.10.11
+      ansible_host: 192.168.56.11
     server-2:
-      ansible_host: 192.168.10.12
+      ansible_host: 192.168.56.12
     agent-1:
-      ansible_host: 192.168.10.21
+      ansible_host: 192.168.56.21
     agent-2:
-      ansible_host: 192.168.10.22
+      ansible_host: 192.168.56.22
   vars:
     rhel_version: 9
-    server_ip: 172.29.139.102
-    psql_k3s_port: 5432
-    psql_k3s_url: "{{ server_ip }}:{{ psql_k3s_port }}"
-    psql_k3s_user: "k3s"
-    psql_k3s_pass: "k3s"
 
   children:
-    coordinator:
-    worker:
+    server:
+    agent:
 
-coordinator:
+local:
   hosts:
-    coordinator1:
+    localhost:
+      ansible_host: localhost
 
-worker:
+server:
   hosts:
-    worker1:
+    server-1:
+    server-2:
+
+agent:
+  hosts:
+    agent-1:
+    agent-2:

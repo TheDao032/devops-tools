@@ -2,8 +2,8 @@
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
 require_relative '../../utils/env'
-require_relative '../../containers/virtualbox'
-require_relative '../../containers/rhel'
+require_relative '../../containers/virtualbox/virtualbox'
+require_relative '../../containers/virtualbox/rhel'
 require_relative '../../utils/machine/virtualbox_mc'
 
 virtuaboxConfig = VirtualboxConfig.new
@@ -15,7 +15,7 @@ NUM_SERVERS = 2
 NUM_AGENTS = 2
 
 # Network parameters for NAT mode
-IP_NW = "192.168.10"
+IP_NW = "192.168.56"
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20
@@ -151,7 +151,7 @@ Vagrant.configure("2") do |config|
   config.vbguest.auto_update = false
 
   machines.each do |machine|
-    vm = RhelVM.new(
+    vm = RhelVMVirtualbox.new(
       box = machine[:box],
       config = config,
       name = machine[:name],

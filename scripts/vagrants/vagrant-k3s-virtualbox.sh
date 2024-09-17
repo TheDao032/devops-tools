@@ -1,9 +1,12 @@
+#!/usr/bin/env bash
+
 set -e
 
 NETWORK_MODE="NAT"
+NETWORK_NAME="vmnet2"
 PROVIDER="virtualbox"
-VAGRANTFILE="vagrant-files/kubernetes/k3s.Vagrantfile"
-VBOX_GUEST_DISK="/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
+VAGRANTFILE="vagrant-files/kubernetes/k3s.${PROVIDER}.Vagrantfile"
+VBOX_GUEST_DISK="/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
 
 VAGRANT_ACTION=${1}
 RHEL_USERNAME=${2}

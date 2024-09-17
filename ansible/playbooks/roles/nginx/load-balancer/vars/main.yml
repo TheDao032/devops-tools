@@ -1,6 +1,13 @@
 ---
 # vars file for load-balancer
 nginx_modules_path: /usr/share/nginx/modules
+load_balancer_conf_path: /etc/nginx/load-balancer
+nginx_conf_path: /etc/nginx/nginx.conf
 servers:
-  "{{ hostvars['server-1']['ansible_host'] }}": 6443
-  "{{ hostvars['server-2']['ansible_host'] }}": 6443
+  - ip: "{{ hostvars['server-1']['ansible_host'] }}"
+    port: 6443
+  - ip: "{{ hostvars['server-2']['ansible_host'] }}"
+    port: 6443
+lb_scripts_path: /usr/bin
+lb_scripts:
+  - nginx_conf.sh

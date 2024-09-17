@@ -8,13 +8,13 @@
     group: root
     mode: '0755'
   with_items: "{{ k3s_scripts }}"
-- name: Execute k3s scripts for coordinator
+- name: Execute k3s scripts
   block:
-    - name: Repmgr common scripts for coordinator cluster
+    - name: k3s db implementation
       vars:
         k3s_sql_file: k3s-db-impl.sql
       ansible.builtin.shell: |
-        {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_password }} {{ psql_k3s_scripts_path }}/{{ k3s_sql_file }}
+        {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_pass }} {{ psql_k3s_scripts_path }}/{{ k3s_sql_file }}
       args:
-        chdir: /var/lib/postgresql
+        chdir: /var/lib/pgsql
         executable: /bin/bash
