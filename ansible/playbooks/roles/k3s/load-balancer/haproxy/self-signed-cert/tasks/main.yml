@@ -1,0 +1,21 @@
+---
+# tasks file for self-signed-cert
+- name: Prepare Self Sign Certificate scripts and templates
+  block:
+    - name: Copy self signed certificate scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ crt_scripts_path }}"
+        owner: root
+        group: root
+        mode: '0755'
+      with_items: "{{ crt_scripts }}"
+
+- name: Setup Self Sign Certificate
+  block:
+    - name: Prepare Certificate
+      ansible.builtin.shell: |
+        mkdir {{ crt_dir }}
+        {{ crt_scripts_path }}/gen_self_sign_crt.sh {{ crt_key_path }} {{ crt_path }}
+      args:
+        executable: /bin/bash

@@ -1,5 +1,5 @@
 ---
-- name: k3s-dependencies-setup
+- name: k3s-agent-register-setup
   hosts: agent
   become: true
   become_user: root

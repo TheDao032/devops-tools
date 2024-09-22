@@ -1,0 +1,25 @@
+frontend k3s_https
+    bind *:443 ssl crt {{ crt_path }}
+    default_backend k3s-https
+
+frontend k3s_frontend
+    bind *:6445
+    mode tcp
+    option tcplog
+    default_backend k3s-backend
+
+backend k3s-backend
+    mode tcp
+    option tcp-check
+    balance roundrobin
+    default-server inter 10s downinter 5s
+    {% for server in servers %}
+    server {{ server.name }} {{ server.ip }}:{{ server.port }} check
+    {% endfor %}
+
+backend k3s-https
+    balance roundrobin
+    mode http
+    {% for server in servers_https %}
+    server {{ server.name }} {{ server.ip }}:{{ server.port }} check
+    {% endfor %}

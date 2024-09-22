@@ -2,5 +2,7 @@
 # vars file for agent-register
 k3s_agent_scripts:
   - agent-register.sh
-server_url: "https://{{ server_ip }}:{{ load_balancer_port }}"
-psql_k3s_scripts_path: "/usr/bin"
+  - kube-config-modify.sh
+k3s_agent_scripts_path: "/usr/bin"
+load_balancer_virtual_url: "https://{{ keepalived_virtual_ip }}:{{ load_balancer_port }}"
+k3s_config_path: /home/vagrant/.kube/config

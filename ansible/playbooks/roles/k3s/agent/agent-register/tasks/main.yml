@@ -3,25 +3,47 @@
 - name: Copy k3s agent scripts to the remote host
   ansible.builtin.copy:
     src: "{{ item }}"
-    dest: "{{ psql_k3s_scripts_path }}"
+    dest: "{{ k3s_agent_scripts_path }}"
     mode: '0755'
   with_items: "{{ k3s_agent_scripts }}"
 
 - name: k3s agent register
   block:
-    - name: Slurp file content from the specific host
+    - name: Slurp server token from the server
       ansible.builtin.slurp:
         src: /var/lib/rancher/k3s/server/token
       delegate_to: server-1
       register: server_token
 
-    - name: Send k3s token from server to all other server
+    - name: Send k3s token from server to all other cluster
       ansible.builtin.copy:
         content: "{{ server_token.content | b64decode }}"
         dest: /tmp/k3s-server-token
         mode: '0644'
     - name: Exec register script for agent
       ansible.builtin.shell: |
-        {{ psql_k3s_scripts_path }}/agent-register.sh {{ server_url }} /tmp/k3s-server-token
+        {{ k3s_agent_scripts_path }}/agent-register.sh {{ load_balancer_virtual_url }} /tmp/k3s-server-token {{ ansible_host }}
+      args:
+        executable: /bin/bash
+
+    - name: Create .kube directory
+      ansible.builtin.file:
+        path: /home/vagrant/.kube
+        recurse: true
+        state: directory
+    - name: Slurp k3s config file from the server to agents
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      delegate_to: server-1
+      register: k3s_conf
+    - name: Send k3s config from server to agents
+      ansible.builtin.copy:
+        content: "{{ k3s_conf.content | b64decode }}"
+        dest: /home/vagrant/.kube/config
+        mode: '0644'
+
+    - name: Exec register script for agent
+      ansible.builtin.shell: |
+        {{ k3s_agent_scripts_path }}/kube-config-modify.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ k3s_config_path }}
       args:
         executable: /bin/bash

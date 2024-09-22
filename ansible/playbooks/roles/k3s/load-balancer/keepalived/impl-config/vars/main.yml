@@ -1,0 +1,3 @@
+---
+# vars file for impl-config
+keepalive_conf_path: /etc/keepalived

@@ -1,8 +1,9 @@
 ---
-- name: k3s-dependencies-setup
+- name: k3s-server-register-setup
   hosts: server
   become: true
   become_user: root
+  serial: 1
   tasks:
     - name: Ping all nodes
       ansible.builtin.ping:

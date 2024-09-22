@@ -1,0 +1,25 @@
+---
+# tasks file for impl-config
+- name: Ensure the keepalived.conf is overwritten with the correct template
+  ansible.builtin.template:
+    src: k3s.keepalived.conf.j2
+    dest: "{{ keepalive_conf_path }}/keepalived.conf"
+    owner: root  # Set file owner (optional)
+    group: root  # Set file group (optional)
+    mode: '0644'
+    force: true
+
+# - name: Verify contents of keepalived.conf
+#   ansible.builtin.command:
+#     cmd: cat /tmp/keepalived.conf > {{ keepalive_conf_path }}/keepalived.conf
+#   register: keepalived_content
+
+# - name: Debug keepalived.conf contents
+#   debug:
+#     msg: "{{ keepalived_content.stdout }}"
+
+- name: Restart Keepalived service after config update
+  ansible.builtin.systemd:
+    name: keepalived
+    state: restarted
+    enabled: true

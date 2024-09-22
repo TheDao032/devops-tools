@@ -2,14 +2,13 @@
 
 set -e
 PSQL_URL=$1
-SERVER_URL=$2
-SERVER_TOKEN_FILE=$3
+KEEPALIVED_VIRTUAL_IP=$2
+SERVER_IP=$3
 
-if [[ -f "${SERVER_TOKEN_FILE}" ]];
-then
-  curl -sfL https://get.k3s.io | sh -s - server --server "${SERVER_URL}" --write-kubeconfig-mode "0644" --datastore-endpoint="${PSQL_URL}" --token-file ${SERVER_TOKEN_FILE}
-else
-  curl -sfL https://get.k3s.io | sh -s - server --write-kubeconfig-mode "0644" --datastore-endpoint="${PSQL_URL}"
-fi
+curl -sfL https://get.k3s.io | sh -s - server \
+    --node-ip ${SERVER_IP} \
+    --tls-san ${KEEPALIVED_VIRTUAL_IP} \
+    --write-kubeconfig-mode "0644" \
+    --datastore-endpoint "${PSQL_URL}"
 
 exit 0

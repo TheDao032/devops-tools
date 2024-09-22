@@ -1,0 +1,24 @@
+vrrp_script chk-haproxy {
+    script "killall -0 haproxy"
+    interval 2
+    weight 10
+}
+
+vrrp_instance k3s-haproxy {
+    state {{ state }}
+    priority {{ priority }}
+    interface {{ interface }}
+    virtual_router_id 61
+    advert_int 2
+    authentication {
+      auth_type {{ auth_type }}
+      auth_pass {{ auth_pass }}
+    }
+    virtual_ipaddress {
+      {{ virtual_ipaddress }}
+    }
+
+    track_script {
+      chk-haproxy
+    }
+}

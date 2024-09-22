@@ -1,0 +1,10 @@
+---
+# handlers file for impl-config
+- name: haproxy-firewall-config
+  ansible.builtin.shell: |
+    cd /etc/firewalld/services
+    restorecon {{ item }}
+    chmod 640 {{ item }}
+  args:
+    executable: /bin/bash
+  with_items: "{{ haproxy_firewall_xml }}"

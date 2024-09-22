@@ -10,7 +10,8 @@ all:
     agent-2:
       ansible_host: 192.168.56.22
   vars:
-    rhel_version: 9
+    keepalived_virtual_ip: 192.168.56.100
+    load_balancer_port: 6445
 
   children:
     server:

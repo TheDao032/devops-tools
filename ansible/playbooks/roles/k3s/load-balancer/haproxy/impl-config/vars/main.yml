@@ -1,0 +1,28 @@
+---
+# vars file for impl-config
+crt_name: k3s
+crt_dir: /etc/haproxy/ssl
+crt_path: "{{ crt_dir }}/{{ crt_name }}.pem"
+crt_key_path: "{{ crt_dir }}/{{ crt_name }}.pem.key"
+
+haproxy_firewall_services_dir: /etc/firewalld/services
+haproxy_firewall_xml:
+  - haproxy-http.xml
+  - haproxy-https.xml
+  - haproxy-https-k3s.xml
+
+servers:
+  - name: "server-1"
+    ip: "{{ hostvars['server-1']['ansible_host'] }}"
+    port: 6443
+  - name: "server-2"
+    ip: "{{ hostvars['server-2']['ansible_host'] }}"
+    port: 6443
+
+servers_https:
+  - name: "server-1"
+    ip: "{{ hostvars['server-1']['ansible_host'] }}"
+    port: 80
+  - name: "server-2"
+    ip: "{{ hostvars['server-2']['ansible_host'] }}"
+    port: 80

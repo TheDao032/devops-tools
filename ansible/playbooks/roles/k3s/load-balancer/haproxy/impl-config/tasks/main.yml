@@ -1,0 +1,29 @@
+---
+- name: Check if content from template already exists in haproxy.conf
+  ansible.builtin.shell: |
+    grep -F "{{ lookup('template', 'k3s.haproxy.conf.j2') }}" /etc/haproxy/haproxy.conf || echo "not found"
+  register: check_haproxy_conf
+  changed_when: false  # Avoid marking this task as changed
+
+- name: Append content of template to the target file
+  ansible.builtin.blockinfile:
+    path: /etc/haproxy/haproxy.cfg  # Target file where content should be added
+    block: "{{ lookup('template', 'k3s.haproxy.conf.j2') }}"  # Render the template directly into the block
+    marker: "# {mark} Managed by Ansible"
+  when: "'not found' in check_haproxy_conf.stdout"
+
+- name: Render haproxy templates for firewall
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ haproxy_firewall_services_dir }}/{{ item }}"  # Temp location to render template
+  register: haproxy_conf_file
+  with_items: "{{ haproxy_firewall_xml }}"
+  notify:
+    - haproxy-firewall-config
+
+- name: Systemd restart HAProxy
+  become: true
+  ansible.builtin.systemd_service:
+    name: haproxy
+    state: restarted
+    enabled: true

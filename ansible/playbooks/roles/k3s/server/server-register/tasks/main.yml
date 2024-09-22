@@ -11,7 +11,7 @@
   block:
     - name: Exec server register script
       ansible.builtin.shell: |
-        {{ k3s_server_scripts_path }}/server-register.sh {{ psql_k3s_datastore_uri }}
+        {{ k3s_server_scripts_path }}/server-register.sh {{ psql_k3s_datastore_uri }} {{ keepalived_virtual_ip }} {{ ansible_host }}
       args:
         executable: /bin/bash
     - name: Slurp file content from the specific host
@@ -32,7 +32,7 @@
   block:
     - name: Exec register script for sidecard server
       ansible.builtin.shell: |
-        {{ k3s_server_scripts_path }}/server-register.sh {{ psql_k3s_datastore_uri }} {{ server_url }} /tmp/k3s-server-token
+        {{ k3s_server_scripts_path }}/server-side-register.sh {{ psql_k3s_datastore_uri }} /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ ansible_host }}
       args:
         executable: /bin/bash
   when: "'server-1' not in ansible_hostname"

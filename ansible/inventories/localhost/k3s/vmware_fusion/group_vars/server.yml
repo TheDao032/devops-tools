@@ -5,6 +5,3 @@ ansible_user: vagrant
 psql_k3s_port: 5432
 psql_k3s_user: "k3s"
 psql_k3s_pass: "k3s"
-
-server_ip: "{{ hostvars['server-1']['ansible_host'] }}"
-load_balancer_port: 6445

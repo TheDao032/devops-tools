@@ -1,0 +1,11 @@
+---
+# vars file for self-signed-cert
+crt_scripts_path: "/usr/bin"
+
+crt_name: k3s
+crt_dir: /etc/haproxy/ssl
+crt_path: "{{ crt_dir }}/{{ crt_name }}.pem"
+crt_key_path: "{{ crt_dir }}/{{ crt_name }}.pem.key"
+
+crt_scripts:
+  - gen_self_sign_crt.sh

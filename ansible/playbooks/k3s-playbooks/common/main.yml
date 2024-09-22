@@ -7,4 +7,4 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    - role: ../../roles/k3s/dependencies
+    - role: ../../roles/k3s/common/dependencies

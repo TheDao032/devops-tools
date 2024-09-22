@@ -18,7 +18,7 @@ class VirtualBoxVM < VM
     provisioning_files = [],
     memory = 1024,
     cpus = 1,
-    disk_size = 10
+    disk_size = 30
   )
     super(config, name, hostname, ip, network_mode, ports, provisioning_files)
     @box = box
