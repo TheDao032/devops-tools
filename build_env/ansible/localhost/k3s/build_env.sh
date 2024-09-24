@@ -1,8 +1,6 @@
 #!/bin/bash
 
 set -e
-RHEL_USERNAME=$1
-RHEL_PASSWORD=$2
 
 LOCATION=${LOCATION:-"localhost"}
 SERVICE=${SERVICE:-"k3s"}
@@ -18,9 +16,13 @@ ANSIBLE_INVENTORIES_DIR=${ANSIBLE_DIR}/inventories
 VAGRANTFILE="vagrant-files/kubernetes/k3s.${PROVIDER}.Vagrantfile"
 INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${SERVICE}/${PROVIDER}
 
+NETWORK_MODE=${NETWORK_MODE:-"NAT"}
+VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"}
+
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT}
 
-VM_ENV_INVENTORY=$1
+RHEL_USERNAME=$1
+RHEL_PASSWORD=$2
 
 declare vagrant_plugins=(
   "vagrant-vbguest"
@@ -45,17 +47,23 @@ vagrant_init() {
     fi
   done
 
-  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} vagrant up --provider ${PROVIDER}
+  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER}
 }
 
 ansible_exec() {
   # k3s PostgreSQL Common Packages
-  log_info "Running setup k3s PostgreSQL common packages"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/psql-impl/main.yml -i ${INVENTORY} -vvv
+  # log_info "Running setup k3s PostgreSQL common packages"
+  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/psql-impl/main.yml -i ${INVENTORY} -vvv
 
   log_info "Running setup k3s load-balancer"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/main.yml -i ${INVENTORY} -vvv
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/main.yml -i ${INVENTORY} -vvv
+  log_info "Running setup k3s haproxy"
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/common/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/self-signed-cert/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/impl-config/main.yml -i ${INVENTORY} -vvv
+
+  log_info "Running setup k3s keepalived"
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/common/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/impl-config/main.yml -i ${INVENTORY} -vvv
 
   log_info "Running setup k3s server"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/server-register/main.yml -i ${INVENTORY} -vvv
@@ -66,4 +74,4 @@ ansible_exec() {
 
 vagrant_init ${vagrant_plugins[@]}
 
-ansible_exec ${VM_ENV_INVENTORY}
+ansible_exec

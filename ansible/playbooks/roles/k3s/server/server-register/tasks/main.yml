@@ -32,7 +32,7 @@
   block:
     - name: Exec register script for sidecard server
       ansible.builtin.shell: |
-        {{ k3s_server_scripts_path }}/server-side-register.sh {{ psql_k3s_datastore_uri }} /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ ansible_host }}
+        {{ k3s_server_scripts_path }}/server-side-register.sh {{ psql_k3s_datastore_uri }} /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ ansible_host }} {{ load_balancer_virtual_url }}
       args:
         executable: /bin/bash
   when: "'server-1' not in ansible_hostname"

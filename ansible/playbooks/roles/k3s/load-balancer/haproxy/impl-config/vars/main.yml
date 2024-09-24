@@ -5,6 +5,8 @@ crt_dir: /etc/haproxy/ssl
 crt_path: "{{ crt_dir }}/{{ crt_name }}.pem"
 crt_key_path: "{{ crt_dir }}/{{ crt_name }}.pem.key"
 
+haproxy_conf_path: /etc/haproxy
+
 haproxy_firewall_services_dir: /etc/firewalld/services
 haproxy_firewall_xml:
   - haproxy-http.xml

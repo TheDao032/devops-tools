@@ -69,7 +69,7 @@ class VirtualboxConfig < Config
     super
 
     # VBoxGuest
-    @vbox_guest_disk = ENV["VBOX_GUEST_DISK"] || "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
+    @vbox_guest_disk = ENV["VBOX_GUEST_DISK"] || "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
 
     @os_systems = {
       ubuntu: {

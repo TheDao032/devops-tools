@@ -5,14 +5,16 @@ PSQL_URL=$1
 SERVER_TOKEN_FILE=$2
 KEEPALIVED_VIRTUAL_IP=$3
 SERVER_IP=$4
+SERVER_URL=$5
 
+# --datastore-endpoint "${PSQL_URL}" \
 if [[ -f "${SERVER_TOKEN_FILE}" ]];
 then
-  curl -sfL https://get.k3s.io | sh -s - server \
+  curl -sfL https://get.k3s.io | K3S_URL=${SERVER_URL} sh -s - server \
+    --server ${SERVER_URL} \
     --node-ip ${SERVER_IP} \
     --tls-san ${KEEPALIVED_VIRTUAL_IP} \
     --write-kubeconfig-mode "0644" \
-    --datastore-endpoint "${PSQL_URL}" \
     --token-file ${SERVER_TOKEN_FILE}
   exit 0
 fi
