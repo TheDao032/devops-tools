@@ -12,7 +12,6 @@ SERVER_URL=$5
 if [[ -f "${SERVER_TOKEN_FILE}" ]];
 then
   curl -sfL https://get.k3s.io | K3S_URL=${SERVER_URL} sh -s - server \
-    --server ${SERVER_URL} \
     --tls-san ${KEEPALIVED_VIRTUAL_IP} \
     --write-kubeconfig-mode "0644" \
     --token-file ${SERVER_TOKEN_FILE}
