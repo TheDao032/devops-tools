@@ -42,7 +42,7 @@
         dest: /home/vagrant/.kube/config
         mode: '0644'
 
-    - name: Exec register script for agent
+    - name: Exec k3s config modify script for agent
       ansible.builtin.shell: |
         {{ k3s_agent_scripts_path }}/kube-config-modify.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ k3s_config_path }}
       args:

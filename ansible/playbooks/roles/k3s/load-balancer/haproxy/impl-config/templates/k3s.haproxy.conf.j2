@@ -64,15 +64,31 @@ defaults
 
 frontend k3s_https
     bind *:443 ssl crt {{ crt_path }}
-    default_backend k3s-https
+    mode http
+    option forwardfor
+    http-request set-header Host %[req.hdr(Host)]
+    http-request set-header X-Forwarded-For %[src]
+    http-request set-header X-Forwarded-Proto https
+    http-request set-header X-Real-IP %[src]
+    default_backend k3s_https
+
+frontend k3s_http
+    bind *:80
+    mode http
+    option forwardfor
+    http-request set-header Host %[req.hdr(Host)]
+    http-request set-header X-Forwarded-For %[src]
+    http-request set-header X-Forwarded-Proto http
+    http-request set-header X-Real-IP %[src]
+    default_backend k3s_http
 
 frontend k3s_frontend
     bind *:6445
     mode tcp
     option tcplog
-    default_backend k3s-backend
+    default_backend k3s_backend
 
-backend k3s-backend
+backend k3s_backend
     mode tcp
     option tcp-check
     balance roundrobin
@@ -81,7 +97,20 @@ backend k3s-backend
     server {{ server.name }} {{ server.ip }}:{{ server.port }} check
     {% endfor %}
 
-backend k3s-https
+#---------------------------------------------------------------------
+# Backend for HTTP traffic (port 80)
+#---------------------------------------------------------------------
+backend k3s_http
+    balance roundrobin
+    mode http
+    {% for server in servers_http %}
+    server {{ server.name }} {{ server.ip }}:{{ server.port }} check
+    {% endfor %}
+
+#---------------------------------------------------------------------
+# Backend for HTTPS traffic (port 443)
+#---------------------------------------------------------------------
+backend k3s_https
     balance roundrobin
     mode http
     {% for server in servers_https %}

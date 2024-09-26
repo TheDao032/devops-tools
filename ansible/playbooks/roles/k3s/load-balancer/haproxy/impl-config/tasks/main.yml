@@ -1,25 +1,25 @@
 ---
-- name: Check if content from template already exists in haproxy.conf
-  ansible.builtin.shell: |
-    grep -F "{{ lookup('template', 'k3s.haproxy.conf.j2') }}" /etc/haproxy/haproxy.conf || echo "not found"
-  register: check_haproxy_conf
-  changed_when: false  # Avoid marking this task as changed
+# - name: Check if content from template already exists in haproxy.conf
+#   ansible.builtin.shell: |
+#     grep -F "{{ lookup('template', 'k3s.haproxy.conf.j2') }}" /etc/haproxy/haproxy.conf || echo "not found"
+#   register: check_haproxy_conf
+#   changed_when: false  # Avoid marking this task as changed
 
-- name: Append content of template to the target file
-  ansible.builtin.blockinfile:
-    path: /etc/haproxy/haproxy.cfg  # Target file where content should be added
-    block: "{{ lookup('template', 'k3s.haproxy.conf.j2') }}"  # Render the template directly into the block
-    marker: "# {mark} Managed by Ansible"
-  when: "'not found' in check_haproxy_conf.stdout"
+# - name: Append content of template to the target file
+#   ansible.builtin.blockinfile:
+#     path: /etc/haproxy/haproxy.cfg  # Target file where content should be added
+#     block: "{{ lookup('template', 'k3s.haproxy.conf.j2') }}"  # Render the template directly into the block
+#     marker: "# {mark} Managed by Ansible"
+#   when: "'not found' in check_haproxy_conf.stdout"
 
-# - name: Ensure the haproxy.conf is overwritten with the correct template
-#   ansible.builtin.template:
-#     src: k3s.haproxy.conf.j2
-#     dest: "{{ haproxy_conf_path }}/haproxy.cfg"
-#     owner: root  # Set file owner (optional)
-#     group: root  # Set file group (optional)
-#     mode: '0644'
-#     force: true
+- name: Ensure the haproxy.conf is overwritten with the correct template
+  ansible.builtin.template:
+    src: k3s.haproxy.conf.j2
+    dest: "{{ haproxy_conf_path }}/haproxy.cfg"
+    owner: root  # Set file owner (optional)
+    group: root  # Set file group (optional)
+    mode: '0644'
+    force: true
 
 - name: Render haproxy templates for firewall
   ansible.builtin.template:

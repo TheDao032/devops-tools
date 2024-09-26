@@ -21,10 +21,30 @@ servers:
     ip: "{{ hostvars['server-2']['ansible_host'] }}"
     port: 6443
 
-servers_https:
+servers_http:
   - name: "server-1"
     ip: "{{ hostvars['server-1']['ansible_host'] }}"
     port: 80
   - name: "server-2"
     ip: "{{ hostvars['server-2']['ansible_host'] }}"
     port: 80
+  - name: "agent-1"
+    ip: "{{ hostvars['agent-1']['ansible_host'] }}"
+    port: 80
+  - name: "agent-2"
+    ip: "{{ hostvars['agent-2']['ansible_host'] }}"
+    port: 80
+
+servers_https:
+  - name: "server-1"
+    ip: "{{ hostvars['server-1']['ansible_host'] }}"
+    port: 443
+  - name: "server-2"
+    ip: "{{ hostvars['server-2']['ansible_host'] }}"
+    port: 443
+  - name: "agent-1"
+    ip: "{{ hostvars['agent-1']['ansible_host'] }}"
+    port: 443
+  - name: "agent-2"
+    ip: "{{ hostvars['agent-2']['ansible_host'] }}"
+    port: 443

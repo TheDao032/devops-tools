@@ -6,7 +6,7 @@ LOAD_BALANCER_PORT=$2
 K3S_CONFIG_PATH=$3
 
 declare -A k3s_conf=(
- [#server]="server: https://${KEEPALIVED_VIRTUAL_IP}:${LOAD_BALANCER_PORT}"
+ [server]="    server: https://${KEEPALIVED_VIRTUAL_IP}:${LOAD_BALANCER_PORT}"
 )
 
 for key in "${!k3s_conf[@]}"; do
