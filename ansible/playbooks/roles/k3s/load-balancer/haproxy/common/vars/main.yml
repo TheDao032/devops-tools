@@ -3,17 +3,12 @@
 debian_packages:
   - haproxy
   - rsyslog
-  - keepalived
-  - psmisc
 
 rhel_packages:
   - haproxy
   - rsyslog
-  - keepalived
   - psmisc
 
 centos_packages:
   - haproxy
   - rsyslog
-  - keepalived
-  - psmisc

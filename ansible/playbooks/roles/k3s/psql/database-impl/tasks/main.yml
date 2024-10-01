@@ -8,13 +8,116 @@
     group: root
     mode: '0755'
   with_items: "{{ k3s_scripts }}"
-- name: Execute k3s scripts
+
+- name: Install PostgreSQL Debian OS
   block:
+    - name: Prepare PostgreSQL packages
+      ansible.builtin.shell: |
+        # PostgreSQL
+        install -d /usr/share/postgresql-common/pgdg
+        curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
+
+        # Create the repository configuration file:
+        sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+        # Create the repository configuration file:
+        sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+
+        # Update the package lists:
+        apt update
+
+        # Install the latest version of PostgreSQL:
+        # If you want a specific version, use 'postgresql-16' or similar instead of 'postgresql'
+        apt -y install postgresql-{{ psql_version }}
+      args:
+        executable: /bin/bash
+    - name: Upddate apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian.psql_packages }}"
+
+    - name: Copy pg_hba.conf file for psql configuration from templates
+      ansible.builtin.template:
+        src: pg_hba.conf.j2
+        dest: "{{ debian.psql_conf_folder_path }}/pg_hba.conf"
+        mode: '0755'
+    - name: Set correct permissions on pg_hba.conf
+      ansible.builtin.file:
+        path: "{{ debian.psql_conf_folder_path }}/pg_hba.conf"
+        owner: postgres
+        mode: '0755'
+      become: true
+
     - name: k3s db implementation
       vars:
-        k3s_sql_file: k3s-db-impl.sql
+        k3s_sql_impl_file: k3s-db-impl.sql
       ansible.builtin.shell: |
-        {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_pass }} {{ psql_k3s_scripts_path }}/{{ k3s_sql_file }}
+        {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_pass }} {{ psql_k3s_scripts_path }}/{{ k3s_sql_impl_file }} {{ psql_version }}
+        {{ psql_k3s_scripts_path }}/k3s-db-conf.sh {{ debian.psql_conf_folder_path }}/postgresql.conf
       args:
         chdir: /var/lib/pgsql
         executable: /bin/bash
+
+    - name: Systemd restart PostgreSQL
+      become: true
+      ansible.builtin.systemd_service:
+        name: "{{ debian.psql_service_name }}"
+        state: restarted
+        enabled: true
+
+  when: ansible_facts['os_family'] == "Debian"
+
+# Install PostgreSQL For RedHat
+- name: Install PostgreSQL For Redhat
+  block:
+    - name: Prepare PostgreSQL packages
+      ansible.builtin.shell: |
+        # Install the repository RPM
+        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+
+        # Disable the built-in PostgreSQL module
+        dnf -qy module disable postgresql
+
+        # Install PostgreSQL
+        dnf install -y postgresql{{ psql_version }}-server
+
+        # Optionally initialize the database and enable automatic start
+        /usr/pgsql-15/bin/postgresql-{{ psql_version }}-setup initdb
+        systemctl enable postgresql-{{ psql_version }}
+        systemctl start postgresql-{{ psql_version }}
+      args:
+        executable: /bin/bash
+
+    - name: Copy pg_hba.conf file for psql configuration from templates
+      ansible.builtin.template:
+        src: pg_hba.conf.j2
+        dest: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
+        mode: '0755'
+    - name: Set correct permissions on pg_hba.conf
+      ansible.builtin.file:
+        path: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
+        owner: postgres
+        mode: '0755'
+      become: true
+
+    - name: k3s db implementation
+      vars:
+        k3s_sql_impl_file: k3s-db-impl.sql
+      ansible.builtin.shell: |
+        {{ psql_k3s_scripts_path }}/k3s-db-impl.sh {{ psql_k3s_pass }} {{ psql_k3s_scripts_path }}/{{ k3s_sql_impl_file }} {{ psql_version }}
+        {{ psql_k3s_scripts_path }}/k3s-db-conf.sh {{ redhat.psql_conf_folder_path }}/postgresql.conf
+      args:
+        chdir: /var/lib/pgsql
+        executable: /bin/bash
+
+    - name: Systemd restart PostgreSQL
+      become: true
+      ansible.builtin.systemd_service:
+        name: "{{ redhat.psql_service_name }}"
+        state: restarted
+        enabled: true
+  when: ansible_facts['os_family'] == "RedHat"

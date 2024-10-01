@@ -26,24 +26,24 @@
       args:
         executable: /bin/bash
 
-    - name: Create .kube directory
-      ansible.builtin.file:
-        path: /home/vagrant/.kube
-        recurse: true
-        state: directory
-    - name: Slurp k3s config file from the server to agents
-      ansible.builtin.slurp:
-        src: /etc/rancher/k3s/k3s.yaml
-      delegate_to: server-1
-      register: k3s_conf
-    - name: Send k3s config from server to agents
-      ansible.builtin.copy:
-        content: "{{ k3s_conf.content | b64decode }}"
-        dest: /home/vagrant/.kube/config
-        mode: '0644'
+    # - name: Create .kube directory
+    #   ansible.builtin.file:
+    #     path: /home/vagrant/.kube
+    #     recurse: true
+    #     state: directory
+    # - name: Slurp k3s config file from the server to agents
+    #   ansible.builtin.slurp:
+    #     src: /etc/rancher/k3s/k3s.yaml
+    #   delegate_to: server-1
+    #   register: k3s_conf
+    # - name: Send k3s config from server to agents
+    #   ansible.builtin.copy:
+    #     content: "{{ k3s_conf.content | b64decode }}"
+    #     dest: /home/vagrant/.kube/config
+    #     mode: '0644'
 
-    - name: Exec k3s config modify script for agent
-      ansible.builtin.shell: |
-        {{ k3s_agent_scripts_path }}/kube-config-modify.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ k3s_config_path }}
-      args:
-        executable: /bin/bash
+    # - name: Exec k3s config modify script for agent
+    #   ansible.builtin.shell: |
+    #     {{ k3s_agent_scripts_path }}/kube-config-modify.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ k3s_config_path }}
+    #   args:
+    #     executable: /bin/bash

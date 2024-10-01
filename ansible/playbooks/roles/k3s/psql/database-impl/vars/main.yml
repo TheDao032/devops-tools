@@ -2,5 +2,18 @@
 # vars file for database-impl
 k3s_scripts:
   - k3s-db-impl.sh
+  - k3s-db-conf.sh
   - k3s-db-impl.sql
 psql_k3s_scripts_path: "/usr/bin"
+
+redhat:
+  # psql_packages:
+  #   - postgresql{{ psql_version }}-server
+  psql_conf_folder_path: "/var/lib/pgsql/{{ psql_version }}/data"
+  psql_service_name: "postgresql-{{ psql_version }}"
+
+debian:
+  # psql_packages:
+  #   - postgresql-{{ psql_version }}
+  psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"
+  psql_service_name: "postgresql"

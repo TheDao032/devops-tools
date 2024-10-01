@@ -46,7 +46,7 @@ RAM_SIZE = 16
 CPU_CORES = 8
 
 # VBoxGuest
-VBOX_GUEST_DISK_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions_7.0.20.iso"
+VBOX_GUEST_DISK_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.

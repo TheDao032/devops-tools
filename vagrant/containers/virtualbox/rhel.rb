@@ -28,6 +28,7 @@ class RhelVMVirtualbox < VirtualBoxVM
       v.name = @name
       v.memory = @memory
       v.cpus = @cpus
+      # v.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", @vbox_guest_path]
       v.customize ["storageattach", :id, "--storagectl", "IDE Controller", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", @vbox_guest_path]
 
       # vb.customize ["createhd", "--filename", "#{@name}.vdi", "--size", @disk_size * 1024]

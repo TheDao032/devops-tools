@@ -10,17 +10,19 @@ all:
     agent-2:
       ansible_host: 192.168.56.22
   vars:
-    keepalived_virtual_ip: 192.168.56.11
-    load_balancer_port: 6443
+    keepalived_virtual_ip: 192.168.56.100
+    load_balancer_port: 6445
+    psql_version: 15
+    k3s_server_cidr_range: 192.168.56.0/24
 
   children:
     server:
     agent:
 
-local:
-  hosts:
-    localhost:
-      ansible_host: localhost
+# local:
+#   hosts:
+#     localhost:
+#       ansible_host: localhost
 
 server:
   hosts:

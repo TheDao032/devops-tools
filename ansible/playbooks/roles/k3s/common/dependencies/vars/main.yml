@@ -3,11 +3,17 @@
 debian_packages:
   - curl
   - ca-certificates
+  - wireguard
 
 rhel_packages:
   - curl
   - ca-certificates
+  - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
+  - https://www.elrepo.org/elrepo-release-9.el9.elrepo.noarch.rpm
+  - wireguard-tools
 
 centos_packages:
   - curl
   - ca-certificates
+  - yum-utils
+  - epel-release

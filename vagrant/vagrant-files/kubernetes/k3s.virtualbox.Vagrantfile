@@ -94,7 +94,9 @@ machines = []
       network: {
         name: "",
         ports: [
-          { guest: 22, host: 2730 + i }
+          # { guest: 22, host: 2730 + i },
+          { guest: 80, host: 8080 + i },
+          { guest: 443, host: 4430 + i }
         ],
         ip: "#{IP_NW}.#{SERVER_IP_START + i}"
       },
@@ -117,7 +119,9 @@ end
       network: {
         name: "",
         ports: [
-          { guest: 22, host: 2740 + i }
+          # { guest: 22, host: 2740 + i },
+          { guest: 80, host: 8090 + i },
+          { guest: 443, host: 4440 + i }
         ],
         ip: "#{IP_NW}.#{AGENT_IP_START + i}"
       },

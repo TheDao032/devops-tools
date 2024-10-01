@@ -28,7 +28,7 @@
       delegate_to: server-2
   when: "'server-1' in ansible_hostname"
 
-- name: k3s server register
+- name: k3s side server register
   block:
     - name: Exec register script for sidecard server
       ansible.builtin.shell: |

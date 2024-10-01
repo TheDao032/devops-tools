@@ -25,6 +25,25 @@
         name: "{{ item }}"
         state: present
       with_items: "{{ debian_psql_packages }}"
+
+    - name: Copy pg_hba.conf file for psql configuration from templates
+      ansible.builtin.template:
+        src: pg_hba.conf.j2
+        dest: "{{ debian.psql_conf_folder_path }}/pg_hba.conf"
+        mode: '0755'
+    - name: Set correct permissions on pg_hba.conf
+      ansible.builtin.file:
+        path: "{{ debian.psql_conf_folder_path }}/pg_hba.conf"
+        owner: postgres
+        mode: '0755'
+      become: true
+
+    - name: Systemd restart PostgreSQL
+      become: true
+      ansible.builtin.systemd_service:
+        name: "{{ debian.psql_service_name }}"
+        state: restarted
+        enabled: true
   when: ansible_facts['os_family'] == "Debian"
 
 - name: Install PostgreSQL RedHat OS
@@ -51,25 +70,24 @@
       ansible.builtin.dnf:
         name: "{{ item }}"
         state: present
-      with_items: "{{ redhat_psql_packages }}"
-  when: ansible_facts['os_family'] == "RedHat"
+      with_items: "{{ redhat.psql_packages }}"
 
-- name: Config PostgreSQL
-  block:
     - name: Copy pg_hba.conf file for psql configuration from templates
       ansible.builtin.template:
         src: pg_hba.conf.j2
-        dest: "{{ psql_conf_folder_path }}/pg_hba.conf"
+        dest: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
         mode: '0755'
     - name: Set correct permissions on pg_hba.conf
       ansible.builtin.file:
-        path: "{{ psql_conf_folder_path }}/pg_hba.conf"
+        path: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
         owner: postgres
         mode: '0755'
       become: true
+
     - name: Systemd restart PostgreSQL
       become: true
       ansible.builtin.systemd_service:
-        name: postgresql
+        name: "{{ redhat.psql_service_name }}"
         state: restarted
         enabled: true
+  when: ansible_facts['os_family'] == "RedHat"
