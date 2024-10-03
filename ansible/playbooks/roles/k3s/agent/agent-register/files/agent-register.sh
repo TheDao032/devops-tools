@@ -6,11 +6,11 @@ SERVER_TOKEN_FILE=$2
 AGENT_IP=$3
 
 # https://192.168.10.11:6445
+    # --node-ip ${AGENT_IP} \
 if [[ -f "${SERVER_TOKEN_FILE}" ]];
 then
   curl -sfL https://get.k3s.io | K3S_URL=${SERVER_URL} sh -s - agent \
     --server ${SERVER_URL} \
-    --node-ip ${AGENT_IP} \
     --node-external-ip ${AGENT_IP} \
     --token-file ${SERVER_TOKEN_FILE}
   exit 0

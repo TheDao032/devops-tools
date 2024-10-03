@@ -19,6 +19,7 @@ IP_NW = "192.168.56"
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20
+ETCD_IP_START = 30
 
 # Define how much memory your computer has in GB (e.g., 8, 16)
 # Larger clusters will be created if you have more.
@@ -72,6 +73,10 @@ RESOURCES = {
     ram: ram_per_worker, # RAM in MB per worker node
     cpu: cpu_per_worker, # CPU cores per worker node
   },
+  etcd: {
+    ram: 1024, # RAM in MB
+    cpu: 1, # CPU cores
+  },
 }
 
 # Output the calculated resources
@@ -83,6 +88,29 @@ RESOURCES = {
 # end
 
 machines = []
+# machines.push(
+#   {
+#     name: "etcd-server",
+#     box: virtuaboxConfig.os_systems[:redhat][:box],
+#     os: virtuaboxConfig.os_systems[:redhat][:os],
+#     cpu: RESOURCES[:etcd][:cpu],
+#     ram: RESOURCES[:etcd][:ram],
+#     network: {
+#       name: "",
+#       ports: [
+#         # { guest: 22, host: 2740 + i },
+#         { guest: 80, host: 8180 + 1},
+#         { guest: 443, host: 4530 + 1 }
+#       ],
+#       ip: "#{IP_NW}.#{ETCD_IP_START + 1}"
+#     },
+#     files: [
+#       { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+#       { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+#     ]
+#   }
+# )
+
 (1..NUM_SERVERS).each do |i|
   machines.push(
     {

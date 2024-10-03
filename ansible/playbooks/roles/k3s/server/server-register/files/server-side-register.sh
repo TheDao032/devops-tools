@@ -9,9 +9,9 @@ SERVER_URL=$5
 
 if [[ -f "${SERVER_TOKEN_FILE}" ]];
 then
+    # --datastore-endpoint "${PSQL_URL}" \
   curl -sfL https://get.k3s.io | K3S_URL=${SERVER_URL} sh -s - server \
     --flannel-backend wireguard-native \
-    --datastore-endpoint "${PSQL_URL}" \
     --server ${SERVER_URL} \
     --node-external-ip ${SERVER_IP} \
     --tls-san ${KEEPALIVED_VIRTUAL_IP} \
