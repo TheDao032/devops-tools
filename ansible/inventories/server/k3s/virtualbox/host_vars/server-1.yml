@@ -1,0 +1,7 @@
+---
+state: MASTER
+priority: 200
+interface: eth1
+auth_type: AH
+auth_pass: renesas
+virtual_ipaddress: 192.168.56.100/24
