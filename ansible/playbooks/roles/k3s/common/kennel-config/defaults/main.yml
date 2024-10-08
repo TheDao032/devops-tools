@@ -1,0 +1,8 @@
+---
+# defaults file for kennel-config
+cluster_cidr: "{{ (server_config_yaml | from_yaml)['cluster-cidr'] | default('10.42.0.0/16') }}"  # noqa var-naming[no-role-prefix]
+service_cidr: "{{ (server_config_yaml | from_yaml)['service-cidr'] | default('10.43.0.0/16') }}"  # noqa var-naming[no-role-prefix]
+
+api_port: 6443  # noqa var-naming[no-role-prefix]
+server_group: server  # noqa var-naming[no-role-prefix]
+agent_group: agent  # noqa var-naming[no-role-prefix]

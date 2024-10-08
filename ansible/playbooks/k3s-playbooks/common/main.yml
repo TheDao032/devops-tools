@@ -8,3 +8,4 @@
       ansible.builtin.ping:
   roles:
     - role: ../../roles/k3s/common/dependencies
+    - role: ../../roles/k3s/common/kennel-config

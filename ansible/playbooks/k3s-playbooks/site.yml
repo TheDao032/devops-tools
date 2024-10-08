@@ -1,0 +1,90 @@
+---
+- name: k3s-setup
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../roles/k3s/common/dependencies
+    - role: ../../roles/k3s/common/kennel-config
+
+---
+- name: k3s-server-register-setup
+  hosts: server
+  become: true
+  become_user: root
+  serial: 1
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../roles/k3s/server/server-register
+
+# HAProxy Implementation
+---
+- name: haproxy-dependencies-setup
+  hosts: server
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../../../roles/k3s/load-balancer/haproxy/common
+
+---
+- name: haproxy-self-signed-crt-setup
+  hosts: server
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../../../roles/k3s/load-balancer/haproxy/self-signed-cert
+---
+- name: haproxy-implement-config-setup
+  hosts: server
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../../../roles/k3s/load-balancer/haproxy/impl-config
+
+# Keepalived Implementation
+---
+- name: keepalived-dependencies-setup
+  hosts: server
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../../../roles/k3s/load-balancer/keepalived/common
+
+---
+- name: keepalived-implement-config-setup
+  hosts: server
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../../../roles/k3s/load-balancer/keepalived/impl-config
+
+---
+- name: k3s-agent-register-setup
+  hosts: agent
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../../roles/k3s/agent/agent-register

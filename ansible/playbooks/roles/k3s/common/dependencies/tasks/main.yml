@@ -1,13 +1,5 @@
 ---
 # tasks file for dependencies
-# - name: k3s setup wireguard-native dependencies
-#   block:
-#     - name: Exec register script for sidecard server
-#       ansible.builtin.shell: |
-#         dnf install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm https://www.elrepo.org/elrepo-release-8.el8.elrepo.noarch.rpm
-#       args:
-#         executable: /bin/bash
-
 - name: Install Ansible Package Debian OS
   block:
     - name: Update cache
@@ -23,13 +15,20 @@
 - name: Install Ansible Package RedHat OS
   block:
     - name: Update cache
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         update_cache: yes
     - name: Install Ansible Package RedHat OS
-      ansible.builtin.dnf:
+      ansible.builtin.yum:
         name: "{{ item }}"
         state: present
       with_items: "{{ rhel_packages }}"
+
+    - name: Install Dependencies For wireguard flannel-backend
+      ansible.builtin.shell: |
+        yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm https://www.elrepo.org/elrepo-release-9.el9.elrepo.noarch.rpm
+        yum install -y wireguard-tools
+      args:
+        executable: /bin/bash
   when: ansible_facts['os_family'] == "RedHat"
 
 - name: Install Ansible Package Centos OS
@@ -43,7 +42,7 @@
         state: present
       with_items: "{{ centos_packages }}"
 
-    - name: Exec register script for sidecard server
+    - name: Install Dependencies For wireguard flannel-backend
       ansible.builtin.shell: |
         yum-config-manager --setopt=centosplus.includepkgs="kernel-plus, kernel-plus-*" --setopt=centosplus.enabled=1 --save
         sed -e 's/^DEFAULTKERNEL=kernel-core$/DEFAULTKERNEL=kernel-plus-core/' -i /etc/sysconfig/kernel

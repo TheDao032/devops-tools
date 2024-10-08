@@ -30,21 +30,6 @@
   notify:
     - haproxy-firewall-config
 
-- name: k3s setup firewall cmd
-  block:
-    - name: Copy k3s server scripts to the remote host
-      ansible.builtin.copy:
-        src: "{{ item }}"
-        dest: "/usr/bin"
-        mode: '0755'
-      with_items: "{{ firewall_cmd_scripts }}"
-
-    - name: Exec register script for sidecard server
-      ansible.builtin.shell: |
-        /usr/bin/precheck-filewall-cmd.sh
-      args:
-        executable: /bin/bash
-
 - name: Systemd restart HAProxy
   become: true
   ansible.builtin.systemd_service:

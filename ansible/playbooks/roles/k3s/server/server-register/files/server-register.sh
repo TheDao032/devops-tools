@@ -1,17 +1,17 @@
 #!/bin/bash
 
 set -e
-PSQL_URL=$1
-KEEPALIVED_VIRTUAL_IP=$2
-SERVER_IP=$3
+# PSQL_URL=$1
+KEEPALIVED_VIRTUAL_IP=$1
+SERVER_IP=$2
 
-    # --datastore-endpoint "${PSQL_URL}" \
-curl -sfL https://get.k3s.io | sh -s - server \
-    --cluster-init \
+    # --node-taint CriticalAddonsOnly=true:NoExecute \
+curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" sh -s - --cluster-init \
+    --flannel-external-ip \
     --flannel-backend wireguard-native \
-    --node-taint CriticalAddonsOnly=true:NoExecute \
+    --write-kubeconfig-mode "0644" \
+    --node-ip ${SERVER_IP} \
     --node-external-ip ${SERVER_IP} \
-    --tls-san ${KEEPALIVED_VIRTUAL_IP} \
-    --write-kubeconfig-mode "0644"
+    --tls-san ${KEEPALIVED_VIRTUAL_IP}
 
 exit 0

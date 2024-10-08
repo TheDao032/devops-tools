@@ -74,35 +74,35 @@
 # Install PostgreSQL For RedHat
 - name: Install PostgreSQL For Redhat
   block:
-    - name: Prepare PostgreSQL packages
-      ansible.builtin.shell: |
-        # Install the repository RPM
-        dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
-
-        # Disable the built-in PostgreSQL module
-        dnf -qy module disable postgresql
-
-        # Install PostgreSQL
-        dnf install -y postgresql{{ psql_version }}-server
-
-        # Optionally initialize the database and enable automatic start
-        /usr/pgsql-15/bin/postgresql-{{ psql_version }}-setup initdb
-        systemctl enable postgresql-{{ psql_version }}
-        systemctl start postgresql-{{ psql_version }}
-      args:
-        executable: /bin/bash
-
-    - name: Copy pg_hba.conf file for psql configuration from templates
-      ansible.builtin.template:
-        src: pg_hba.conf.j2
-        dest: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
-        mode: '0755'
-    - name: Set correct permissions on pg_hba.conf
-      ansible.builtin.file:
-        path: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
-        owner: postgres
-        mode: '0755'
-      become: true
+    # - name: Prepare PostgreSQL packages
+    #   ansible.builtin.shell: |
+    #     # Install the repository RPM
+    #     dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+    #
+    #     # Disable the built-in PostgreSQL module
+    #     dnf -qy module disable postgresql
+    #
+    #     # Install PostgreSQL
+    #     dnf install -y postgresql{{ psql_version }}-server
+    #
+    #     # Optionally initialize the database and enable automatic start
+    #     /usr/pgsql-{{ psql_version }}/bin/postgresql-{{ psql_version }}-setup initdb
+    #     systemctl enable postgresql-{{ psql_version }}
+    #     systemctl start postgresql-{{ psql_version }}
+    #   args:
+    #     executable: /bin/bash
+    #
+    # - name: Copy pg_hba.conf file for psql configuration from templates
+    #   ansible.builtin.template:
+    #     src: pg_hba.conf.j2
+    #     dest: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
+    #     mode: '0755'
+    # - name: Set correct permissions on pg_hba.conf
+    #   ansible.builtin.file:
+    #     path: "{{ redhat.psql_conf_folder_path }}/pg_hba.conf"
+    #     owner: postgres
+    #     mode: '0755'
+    #   become: true
 
     - name: k3s db implementation
       vars:
