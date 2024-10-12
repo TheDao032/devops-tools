@@ -14,7 +14,7 @@
   ignore_errors: true
 
 - name: k3s server register
-  when: k3s_version_output.rc != 0 and 'server-1' in ansible_hostname
+  when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] in ansible_hostname
   block:
     - name: Exec server register script
       ansible.builtin.shell: |
@@ -35,7 +35,7 @@
       delegate_to: server-2
 
 - name: k3s side server register
-  when: k3s_version_output.rc != 0 and 'server-1' not in ansible_hostname
+  when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] not in ansible_hostname
   block:
     - name: Exec register script for sidecard server
       ansible.builtin.shell: |

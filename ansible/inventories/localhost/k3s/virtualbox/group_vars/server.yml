@@ -5,3 +5,12 @@ ansible_user: vagrant
 psql_k3s_port: 5432
 psql_k3s_user: "k3s"
 psql_k3s_pass: "k3s"
+
+crt_name: k3s
+crt_dir: /etc/haproxy/ssl
+crt_path: "{{ crt_dir }}/{{ crt_name }}.pem"
+crt_key_path: "{{ crt_dir }}/{{ crt_name }}.pem.key"
+
+haproxy_conf_path: /etc/haproxy
+keepalive_conf_path: /etc/keepalived
+haproxy_firewall_services_dir: /etc/firewalld/services
