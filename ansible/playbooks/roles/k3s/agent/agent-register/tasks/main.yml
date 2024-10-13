@@ -7,7 +7,15 @@
     mode: '0755'
   with_items: "{{ k3s_agent_scripts }}"
 
+- name: Check if K3s agent service exists
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: started  # Check if the agent service is running
+  register: k3s_agent_service
+  ignore_errors: true
+
 - name: k3s agent register
+  when: k3s_agent_service.status.ActiveState != "active"
   block:
     - name: Slurp server token from the server
       ansible.builtin.slurp:
