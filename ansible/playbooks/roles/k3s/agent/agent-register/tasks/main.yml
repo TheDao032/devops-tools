@@ -7,16 +7,15 @@
     mode: '0755'
   with_items: "{{ k3s_agent_scripts }}"
 
-- name: Check if K3s agent service exists
-  ansible.builtin.systemd:
-    name: k3s-agent
-    state: started  # Check if the agent service is running
-  register: k3s_agent_service
-  ignore_errors: true
-
 - name: k3s agent register
-  when: k3s_agent_service.status.ActiveState != "active"
   block:
+    - name: Check if K3s agent service exists
+      ansible.builtin.systemd:
+        name: k3s-agent
+        state: started  # Check if the agent service is running
+      register: k3s_agent_service
+      ignore_errors: true
+
     - name: Slurp server token from the server
       ansible.builtin.slurp:
         src: /var/lib/rancher/k3s/server/token
@@ -28,7 +27,9 @@
         content: "{{ server_token.content | b64decode }}"
         dest: /tmp/k3s-server-token
         mode: '0644'
+
     - name: Exec register script for agent
+      when: k3s_agent_service is failed
       ansible.builtin.shell: |
         {{ k3s_agent_scripts_path }}/agent-register.sh {{ load_balancer_virtual_url }} /tmp/k3s-server-token {{ ansible_host }}
       args:

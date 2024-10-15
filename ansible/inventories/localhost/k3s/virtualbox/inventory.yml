@@ -3,12 +3,12 @@ all:
   hosts:
     server-1:
       ansible_host: 192.168.56.11
-    server-2:
-      ansible_host: 192.168.56.12
+    # server-2:
+    #   ansible_host: 192.168.56.12
     agent-1:
       ansible_host: 192.168.56.21
-    agent-2:
-      ansible_host: 192.168.56.22
+    # agent-2:
+    #   ansible_host: 192.168.56.22
   vars:
     keepalived_virtual_ip: 192.168.56.100
     load_balancer_port: 6445
@@ -70,9 +70,9 @@ all:
 server:
   hosts:
     server-1:
-    server-2:
+    # server-2:
 
 agent:
   hosts:
     agent-1:
-    agent-2:
+    # agent-2:

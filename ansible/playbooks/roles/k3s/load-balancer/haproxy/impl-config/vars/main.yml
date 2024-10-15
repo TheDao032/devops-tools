@@ -8,13 +8,16 @@ haproxy_firewall_xml:
 firewall_cmd_scripts:
   - precheck-filewall-cmd.sh
 
-servers:
-  - name: "server-1"
-    ip: "{{ hostvars['server-1']['ansible_host'] }}"
-    port: 6443
-  - name: "server-2"
-    ip: "{{ hostvars['server-2']['ansible_host'] }}"
-    port: 6443
+server_group: server  # noqa var-naming[no-role-prefix]
+agent_group: agent  # noqa var-naming[no-role-prefix]
+
+servers: hostvars[groups]
+  # - name: "server-1"
+  #   ip: "{{ hostvars['server-1']['ansible_host'] }}"
+  #   port: 6443
+  # - name: "server-2"
+  #   ip: "{{ hostvars['server-2']['ansible_host'] }}"
+  #   port: 6443
 
 servers_http:
   # - name: "server-1"
@@ -23,12 +26,12 @@ servers_http:
   # - name: "server-2"
   #   ip: "{{ hostvars['server-2']['ansible_host'] }}"
   #   port: 80
-  - name: "agent-1"
-    ip: "{{ hostvars['agent-1']['ansible_host'] }}"
-    port: 80
-  - name: "agent-2"
-    ip: "{{ hostvars['agent-2']['ansible_host'] }}"
-    port: 80
+  # - name: "agent-1"
+  #   ip: "{{ hostvars['agent-1']['ansible_host'] }}"
+  #   port: 80
+  # - name: "agent-2"
+  #   ip: "{{ hostvars['agent-2']['ansible_host'] }}"
+  #   port: 80
 
 servers_https:
   # - name: "server-1"

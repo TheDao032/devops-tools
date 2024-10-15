@@ -17,20 +17,20 @@ backend k3s-backend
     option tcp-check
     balance roundrobin
     default-server inter 10s downinter 5s
-    {% for server in servers %}
-    server {{ server.name }} {{ server.ip }}:{{ server.port }} check
+    {% for server in groups['server'] %}
+    server {{ hostvars[server].ansible_hostname }} {{ hostvars[server].ansible_host }}:{{ hostvars[server].k3s_port }} check
     {% endfor %}
 
 backend k3s-https
     balance roundrobin
     mode http
-    {% for server in servers_https %}
-    server {{ server.name }} {{ server.ip }}:{{ server.port }} check
+    {% for server in groups['server'] %}
+    server {{ hostvars[server].ansible_hostname }} {{ hostvars[server].ansible_host }}:{{ hostvars[server].https_port }} check
     {% endfor %}
 
 backend k3s-http
     balance roundrobin
     mode http
-    {% for server in servers_http %}
-    server {{ server.name }} {{ server.ip }}:{{ server.port }} check
+    {% for server in groups['server'] %}
+    server {{ hostvars[server].ansible_hostname }} {{ hostvars[server].ansible_host }}:{{ hostvars[server].http_port }} check
     {% endfor %}

@@ -4,6 +4,7 @@
     grep -F "{{ lookup('template', 'k3s.haproxy.conf.j2') }}" /etc/haproxy/haproxy.conf || echo "not found"
   register: check_haproxy_conf
   changed_when: false  # Avoid marking this task as changed
+  # ignore_errors: true
 
 - name: Append content of template to the target file
   ansible.builtin.blockinfile:

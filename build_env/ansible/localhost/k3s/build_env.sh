@@ -75,6 +75,6 @@ ansible_exec() {
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/agent-register/main.yml -i ${INVENTORY} -vvv
 }
 
-# vagrant_init ${vagrant_plugins[@]}
+vagrant_init ${vagrant_plugins[@]}
 
 ansible_exec

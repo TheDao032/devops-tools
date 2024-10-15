@@ -14,13 +14,22 @@
   ignore_errors: true
 
 - name: k3s server register
-  when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] in ansible_hostname
   block:
+    - name: Get k3s installed version
+      ansible.builtin.command: k3s --version
+      register: k3s_version_output
+      changed_when: false
+      ignore_errors: true
+
     - name: Exec server register script
+      when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] in ansible_hostname
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ ansible_host }}
       args:
         executable: /bin/bash
+
+- name: k3s side server register
+  block:
     - name: Slurp file content from the specific host
       ansible.builtin.slurp:
         src: /var/lib/rancher/k3s/server/token
@@ -32,12 +41,9 @@
         content: "{{ server_token.content | b64decode }}"
         dest: /tmp/k3s-server-token
         mode: '0644'
-      delegate_to: server-2
 
-- name: k3s side server register
-  when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] not in ansible_hostname
-  block:
     - name: Exec register script for sidecard server
+      when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] not in ansible_hostname
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-side-register.sh /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ api_endpoint }} {{ api_port }} {{ ansible_host }}
       args:
