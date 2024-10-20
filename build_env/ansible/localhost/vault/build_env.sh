@@ -3,7 +3,7 @@
 set -e
 
 LOCATION=${LOCATION:-"localhost"}
-SERVICE=${SERVICE:-"k3s"}
+SERVICE=${SERVICE:-"vault"}
 PROVIDER=${PROVIDER:-"virtualbox"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"build_env/utils/setup_env.sh"}"
 
@@ -11,13 +11,12 @@ DEVOPS_TOOLS_DIR=${DEVOPS_TOOLS_DIR:-${PWD}}
 VAGRANT_DIR=${VAGRANT_DIR:-${DEVOPS_TOOLS_DIR}/vagrant}
 ANSIBLE_DIR=${ANSIBLE_DIR:-${DEVOPS_TOOLS_DIR}/ansible}
 
-ANSIBLE_PLAYBOOKS_DIR=${ANSIBLE_DIR}/playbooks/k3s-playbooks
+ANSIBLE_PLAYBOOKS_DIR=${ANSIBLE_DIR}/playbooks/vault-playbooks
 ANSIBLE_INVENTORIES_DIR=${ANSIBLE_DIR}/inventories
 VAGRANTFILE="vagrant-files/kubernetes/k3s.${PROVIDER}.Vagrantfile"
 INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${SERVICE}/${PROVIDER}
 
-NETWORK_MODE=${NETWORK_MODE:-"NAT"}
-VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"}
+NETWORK_MODE=${NETWORK_MODE:-"NAT"} VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"}
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT}
 
@@ -51,28 +50,8 @@ vagrant_init() {
 }
 
 ansible_exec() {
-  # k3s PostgreSQL Common Packages
-  # log_info "Running setup k3s psql datastore packages"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/psql-impl/main.yml -i ${INVENTORY} -vvv
-
-  log_info "Running setup k3s common packages"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/common/main.yml -i ${INVENTORY} -vvv
-
-  log_info "Running setup k3s server"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/server-register/main.yml -i ${INVENTORY} -vvv
-
-  log_info "Running setup k3s load-balancer"
-  log_info "Running setup k3s haproxy"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/common/main.yml -i ${INVENTORY} -vvv
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/self-signed-cert/main.yml -i ${INVENTORY} -vvv
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/impl-config/main.yml -i ${INVENTORY} -vvv
-
-  log_info "Running setup k3s keepalived"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/common/main.yml -i ${INVENTORY} -vvv
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/impl-config/main.yml -i ${INVENTORY} -vvv
-
-  log_info "Running setup k3s agent"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/agent-register/main.yml -i ${INVENTORY} -vvv
+  log_info "Running setup vault dependencies packages"
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/dependencies/main.yml -i ${INVENTORY} -vvv
 }
 
 # vagrant_init ${vagrant_plugins[@]}

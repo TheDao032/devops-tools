@@ -1,0 +1,58 @@
+---
+# tasks file for vault/impl-config
+- name: Create a vault tls directory if it does not exist
+  ansible.builtin.file:
+    path: "{{ vault_tls_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create a vault data directory if it does not exist
+  ansible.builtin.file:
+    path: "{{ vault_data_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Create a vault config directory if it does not exist
+  ansible.builtin.file:
+    path: "{{ vault_config_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Render ca templates for vault
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "{{ vault_tls_dir }}/{{ item }}"  # Temp location to render template
+  with_items: "{{ ca_config_files }}"
+
+- name: prepare vault service and config templates
+  block:
+    - name: Copy config files for vault configuration from templates
+      ansible.builtin.template:
+        src: "{{ item }}.j2"
+        dest: "{{ vault_config_dir }}/{{ item }}"
+        owner: vault
+        group: vault
+        mode: '0755'
+      with_items: "{{ vault_config_templates }}"
+    - name: Copy service file for vault configuration from templates
+      ansible.builtin.template:
+        src: "{{ vault_service_template }}.j2"
+        dest: "{{ vault_service_dir }}/{{ vault_service_template }}"
+        owner: vault
+        group: vault
+        mode: '0755'
+      with_items: "{{ vault_config_templates }}"
+    - name: Restart vault service after config update
+      ansible.builtin.systemd_service:
+        name: vault
+        state: restarted
+        daemon_reload: true
+        enabled: true
+
+- name: Prepare cfssl certificates
+  ansible.builtin.shell: |
+    echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user }}/.bashrc
+    echo "export VAULT_ADDR=https://{{ hostvars['server-1']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
+    source /home/{{ ansible_user }}/.bashrc
+  args:
+    executable: /bin/bash

@@ -6,7 +6,7 @@
       ansible.builtin.apt:
         name: "{{ item }}"
         state: present
-      with_items: "{{ common_packages }}"
+      with_items: "{{ debian.common_packages }}"
     - name: Prepare PostgreSQL packages
       ansible.builtin.shell: |
         # PostgreSQL
@@ -24,7 +24,7 @@
       ansible.builtin.apt:
         name: "{{ item }}"
         state: present
-      with_items: "{{ debian_psql_packages }}"
+      with_items: "{{ debian.psql_packages }}"
 
     - name: Copy pg_hba.conf file for psql configuration from templates
       ansible.builtin.template:
@@ -52,7 +52,7 @@
       ansible.builtin.apt:
         name: "{{ item }}"
         state: present
-      with_items: "{{ common_packages }}"
+      with_items: "{{ redhat.common_packages }}"
     - name: Prepare PostgreSQL packages
       ansible.builtin.shell: |
         # PostgreSQL

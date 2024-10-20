@@ -31,7 +31,7 @@
         chdir: /var/lib/postgresql
         executable: /bin/bash
     - name: Systemd restart PostgreSQL
-      become: yes
+      become: true
       ansible.builtin.systemd_service:
         name: postgresql
         state: restarted

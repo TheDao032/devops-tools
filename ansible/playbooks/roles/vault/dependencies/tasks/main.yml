@@ -1,0 +1,49 @@
+---
+# tasks file for vault/dependencies
+- name: Install Vault On Debian OS
+  block:
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian.common_packages }}"
+    - name: Prepare vault packages
+      ansible.builtin.shell: |
+        apt update && apt install gpg wget
+
+        wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/hashicorp.list
+      args:
+        executable: /bin/bash
+    - name: Upddate apt packages
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install required packages
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian.vault_packages }}"
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Install Vault On RedHat OS
+  block:
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ redhat.common_packages }}"
+    - name: Prepare vault packages
+      ansible.builtin.shell: |
+        yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+      args:
+        executable: /bin/bash
+    - name: Upddate apt packages
+      ansible.builtin.dnf:
+        update_cache: yes
+    - name: Install required packages
+      ansible.builtin.dnf:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ redhat.vault_packages }}"
+  when: ansible_facts['os_family'] == "RedHat"

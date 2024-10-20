@@ -1,11 +1,19 @@
 ---
 # vars file for dependencies
-common_packages:
-  - curl
-  - ca-certificates
-debian_psql_packages:
-  - postgresql-{{ psql_version }}
-  - postgresql-contrib
-redhat_psql_packages:
-  - postgresql{{ psql_version }}-server
-psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"
+redhat:
+  common_packages:
+    - yum-utils
+  psql_packages:
+    - postgresql{{ psql_version }}-server
+  psql_conf_folder_path: "/var/lib/pgsql/{{ psql_version }}/data"
+  psql_service_name: "postgresql-{{ psql_version }}"
+
+debian:
+  common_packages:
+    - curl
+    - ca-certificates
+  psql_packages:
+    - postgresql-contrib
+    - postgresql-{{ psql_version }}
+  psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"
+  psql_service_name: "postgresql"

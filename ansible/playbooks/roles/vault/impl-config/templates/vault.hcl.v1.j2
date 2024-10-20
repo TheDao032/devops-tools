@@ -1,0 +1,24 @@
+ui            = true
+cluster_addr  = "{{ vault_cluster_addr }}"
+api_addr      = "{{ vault_api_addr }}"
+disable_mlock = true
+
+storage "etcd" {
+  address  = "{{ etcd_endpoint }}"
+  tls_ca_file = "/var/lib/rancher/k3s/server/tls/etcd/server-ca.crt"
+  tls_key_file = "/var/lib/rancher/k3s/server/tls/etcd/server-client.crt"
+  tls_cert_file = "/var/lib/rancher/k3s/server/tls/etcd/server-client.key"
+  etcd_api = "v3"
+}
+
+listener "tcp" {
+  address       = "0.0.0.0:8200"
+  cluster_address = "0.0.0.0:8201"
+  tls_cert_file = "{{ vault_tls_dir }}/vault.pem"
+  tls_key_file  = "{{ vault_tls_dir }}/vault-key.pem"
+}
+
+telemetry {
+  statsite_address = "127.0.0.1:8125"
+  disable_hostname = true
+}

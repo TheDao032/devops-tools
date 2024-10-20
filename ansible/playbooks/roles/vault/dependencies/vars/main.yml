@@ -1,0 +1,17 @@
+---
+# vars file for vault/dependencies
+
+redhat:
+  common_packages:
+    - yum-utils
+    - curl
+  vault_packages:
+    - vault
+
+debian:
+  common_packages:
+    - curl
+    - gpg
+    - wget
+  vault_packages:
+    - vault
