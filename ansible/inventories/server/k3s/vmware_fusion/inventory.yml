@@ -1,0 +1,27 @@
+# ---
+# all:
+#   hosts:
+#     server-1:
+#       ansible_host: 192.168.150.179
+#     server-2:
+#       ansible_host: 192.168.150.180
+#     agent-1:
+#       ansible_host: 192.168.150.181
+#     agent-2:
+#       ansible_host: 192.168.150.182
+#   vars:
+#     rhel_version: 9
+#
+#   children:
+#     server:
+#     agent:
+#
+# server:
+#   hosts:
+#     server-1:
+#     server-2:
+#
+# agent:
+#   hosts:
+#     agent-1:
+#     agent-2:

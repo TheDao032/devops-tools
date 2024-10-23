@@ -18,11 +18,11 @@
     state: directory
     mode: '0755'
 
-- name: Render ca templates for vault
-  ansible.builtin.template:
-    src: "{{ item }}.j2"
-    dest: "{{ vault_tls_dir }}/{{ item }}"  # Temp location to render template
-  with_items: "{{ ca_config_files }}"
+# - name: Render ca templates for vault
+#   ansible.builtin.template:
+#     src: "{{ item }}.j2"
+#     dest: "{{ vault_tls_dir }}/{{ item }}"  # Temp location to render template
+#   with_items: "{{ ca_config_files }}"
 
 - name: prepare vault service and config templates
   block:
@@ -49,10 +49,20 @@
         daemon_reload: true
         enabled: true
 
-- name: Prepare cfssl certificates
+- name: Vault operator initalize
   ansible.builtin.shell: |
     echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user }}/.bashrc
     echo "export VAULT_ADDR=https://{{ hostvars['server-1']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
     source /home/{{ ansible_user }}/.bashrc
+
+    vault operator init -key-shares=1 -key-threshold=1 -format=json > /opt/vault/operator-init.json
+    root_token=$(jq -r '.root_token' /opt/vault/operator-init.json)
+
+    # Export the VAULT_TOKEN environment variable
+    echo "export VAULT_TOKEN=$root_token" >> /home/{{ ansible_user }}/.bashrc
+    source /home/{{ ansible_user }}/.bashrc
+
+    # Verify that the token was correctly extracted and set
+    echo "VAULT_TOKEN set to: $VAULT_TOKEN"
   args:
     executable: /bin/bash
