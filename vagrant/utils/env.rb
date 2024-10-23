@@ -1,5 +1,5 @@
 class Config
-  attr_accessor :provider, :network_mode
+  attr_accessor :provider, :network_mode, :num_servers, :num_agents
 
   def initialize
     @provider = ENV["PROVIDER"] || "default_provider"
@@ -10,6 +10,9 @@ class Config
     #            without setting up a port forwarding rule for every NodePort exposed.
     #            Use this mode if for some reason BRIDGE doesn't work for you.
     @network_mode = ENV["NETWORK_MODE"] || "default_mode"
+    @num_servers = ENV["NUM_SERVERS"] || 1
+    @num_agents = ENV["NUM_AGENTS"] || 2
+
   end
 
   def display_config

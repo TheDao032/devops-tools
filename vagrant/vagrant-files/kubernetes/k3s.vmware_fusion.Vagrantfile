@@ -11,8 +11,8 @@ vmWareFusionConfig = VMWareFusionConfig.new
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
-NUM_SERVERS = 2
-NUM_AGENTS = 2
+NUM_SERVERS = vmWareFusionConfig.num_servers
+NUM_AGENTS = vmWareFusionConfig.num_agents
 
 # Network parameters for NAT mode
 IP_NW = "192.168.10"
