@@ -15,7 +15,7 @@ NUM_SERVERS = virtuaboxConfig.num_servers
 NUM_AGENTS = virtuaboxConfig.num_agents
 
 # Network parameters for NAT mode
-IP_NW = "192.168.56"
+IP_NW = virtuaboxConfig.ip_nw
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20

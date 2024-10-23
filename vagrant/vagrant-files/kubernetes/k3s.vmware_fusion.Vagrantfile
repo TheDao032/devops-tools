@@ -15,7 +15,7 @@ NUM_SERVERS = vmWareFusionConfig.num_servers
 NUM_AGENTS = vmWareFusionConfig.num_agents
 
 # Network parameters for NAT mode
-IP_NW = "192.168.10"
+IP_NW = vmWareFusionConfig.ip_nw
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20

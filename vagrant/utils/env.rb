@@ -66,12 +66,13 @@ class DockerConfig < Config
 end
 
 class VirtualboxConfig < Config
-  attr_accessor :vbox_guest_disk, :os_systems
+  attr_accessor :vbox_guest_disk, :os_systems, :ip_nw
 
   def initialize
     super
 
     # VBoxGuest
+    @ip_nw = ENV["IP_NW"] || '192.168.10'
     @vbox_guest_disk = ENV["VBOX_GUEST_DISK"] || "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
 
     @os_systems = {
@@ -105,6 +106,7 @@ class VMWareFusionConfig < Config
   def initialize
     super
 
+    @ip_nw = ENV["IP_NW"] || '192.168.10'
     @os_systems = {
       ubuntu: {
         box: "hashicorp/bionic64",
