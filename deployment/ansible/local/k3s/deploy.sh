@@ -21,7 +21,7 @@ VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/envs/k3s-env.bash
+LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/local/env-variables/k3s-env.bash
 source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
 RHEL_USERNAME=$1
@@ -57,7 +57,7 @@ vagrant_init() {
 }
 
 ansible_exec() {
-  uv run ansible/inventories/local/k3s/virtualbox/dynamic_inventory.py --list
+  # uv run ansible/inventories/local/k3s/virtualbox/dynamic_inventory.py --list
 
   # k3s PostgreSQL Common Packages
   # log_info "Running setup k3s psql datastore packages"

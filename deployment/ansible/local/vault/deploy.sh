@@ -20,7 +20,7 @@ NETWORK_MODE=${NETWORK_MODE:-"NAT"} VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applica
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/envs/vault-env.bash
+LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/local/env-variables/vault-env.bash
 source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
 declare vagrant_plugins=(

@@ -10,40 +10,40 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-VAULT_ADDR = os.getenv('VAULT_ADDR', 'http://127.0.0.1:8200')  # Vault address from env or default to local
-VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
-ENV = os.getenv('environment', 'local')
-client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
+ENV = os.getenv('ENVIRONMENT')
+# client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 vms = [
     "server-1",
-    "server-2",
-    "agent-1",
-    "agent-2"
 ]
+
+vars = {
+    'env': ENV,
+}
+
 # Define a function to get IPs from Vault
-def get_ips_from_vault():
-    ips = {}
-
-    try:
-        # Make sure the client is authenticated with Vault
-        if not client.is_authenticated():
-            print("Vault authentication failed.", file=sys.stderr)
-            return ips
-
-        # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-        secret_path = f'kv_{ENV}/k3s/vms'
-        secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
-        data = secret_response['data']['data']
-
-        for vm in vms:
-            if vm in data:
-                ips[vm] = data[vm]
-
-    except Exception as e:
-        print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
-
-    return ips
+# def get_ips_from_vault():
+#     ips = {}
+#
+#     try:
+#         # Make sure the client is authenticated with Vault
+#         if not client.is_authenticated():
+#             print("Vault authentication failed.", file=sys.stderr)
+#             return ips
+#
+#         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
+#         secret_path = f'kv_{ENV}/k3s/vms'
+#         secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
+#         data = secret_response['data']['data']
+#
+#         for vm in vms:
+#             if vm in data:
+#                 ips[vm] = data[vm]
+#
+#     except Exception as e:
+#         print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
+#
+#     return ips
 
 # Define a function to get IPs from the .env file
 def get_ips_from_env():
@@ -81,27 +81,15 @@ def generate_inventory():
         'all': {
             'children': [
                 'server',
-                'agent'
             ],
-            'vars': {
-                'keepalived_virtual_ip': '192.168.56.100',
-                'load_balancer_port': 6445,
-                'psql_version': 15,
-                'k3s_server_cidr_range': '192.168.56.0/24',
-                'k3s_version': 'v1.30.2+k3s1',
-                'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
-                'extra_server_args': '',
-                'extra_agent_args': '',
-            }
+            'vars': vars
         },
 
         'server': {
-            'hosts': []
+            'hosts': [],
+            'vars': vars
         },
 
-        'agent': {
-            'hosts': []
-        },
     }
     hostvars = {
         '_meta': {
@@ -110,11 +98,11 @@ def generate_inventory():
     }
 
     # Step 1: Get IPs from Vault first
-    ips = get_ips_from_vault()
+    # ips = get_ips_from_vault()
 
     # Step 2: If no IPs found in Vault, fallback to .env
-    if not ips or not any(ips.values()):
-        ips = get_ips_from_env()
+    # if not ips or not any(ips.values()):
+    ips = get_ips_from_env()
 
     # Step 2: If no IPs found in .env, fallback to VirtualBox
     if not ips or not any(ips.values()):
@@ -129,8 +117,6 @@ def generate_inventory():
         if ip:
             if "server" in vm:
                 groups['server']['hosts'].append(vm)
-            elif "agent" in vm:
-                groups['agent']['hosts'].append(vm)
 
             hostvars['_meta']['hostvars'].update({
                 vm: {

@@ -2,10 +2,10 @@
 
 set -e
 
-LOCATION=${LOCATION:-"localhost"}
+LOCATION=${LOCATION:-"local"}
 SERVICE=${SERVICE:-"vault"}
 PROVIDER=${PROVIDER:-"virtualbox"}
-UTILS_SCRIPT="${UTILS_SCRIPT:-"build_env/utils/setup_env.sh"}"
+UTILS_SCRIPT="${UTILS_SCRIPT:-"deployment/utils/setup_env.sh"}"
 
 DEVOPS_TOOLS_DIR=${DEVOPS_TOOLS_DIR:-${PWD}}
 VAGRANT_DIR=${VAGRANT_DIR:-${DEVOPS_TOOLS_DIR}/vagrant}
@@ -18,10 +18,10 @@ INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${SERVICE}/${PROVIDER}
 
 NETWORK_MODE=${NETWORK_MODE:-"NAT"} VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"}
 
-source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT}
+source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-RHEL_USERNAME=$1
-RHEL_PASSWORD=$2
+LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/dev/dev-env/vault-env.bash
+source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
 declare vagrant_plugins=(
   "vagrant-vbguest"
@@ -46,7 +46,7 @@ vagrant_init() {
     fi
   done
 
-  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
+  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
 }
 
 ansible_exec() {
