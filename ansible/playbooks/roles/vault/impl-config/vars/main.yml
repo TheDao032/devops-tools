@@ -14,3 +14,4 @@ vault_config_templates:
   - vault.hcl
 
 vault_service_template: vault.service
+vautl_secrets_path: "kv_{{ env }}/vault/server-secrets"  # Replace with your actual path

@@ -110,14 +110,16 @@
       become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
         vault secrets enable -path=kv_{{ env }} -version=2 kv
-        vault kv put kv_{{ env }}/k3s client_ca_crt={{ cert_authority_data }}
+
+        path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
+        vault kv put {{ k3s_secrets_path }} client_ca_crt={{ cert_authority_data }}
       args:
         executable: /bin/bash
 
     - name: Store client-certificate-data in Vault
       become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
-        path="kv_{{ env }}/k3s"  # Replace with your actual path
+        path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
 
         # Define multiple new key-value pairs
         declare -A new_data
@@ -127,7 +129,7 @@
         new_data["token"]="{{ token_data }}"
 
         # Step 1: Get existing data (handle empty cases)
-        existing_data=$(vault kv get -format=json "$path" 2>/dev/null | jq -r '.data.data' || echo '{}')
+        existing_data=$(vault kv get -format=json {{ k3s_secrets_path }} 2>/dev/null | jq -r '.data.data' || echo '{}')
 
         # Step 2: Convert `new_data` associative array to JSON format
         new_data_json=$(for key in "${!new_data[@]}"; do
@@ -138,6 +140,6 @@
         updated_data=$(echo "$existing_data" | jq --argjson new "$new_data_json" '$new + .')
 
         # Step 4: Write the updated data back to Vault
-        vault kv put "$path" $(echo "$updated_data" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]')
+        vault kv put {{ k3s_secrets_path }} $(echo "$updated_data" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]')
       args:
         executable: /bin/bash
