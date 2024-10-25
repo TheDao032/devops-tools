@@ -11,7 +11,7 @@ class Config
     #            Use this mode if for some reason BRIDGE doesn't work for you.
     @network_mode = ENV["NETWORK_MODE"] || "default_mode"
     @num_servers = ENV["NUM_SERVERS"] || 1
-    @num_agents = ENV["NUM_AGENTS"] || 2
+    @num_agents = ENV["NUM_AGENTS"] || 1
 
   end
 
@@ -72,7 +72,7 @@ class VirtualboxConfig < Config
     super
 
     # VBoxGuest
-    @ip_nw = ENV["IP_NW"] || '192.168.10'
+    @ip_nw = ENV["IP_NW"] || '192.168.56'
     @vbox_guest_disk = ENV["VBOX_GUEST_DISK"] || "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
 
     @os_systems = {

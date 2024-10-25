@@ -1,2 +1,3 @@
 .vagrant
+.env
 .DS_Store

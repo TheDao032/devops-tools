@@ -10,37 +10,38 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-VAULT_ADDR = os.getenv('VAULT_ADDR', 'http://127.0.0.1:8200')  # Vault address from env or default to local
-VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
-ENV = os.getenv('environment', 'local')
-client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
+# VAULT_ADDR = os.getenv('VAULT_ADDR', 'http://127.0.0.1:8200')  # Vault address from env or default to local
+# VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
+# ENV = os.getenv('ENVIRONMENT', 'local')
+# client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 vms = [
     "server-1",
 ]
+
 # Define a function to get IPs from Vault
-def get_ips_from_vault():
-    ips = {}
-
-    try:
-        # Make sure the client is authenticated with Vault
-        if not client.is_authenticated():
-            print("Vault authentication failed.", file=sys.stderr)
-            return ips
-
-        # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-        secret_path = f'kv_{ENV}/k3s/vms'
-        secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
-        data = secret_response['data']['data']
-
-        for vm in vms:
-            if vm in data:
-                ips[vm] = data[vm]
-
-    except Exception as e:
-        print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
-
-    return ips
+# def get_ips_from_vault():
+#     ips = {}
+#
+#     try:
+#         # Make sure the client is authenticated with Vault
+#         if not client.is_authenticated():
+#             print("Vault authentication failed.", file=sys.stderr)
+#             return ips
+#
+#         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
+#         secret_path = f'kv_{ENV}/k3s/vms'
+#         secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
+#         data = secret_response['data']['data']
+#
+#         for vm in vms:
+#             if vm in data:
+#                 ips[vm] = data[vm]
+#
+#     except Exception as e:
+#         print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
+#
+#     return ips
 
 # Define a function to get IPs from the .env file
 def get_ips_from_env():
@@ -94,11 +95,11 @@ def generate_inventory():
     }
 
     # Step 1: Get IPs from Vault first
-    ips = get_ips_from_vault()
+    # ips = get_ips_from_vault()
 
     # Step 2: If no IPs found in Vault, fallback to .env
-    if not ips or not any(ips.values()):
-        ips = get_ips_from_env()
+    # if not ips or not any(ips.values()):
+    ips = get_ips_from_env()
 
     # Step 2: If no IPs found in .env, fallback to VirtualBox
     if not ips or not any(ips.values()):

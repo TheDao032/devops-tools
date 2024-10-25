@@ -48,3 +48,61 @@
         {{ k3s_server_scripts_path }}/server-side-register.sh /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ api_endpoint }} {{ api_port }} {{ ansible_host }}
       args:
         executable: /bin/bash
+
+- name: k3s secrets vault input
+  block:
+    # Step 1: Slurp the k3s.yaml file content
+    - name: Slurp k3s.yaml file
+      ansible.builtin.slurp:
+        src: /etc/rancher/k3s/k3s.yaml
+      register: k3s_yaml_content
+
+    # Step 2: Parse the YAML content from the slurped base64 data
+    - name: Parse k3s.yaml content
+      set_fact:
+        k3s_yaml_parsed: "{{ k3s_yaml_content['content'] | b64decode | from_yaml }}"
+
+    # Step 3: Extract the required certificate values from the parsed YAML
+    - name: Set certificate-authority-data fact
+      set_fact:
+        cert_authority_data: "{{ k3s_yaml_parsed['clusters'][0]['cluster']['certificate-authority-data'] }}"
+
+    - name: Set client-certificate-data fact
+      set_fact:
+        client_certificate_data: "{{ k3s_yaml_parsed['users'][0]['user']['client-certificate-data'] }}"
+
+    - name: Set client-key-data fact
+      set_fact:
+        client_key_data: "{{ k3s_yaml_parsed['users'][0]['user']['client-key-data'] }}"
+
+    # Step 4: Display the extracted values (Optional for debugging)
+    - name: Show extracted certificate-authority-data
+      debug:
+        msg: "Certificate Authority Data: {{ cert_authority_data }}"
+
+    - name: Show extracted client-certificate-data
+      debug:
+        msg: "Client Certificate Data: {{ client_certificate_data }}"
+
+    - name: Show extracted client-key-data
+      debug:
+        msg: "Client Key Data: {{ client_key_data }}"
+
+    # Step 5: Store the values in Vault (assuming Vault CLI is available)
+    - name: Store certificate-authority-data in Vault
+      ansible.builtin.shell: |
+        vault kv put secret/k3s KUBE_CLIENT_CA_CRT={{ cert_authority_data }}
+      args:
+        executable: /bin/bash
+
+    - name: Store client-certificate-data in Vault
+      ansible.builtin.shell: |
+        vault kv put secret/k3s KUBE_CLIENT_CRT={{ client_certificate_data }}
+      args:
+        executable: /bin/bash
+
+    - name: Store client-key-data in Vault
+      ansible.builtin.shell: |
+        vault kv put secret/k3s KUBE_CLIENT_KEY={{ client_key_data }}
+      args:
+        executable: /bin/bash

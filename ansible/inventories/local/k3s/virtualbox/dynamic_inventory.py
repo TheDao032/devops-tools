@@ -10,20 +10,57 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-VAULT_ADDR = os.getenv('VAULT_ADDR', 'http://127.0.0.1:8200')
+VAULT_ADDR = os.getenv('VAULT_ADDR')
 VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
-KEEPALIVED_VIRTUAL_IP = os.getenv('KEEPALIVED_VIRTUAL_IP', '192.168.56.100')
-LOAD_BALANCER_PORT = os.getenv('LOAD_BALANCER_PORT', '6445')
-K3S_SERVER_CIDR_RANGE = os.getenv('K3S_SERVER_CIDR_RANGE', '192.168.56.0/24')
-ENV = os.getenv('environment', 'local')
+ENV = os.getenv('ENVIRONMENT', 'local')
+# KEEPALIVED_VIRTUAL_IP = os.getenv('KEEPALIVED_VIRTUAL_IP')
+# LOAD_BALANCER_PORT = os.getenv('LOAD_BALANCER_PORT')
+# K3S_SERVER_CIDR_RANGE = os.getenv('K3S_SERVER_CIDR_RANGE')
+# PSQL_VERSION=os.getenv('PSQL_VERSION')
+# K3S_VERSION=os.getenv('K3S_VERSION')
 client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
+
+list_var = [
+    'keepalived_virtual_ip',
+    'load_balancer_port',
+    'psql_version',
+    'k3s_server_cidr_range',
+    'k3s_version',
+    'api_endpoint',
+    'extra_server_args',
+    'extra_agent_args',
+]
+
+vars = {
+    'keepalived_virtual_ip': '',
+    'load_balancer_port': '',
+    'psql_version': '',
+    'k3s_server_cidr_range': '',
+    'k3s_version': '',
+    'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
+    'extra_server_args': '',
+    'extra_agent_args': '',
+}
+
+# vars = {
+#     'keepalived_virtual_ip': KEEPALIVED_VIRTUAL_IP,
+#     'load_balancer_port': LOAD_BALANCER_PORT,
+#     'psql_version': PSQL_VERSION,
+#     'k3s_server_cidr_range': K3S_SERVER_CIDR_RANGE,
+#     'k3s_version': K3S_VERSION,
+#     'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
+#     'extra_server_args': '',
+#     'extra_agent_args': '',
+# }
+
 
 vms = [
     "server-1",
-    "server-2",
+    # "server-2",
     "agent-1",
-    "agent-2"
+    # "agent-2"
 ]
+
 # Define a function to get IPs from Vault
 def get_ips_from_vault():
     ips = {}
@@ -47,6 +84,28 @@ def get_ips_from_vault():
         print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
 
     return ips
+
+# Define a function to get IPs from Vault
+def get_k3s_secrets_from_vault():
+    try:
+        # Make sure the client is authenticated with Vault
+        if not client.is_authenticated():
+            print("Vault authentication failed.", file=sys.stderr)
+            return
+
+        # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
+        secret_path = f'kv_{ENV}/k3s/vars'
+        secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
+        data = secret_response['data']['data']
+
+        for item in list_var:
+            if item in data:
+                vars[item] = data[item]
+
+        return
+
+    except Exception as e:
+        print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
 
 # Define a function to get IPs from the .env file
 def get_ips_from_env():
@@ -86,29 +145,24 @@ def generate_inventory():
                 'server',
                 'agent'
             ],
-            'vars': {
-                'keepalived_virtual_ip': KEEPALIVED_VIRTUAL_IP,
-                'load_balancer_port': LOAD_BALANCER_PORT,
-                'psql_version': 15,
-                'k3s_server_cidr_range': K3S_SERVER_CIDR_RANGE,
-                'k3s_version': 'v1.30.2+k3s1',
-                'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
-                'extra_server_args': '',
-                'extra_agent_args': '',
-            }
+            'vars': vars
         },
 
         'server': {
-            'hosts': []
+            'hosts': [],
+            'vars': vars
         },
 
         'agent': {
-            'hosts': []
+            'hosts': [],
+            'vars': vars
         },
     }
+
     hostvars = {
         '_meta': {
-            'hostvars': {}
+            'hostvars': {},
+            'groupvars': {}
         }
     }
 
@@ -165,13 +219,10 @@ if __name__ == "__main__":
     # Generate the dynamic inventory
     inventory = generate_inventory()
 
+    # Output as JSON for Ansible
     if args.list:
         print(json.dumps(inventory, indent=4))
     elif args.host:
         print(json.dumps(inventory['_meta']['hostvars'].get(args.host, {}), indent=4))
     else:
         print(json.dumps({}))
-
-    # Output as JSON for Ansible
-    # print(json.dumps(inventory, indent=4))
-    # print(yaml.dump(inventory, default_flow_style=False))
