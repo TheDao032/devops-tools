@@ -10,14 +10,16 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# VAULT_ADDR = os.getenv('VAULT_ADDR', 'http://127.0.0.1:8200')  # Vault address from env or default to local
-# VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
-# ENV = os.getenv('ENVIRONMENT', 'local')
+ENV = os.getenv('ENVIRONMENT')
 # client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 vms = [
     "server-1",
 ]
+
+vars = {
+    'env': ENV,
+}
 
 # Define a function to get IPs from Vault
 # def get_ips_from_vault():
@@ -80,11 +82,12 @@ def generate_inventory():
             'children': [
                 'server',
             ],
-            'vars': {}
+            'vars': vars
         },
 
         'server': {
-            'hosts': []
+            'hosts': [],
+            'vars': vars
         },
 
     }

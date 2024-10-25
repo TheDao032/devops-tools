@@ -5,6 +5,7 @@ redhat:
   common_packages:
     - yum-utils
     - curl
+    - jq
   vault_packages:
     - vault
 
@@ -13,5 +14,6 @@ debian:
     - curl
     - gpg
     - wget
+    - jq
   vault_packages:
     - vault

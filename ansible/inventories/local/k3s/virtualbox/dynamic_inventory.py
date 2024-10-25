@@ -13,11 +13,6 @@ load_dotenv()
 VAULT_ADDR = os.getenv('VAULT_ADDR')
 VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
 ENV = os.getenv('ENVIRONMENT', 'local')
-# KEEPALIVED_VIRTUAL_IP = os.getenv('KEEPALIVED_VIRTUAL_IP')
-# LOAD_BALANCER_PORT = os.getenv('LOAD_BALANCER_PORT')
-# K3S_SERVER_CIDR_RANGE = os.getenv('K3S_SERVER_CIDR_RANGE')
-# PSQL_VERSION=os.getenv('PSQL_VERSION')
-# K3S_VERSION=os.getenv('K3S_VERSION')
 client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 list_var = [
@@ -40,19 +35,8 @@ vars = {
     'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
     'extra_server_args': '',
     'extra_agent_args': '',
+    'env': ENV,
 }
-
-# vars = {
-#     'keepalived_virtual_ip': KEEPALIVED_VIRTUAL_IP,
-#     'load_balancer_port': LOAD_BALANCER_PORT,
-#     'psql_version': PSQL_VERSION,
-#     'k3s_server_cidr_range': K3S_SERVER_CIDR_RANGE,
-#     'k3s_version': K3S_VERSION,
-#     'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
-#     'extra_server_args': '',
-#     'extra_agent_args': '',
-# }
-
 
 vms = [
     "server-1",
@@ -120,6 +104,15 @@ def get_ips_from_env():
 
     return ips
 
+def get_k3s_secrets_from_env():
+    # Example: Fetch IPs for VM, server
+    for item in list_var:
+        if vars[item] == '':
+            item_var = os.getenv(item.upper())
+
+            if item_var:
+                vars[item] = item_var
+
 # Function to get IP from VirtualBox using 'VBoxManage'
 def get_ip_from_virtualbox(vm_name):
     try:
@@ -165,6 +158,9 @@ def generate_inventory():
             'groupvars': {}
         }
     }
+
+    get_k3s_secrets_from_vault()
+    get_k3s_secrets_from_env()
 
     # Step 1: Get IPs from Vault first
     ips = get_ips_from_vault()

@@ -57,6 +57,11 @@
         src: /etc/rancher/k3s/k3s.yaml
       register: k3s_yaml_content
 
+    - name: Slurp k3s/server/token file
+      ansible.builtin.slurp:
+        src: /var/lib/rancher/k3s/server/token
+      register: k3s_token_content
+
     # Step 2: Parse the YAML content from the slurped base64 data
     - name: Parse k3s.yaml content
       set_fact:
@@ -75,6 +80,14 @@
       set_fact:
         client_key_data: "{{ k3s_yaml_parsed['users'][0]['user']['client-key-data'] }}"
 
+    - name: Set client-key-data fact
+      set_fact:
+        client_key_data: "{{ k3s_yaml_parsed['users'][0]['user']['client-key-data'] }}"
+
+    - name: Set token-data fact
+      set_fact:
+        token_data: "{{ k3s_token_content['content'] | b64decode }}"
+
     # Step 4: Display the extracted values (Optional for debugging)
     - name: Show extracted certificate-authority-data
       debug:
@@ -88,21 +101,43 @@
       debug:
         msg: "Client Key Data: {{ client_key_data }}"
 
+    - name: Show extracted token-data
+      debug:
+        msg: "Token Data: {{ token_data }}"
+
     # Step 5: Store the values in Vault (assuming Vault CLI is available)
-    - name: Store certificate-authority-data in Vault
+    - name: Enable kv secrets with specific path
+      become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
-        vault kv put secret/k3s KUBE_CLIENT_CA_CRT={{ cert_authority_data }}
+        vault secrets enable -path=kv_{{ env }} -version=2 kv
+        vault kv put kv_{{ env }}/k3s client_ca_crt={{ cert_authority_data }}
       args:
         executable: /bin/bash
 
     - name: Store client-certificate-data in Vault
+      become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
-        vault kv put secret/k3s KUBE_CLIENT_CRT={{ client_certificate_data }}
-      args:
-        executable: /bin/bash
+        path="kv_{{ env }}/k3s"  # Replace with your actual path
 
-    - name: Store client-key-data in Vault
-      ansible.builtin.shell: |
-        vault kv put secret/k3s KUBE_CLIENT_KEY={{ client_key_data }}
+        # Define multiple new key-value pairs
+        declare -A new_data
+        new_data["host"]="{{ load_balancer_virtual_url }}"
+        new_data["client_crt"]="{{ client_certificate_data }}"
+        new_data["client_key"]="{{ client_key_data }}"
+        new_data["token"]="{{ token_data }}"
+
+        # Step 1: Get existing data (handle empty cases)
+        existing_data=$(vault kv get -format=json "$path" 2>/dev/null | jq -r '.data.data' || echo '{}')
+
+        # Step 2: Convert `new_data` associative array to JSON format
+        new_data_json=$(for key in "${!new_data[@]}"; do
+            jq -n --arg key "$key" --arg value "${new_data[$key]}" '{"key": $key, "value": $value}'
+        done | jq -s 'from_entries')
+
+        # Step 3: Merge existing data with new key-value pairs
+        updated_data=$(echo "$existing_data" | jq --argjson new "$new_data_json" '$new + .')
+
+        # Step 4: Write the updated data back to Vault
+        vault kv put "$path" $(echo "$updated_data" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]')
       args:
         executable: /bin/bash
