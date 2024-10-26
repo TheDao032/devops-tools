@@ -20,8 +20,18 @@ NETWORK_MODE=${NETWORK_MODE:-"NAT"} VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applica
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-variables/vault-env.bash
-source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
+# LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-vars/k3s-env.bash
+# source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
+
+RHEL_USERNAME=${1:-""}
+RHEL_PASSWORD=${2:-""}
+
+SCRIPT_ABS_PATH="$( realpath "${0}")"
+LIB_DIR="${SCRIPT_ABS_PATH%/*}/../envs/${SERVICE}"
+
+for LIB_FILE in "${LIB_DIR}"/*.bash; do
+  source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
+done
 
 declare vagrant_plugins=(
   "vagrant-vbguest"
@@ -46,7 +56,7 @@ vagrant_init() {
     fi
   done
 
-  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
+  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
 }
 
 ansible_exec() {
