@@ -2,7 +2,7 @@
 
 set -e
 
-LOCATION=${LOCATION:-"local"}
+ANSIBLE_ENV=${ANSIBLE_ENV:-"local"}
 SERVICE=${SERVICE:-"vault"}
 PROVIDER=${PROVIDER:-"virtualbox"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"deployment/utils/setup_env.sh"}"
@@ -14,13 +14,13 @@ ANSIBLE_DIR=${ANSIBLE_DIR:-${DEVOPS_TOOLS_DIR}/ansible}
 ANSIBLE_PLAYBOOKS_DIR=${ANSIBLE_DIR}/playbooks/vault-playbooks
 ANSIBLE_INVENTORIES_DIR=${ANSIBLE_DIR}/inventories
 VAGRANTFILE="vagrant-files/kubernetes/k3s.${PROVIDER}.Vagrantfile"
-INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${SERVICE}/${PROVIDER}
+INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${ANSIBLE_ENV}/${SERVICE}/${PROVIDER}
 
 NETWORK_MODE=${NETWORK_MODE:-"NAT"} VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"}
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/dev/dev-env/vault-env.bash
+LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-variables/vault-env.bash
 source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
 declare vagrant_plugins=(

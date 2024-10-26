@@ -1,0 +1,42 @@
+---
+# tasks file for vault/store-vault-secrets
+- name: Enable kv secrets with specific path
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    vault login -method=token $(echo ${VAULT_TOKEN})
+
+    path={{ vault_kv_path }}
+    if vault secrets list -format=json | jq -e --arg path "$path/" '.[$path]'; then
+      echo "The path $path already exists."
+    else
+      echo "The path $path does not exist. Enabling KV version 2 at $path..."
+      vault secrets enable -path=kv_{{ env }} -version=2 kv
+    fi
+
+
+    vault kv put {{ vault_secrets_path }} token=${VAULT_TOKEN}
+  args:
+    executable: /bin/bash
+
+- name: Store client-certificate-data in Vault
+  become_user: "{{ ansible_user }}"
+  ansible.builtin.shell: |
+    # Define multiple new key-value pairs
+    declare -A new_data
+    new_data["cluster_addr"]="{{ vault_cluster_addr }}"
+
+    # Step 1: Get existing data (handle empty cases)
+    existing_data=$(vault kv get -format=json {{ vault_secrets_path }} 2>/dev/null | jq -r '.data.data' || echo '{}')
+
+    # Step 2: Convert `new_data` associative array to JSON format
+    new_data_json=$(for key in "${!new_data[@]}"; do
+        jq -n --arg key "$key" --arg value "${new_data[$key]}" '{"key": $key, "value": $value}'
+    done | jq -s 'from_entries')
+
+    # Step 3: Merge existing data with new key-value pairs
+    updated_data=$(echo "$existing_data" | jq --argjson new "$new_data_json" '$new + .')
+
+    # Step 4: Write the updated data back to Vault
+    vault kv put {{ vault_secrets_path }} $(echo "$updated_data" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]')
+  args:
+    executable: /bin/bash

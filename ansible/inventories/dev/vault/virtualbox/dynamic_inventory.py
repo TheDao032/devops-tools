@@ -14,36 +14,12 @@ ENV = os.getenv('ENVIRONMENT')
 # client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 vms = [
-    "server-1",
+    "server",
 ]
 
 vars = {
     'env': ENV,
 }
-
-# Define a function to get IPs from Vault
-# def get_ips_from_vault():
-#     ips = {}
-#
-#     try:
-#         # Make sure the client is authenticated with Vault
-#         if not client.is_authenticated():
-#             print("Vault authentication failed.", file=sys.stderr)
-#             return ips
-#
-#         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-#         secret_path = f'kv_{ENV}/k3s/vms'
-#         secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
-#         data = secret_response['data']['data']
-#
-#         for vm in vms:
-#             if vm in data:
-#                 ips[vm] = data[vm]
-#
-#     except Exception as e:
-#         print(f"Error fetching IPs from Vault: {str(e)}", file=sys.stderr)
-#
-#     return ips
 
 # Define a function to get IPs from the .env file
 def get_ips_from_env():
@@ -51,7 +27,7 @@ def get_ips_from_env():
     # Example: Fetch IPs for VM, server
 
     for item in vms:
-        ip = os.getenv(item)
+        ip = os.getenv(item.upper())
 
         if ip:
             ips[item] = ip

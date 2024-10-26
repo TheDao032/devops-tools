@@ -2,7 +2,7 @@
 
 set -e
 
-LOCATION=${LOCATION:-"local"}
+ANSIBLE_ENV=${ANSIBLE_ENV:-"dev"}
 SERVICE=${SERVICE:-"k3s"}
 PROVIDER=${PROVIDER:-"virtualbox"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"deployment/utils/setup_env.sh"}"
@@ -14,18 +14,18 @@ ANSIBLE_DIR=${ANSIBLE_DIR:-${DEVOPS_TOOLS_DIR}/ansible}
 ANSIBLE_PLAYBOOKS_DIR=${ANSIBLE_DIR}/playbooks/k3s-playbooks
 ANSIBLE_INVENTORIES_DIR=${ANSIBLE_DIR}/inventories
 VAGRANTFILE="vagrant-files/kubernetes/k3s.${PROVIDER}.Vagrantfile"
-INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${SERVICE}/${PROVIDER}
+INVENTORY=${ANSIBLE_INVENTORIES_DIR}/${ANSIBLE_ENV}/${SERVICE}/${PROVIDER}
 
 NETWORK_MODE=${NETWORK_MODE:-"NAT"}
 VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"}
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/dev/env-variables/k3s-env.bash
+LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-variables/k3s-env.bash
 source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-RHEL_USERNAME=$1
-RHEL_PASSWORD=$2
+RHEL_USERNAME=${1:-""}
+RHEL_PASSWORD=${2:-""}
 
 # for LIB_FILE in "${LIB_DIR}"/*.bash; do
 # done
@@ -57,7 +57,7 @@ vagrant_init() {
 }
 
 ansible_exec() {
-  uv run ansible/inventories/local/k3s/virtualbox/dynamic_inventory.py --list
+  # uv run ansible/inventories/local/k3s/virtualbox/dynamic_inventory.py --list
 
   # k3s PostgreSQL Common Packages
   # log_info "Running setup k3s psql datastore packages"

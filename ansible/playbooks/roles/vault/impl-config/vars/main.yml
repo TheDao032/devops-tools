@@ -14,4 +14,5 @@ vault_config_templates:
   - vault.hcl
 
 vault_service_template: vault.service
-vautl_secrets_path: "kv_{{ env }}/vault/server-secrets"  # Replace with your actual path
+vault_temp_dir_path: /tmp/vault
+vault_operator_path: "{{ vault_temp_dir_path }}/operator_init.json"

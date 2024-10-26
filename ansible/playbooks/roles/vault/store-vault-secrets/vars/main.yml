@@ -1,0 +1,7 @@
+---
+# vars file for vault/store-vault-secrets
+vault_cluster_addr: "https://{{ ansible_host }}:8201"
+vault_api_addr: "https://{{ ansible_host }}:8200"
+
+vault_kv_path: "kv_{{ env }}"
+vault_secrets_path: "kv_{{ env }}/vault/server-secrets"  # Replace with your actual path

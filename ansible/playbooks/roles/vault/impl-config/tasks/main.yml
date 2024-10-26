@@ -55,8 +55,9 @@
     echo "export VAULT_ADDR=https://{{ hostvars['server-1']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
     source /home/{{ ansible_user }}/.bashrc
 
-    vault operator init -key-shares=1 -key-threshold=1 -format=json > /opt/vault/operator-init.json
-    root_token=$(jq -r '.root_token' /opt/vault/operator-init.json)
+    mkdir -p {{ vault_temp_dir_path }}
+    vault operator init -key-shares=1 -key-threshold=1 -format=json > {{ vault_operator_path }}
+    root_token=$(jq -r '.root_token' {{ vault_operator_path }})
 
     # Export the VAULT_TOKEN environment variable
     echo "export VAULT_TOKEN=$root_token" >> /home/{{ ansible_user }}/.bashrc
@@ -64,41 +65,5 @@
 
     # Verify that the token was correctly extracted and set
     echo "VAULT_TOKEN set to: $VAULT_TOKEN"
-  args:
-    executable: /bin/bash
-
-- name: Enable kv secrets with specific path
-  become_user: "{{ ansible_user }}"
-  ansible.builtin.shell: |
-    vault login -method=token $(echo ${VAULT_TOKEN})
-    vault secrets enable -path=kv_{{ env }} -version=2 kv
-
-    # path="kv_{{ env }}/vault/server-secrets"  # Replace with your actual path
-    vault kv put {{ vault_secrets_path }} vault_token=${VAULT_TOKEN}
-  args:
-    executable: /bin/bash
-
-- name: Store client-certificate-data in Vault
-  become_user: "{{ ansible_user }}"
-  ansible.builtin.shell: |
-    # path="kv_{{ env }}/vault/server-secrets"  # Replace with your actual path
-
-    # Define multiple new key-value pairs
-    declare -A new_data
-    new_data["host"]="{{ vault_cluster_addr }}"
-
-    # Step 1: Get existing data (handle empty cases)
-    existing_data=$(vault kv get -format=json {{ vault_secrets_path }} 2>/dev/null | jq -r '.data.data' || echo '{}')
-
-    # Step 2: Convert `new_data` associative array to JSON format
-    new_data_json=$(for key in "${!new_data[@]}"; do
-        jq -n --arg key "$key" --arg value "${new_data[$key]}" '{"key": $key, "value": $value}'
-    done | jq -s 'from_entries')
-
-    # Step 3: Merge existing data with new key-value pairs
-    updated_data=$(echo "$existing_data" | jq --argjson new "$new_data_json" '$new + .')
-
-    # Step 4: Write the updated data back to Vault
-    vault kv put {{ vault_secrets_path }} $(echo "$updated_data" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]')
   args:
     executable: /bin/bash
