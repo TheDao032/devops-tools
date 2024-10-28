@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+
 import os
 import sys
 import json
@@ -12,7 +13,7 @@ load_dotenv()
 
 VAULT_ADDR = os.getenv('VAULT_ADDR')
 VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
-ENV = os.getenv('ENVIRONMENT', 'local')
+ENV = os.getenv('ENVIRONMENT')
 client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 list_var = [
@@ -78,7 +79,7 @@ def get_k3s_secrets_from_vault():
             return
 
         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-        secret_path = f'kv_{ENV}/k3s/vars'
+        secret_path = f'kv_{ENV}_terraform/k3s/envs'
         secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
         data = secret_response['data']['data']
 
@@ -160,7 +161,7 @@ def generate_inventory():
     }
 
     get_k3s_secrets_from_vault()
-    get_k3s_secrets_from_env()
+    # get_k3s_secrets_from_env()
 
     # Step 1: Get IPs from Vault first
     ips = get_ips_from_vault()

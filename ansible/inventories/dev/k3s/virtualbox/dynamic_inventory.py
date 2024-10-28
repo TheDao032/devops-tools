@@ -160,7 +160,7 @@ def generate_inventory():
     }
 
     get_k3s_secrets_from_vault()
-    get_k3s_secrets_from_env()
+    # get_k3s_secrets_from_env()
 
     # Step 1: Get IPs from Vault first
     ips = get_ips_from_vault()
