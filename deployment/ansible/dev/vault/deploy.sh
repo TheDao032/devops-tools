@@ -23,8 +23,8 @@ source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - f
 # LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-vars/k3s-env.bash
 # source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-RHEL_USERNAME=${1:-""}
-RHEL_PASSWORD=${2:-""}
+ANSIBLE_USERNAME=${1:-""}
+ANSIBLE_PASSWORD=${2:-""}
 
 SCRIPT_ABS_PATH="$( realpath "${0}")"
 LIB_DIR="${SCRIPT_ABS_PATH%/*}/../env-vars/${SERVICE}"
@@ -56,14 +56,14 @@ vagrant_init() {
     fi
   done
 
-  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
+  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
 }
 
 ansible_exec() {
   uv run ansible/inventories/${ANSIBLE_ENV}/${SERVICE}/${PROVIDER}/dynamic_inventory.py --list
 
   log_info "Running setup vault dependencies packages"
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/dependencies/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/dependencies/main.yml -i ${INVENTORY} -e "ansible_user=${ANSIBLE_USERNAME} ansible_password=${ANSIBLE_PASSWORD}" -vvv
 }
 
 # vagrant_init ${vagrant_plugins[@]}
