@@ -2,7 +2,7 @@
 
 set -e
 
-ANSIBLE_ENV=${ANSIBLE_ENV:-"local"}
+ANSIBLE_ENV=${ANSIBLE_ENV:-"dev"}
 SERVICE=${SERVICE:-"vault"}
 PROVIDER=${PROVIDER:-"virtualbox"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"deployment/utils/setup_env.sh"}"
