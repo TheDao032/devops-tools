@@ -61,7 +61,7 @@ vagrant_init() {
 }
 
 ansible_exec() {
-  # uv run ansible/inventories/local/k3s/virtualbox/dynamic_inventory.py --list
+  uv run ansible/inventories/${ANSIBLE_ENV}/${SERVICE}/${PROVIDER}/dynamic_inventory.py --list
 
   # k3s PostgreSQL Common Packages
   # log_info "Running setup k3s psql datastore packages"

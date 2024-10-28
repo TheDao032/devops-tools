@@ -28,7 +28,7 @@ RHEL_USERNAME=${1:-""}
 RHEL_PASSWORD=${2:-""}
 
 SCRIPT_ABS_PATH="$( realpath "${0}")"
-LIB_DIR="${SCRIPT_ABS_PATH%/*}/../envs/${SERVICE}"
+LIB_DIR="${SCRIPT_ABS_PATH%/*}/../env-vars/${SERVICE}"
 
 for LIB_FILE in "${LIB_DIR}"/*.bash; do
   source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
@@ -61,7 +61,7 @@ vagrant_init() {
 }
 
 ansible_exec() {
-  # uv run ansible/inventories/local/k3s/virtualbox/dynamic_inventory.py --list
+  uv run ansible/inventories/${ANSIBLE_ENV}/${SERVICE}/${PROVIDER}/dynamic_inventory.py --list
 
   # k3s PostgreSQL Common Packages
   # log_info "Running setup k3s psql datastore packages"

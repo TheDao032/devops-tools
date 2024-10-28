@@ -60,6 +60,8 @@ vagrant_init() {
 }
 
 ansible_exec() {
+  uv run ansible/inventories/${ANSIBLE_ENV}/${SERVICE}/${PROVIDER}/dynamic_inventory.py --list
+
   log_info "Running setup vault dependencies packages"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/dependencies/main.yml -i ${INVENTORY} -vvv
 }
