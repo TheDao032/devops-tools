@@ -19,7 +19,8 @@ IP_NW = virtuaboxConfig.ip_nw
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20
-ETCD_IP_START = 30
+VAULT_IP_START = 30
+ETCD_IP_START = 40
 
 # Define how much memory your computer has in GB (e.g., 8, 16)
 # Larger clusters will be created if you have more.
@@ -160,6 +161,29 @@ end
     }
   )
 end
+
+machines.push(
+  {
+    name: "server",
+    box: virtuaboxConfig.os_systems[:redhat][:box],
+    os: virtuaboxConfig.os_systems[:redhat][:os],
+    cpu: RESOURCES[:agent][:cpu],
+    ram: RESOURCES[:agent][:ram],
+    network: {
+      name: "",
+      ports: [
+        # { guest: 22, host: 2750},
+        { guest: 80, host: 8101},
+        { guest: 443, host: 4451}
+      ],
+      ip: "#{IP_NW}.#{VAULT_IP_START + 1}"
+    },
+    files: [
+      { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+      { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+    ]
+  }
+)
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for

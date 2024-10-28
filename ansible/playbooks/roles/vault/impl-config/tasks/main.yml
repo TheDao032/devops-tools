@@ -52,7 +52,7 @@
 - name: Vault operator initalize
   ansible.builtin.shell: |
     echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user }}/.bashrc
-    echo "export VAULT_ADDR=https://{{ hostvars['server-1']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
+    echo "export VAULT_ADDR=https://{{ hostvars['server']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
     source /home/{{ ansible_user }}/.bashrc
 
     mkdir -p {{ vault_temp_dir_path }}
