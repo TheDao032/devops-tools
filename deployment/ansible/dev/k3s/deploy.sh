@@ -28,7 +28,7 @@ RHEL_USERNAME=${1:-""}
 RHEL_PASSWORD=${2:-""}
 
 SCRIPT_ABS_PATH="$( realpath "${0}")"
-LIB_DIR="${SCRIPT_ABS_PATH%/*}/../envs/${SERVICE}"
+LIB_DIR="${SCRIPT_ABS_PATH%/*}/../env-vars/${SERVICE}"
 
 for LIB_FILE in "${LIB_DIR}"/*.bash; do
   source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
