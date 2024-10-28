@@ -14,7 +14,7 @@ load_dotenv()
 VAULT_ADDR = os.getenv('VAULT_ADDR')
 VAULT_TOKEN = os.getenv('VAULT_TOKEN')  # Vault token from env
 ENV = os.getenv('ENVIRONMENT')
-client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
+client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN, verify=False)
 
 list_var = [
     'keepalived_virtual_ip',
@@ -36,13 +36,15 @@ vars = {
     'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
     'extra_server_args': '',
     'extra_agent_args': '',
+    'vault_cluster_addr': VAULT_ADDR,
+    'vault_token': VAULT_TOKEN,
     'env': ENV,
 }
 
 vms = [
-    "server-1",
+    'server-1',
     # "server-2",
-    "agent-1",
+    'agent-1',
     # "agent-2"
 ]
 
@@ -57,8 +59,17 @@ def get_ips_from_vault():
             return ips
 
         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-        secret_path = f'kv_{ENV}/k3s/vms'
-        secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
+        # secret_path = f'kv_{ENV}_terraform/data/k3s/vms'
+        # secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
+        secret_path = 'k3s/vms'  # Use only the path relative to the mount point
+        mount_point = f'kv_{ENV}_terraform'  # Specify the correct mount point
+
+        # Use the correct mount point when reading the secret
+        secret_response = client.secrets.kv.v2.read_secret_version(
+            path=secret_path,
+            mount_point=mount_point
+        )
+
         data = secret_response['data']['data']
 
         for vm in vms:
@@ -79,8 +90,15 @@ def get_k3s_secrets_from_vault():
             return
 
         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-        secret_path = f'kv_{ENV}_terraform/k3s/envs'
-        secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
+        secret_path = 'k3s/envs'  # Use only the path relative to the mount point
+        mount_point = f'kv_{ENV}_terraform'  # Specify the correct mount point
+
+        # Use the correct mount point when reading the secret
+        secret_response = client.secrets.kv.v2.read_secret_version(
+            path=secret_path,
+            mount_point=mount_point
+        )
+        # secret_path = f'kv_{ENV}_terraform/data/k3s/envs'
         data = secret_response['data']['data']
 
         for item in list_var:
@@ -133,6 +151,9 @@ def get_ip_from_virtualbox(vm_name):
 
 # Function to generate the inventory
 def generate_inventory():
+    get_k3s_secrets_from_vault()
+    # get_k3s_secrets_from_env()
+
     groups = {
         'all': {
             'children': [
@@ -159,9 +180,6 @@ def generate_inventory():
             'groupvars': {}
         }
     }
-
-    get_k3s_secrets_from_vault()
-    # get_k3s_secrets_from_env()
 
     # Step 1: Get IPs from Vault first
     ips = get_ips_from_vault()

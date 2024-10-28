@@ -1,20 +1,25 @@
 ---
 # vars file for dependencies
-debian_packages:
-  - curl
-  - ca-certificates
-  - wireguard
+debian:
+  common_packages:
+    - curl
+    - ca-certificates
+    - wireguard
+    - gpg
+    - wget
+  vault_packages:
+    - vault
 
-rhel_packages:
-  - curl
-  - ca-certificates
+rhel:
+  common_packages:
+    - curl
+    - ca-certificates
+    - yum-utils
 
-  # - https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm
-  # - https://www.elrepo.org/elrepo-release-9.el9.elrepo.noarch.rpm
-  # - wireguard-tools
 
-centos_packages:
-  - curl
-  - ca-certificates
-  - yum-utils
-  - epel-release
+centos:
+  common_packages:
+    - curl
+    - ca-certificates
+    - yum-utils
+    - epel-release

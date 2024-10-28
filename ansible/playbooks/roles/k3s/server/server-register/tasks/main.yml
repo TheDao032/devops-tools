@@ -22,7 +22,7 @@
       ignore_errors: true
 
     - name: Exec server register script
-      when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] in ansible_hostname
+      when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] in ansible_hostname
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ ansible_host }}
       args:
@@ -43,7 +43,7 @@
         mode: '0644'
 
     - name: Exec register script for sidecard server
-      when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] not in ansible_hostname
+      when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] not in ansible_hostname
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-side-register.sh /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ api_endpoint }} {{ api_port }} {{ ansible_host }}
       args:
@@ -109,6 +109,11 @@
     - name: Enable kv secrets with specific path
       become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
+        echo "export VAULT_ADDR={{ vault_cluster_addr }}" >> /home/{{ ansible_user}}/.bashrc
+        echo "export VAULT_TOKEN={{ vault_token }}" >> /home/{{ ansible_user}}/.bashrc
+        source /home/{{ ansible_user}}/.bashrc
+
+        vault login -address={{ vault_cluster_addr }} -method=token {{ vault_token }}
         vault secrets enable -path=kv_{{ env }} -version=2 kv
 
         path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
