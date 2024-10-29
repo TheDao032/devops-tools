@@ -36,6 +36,8 @@ vars = {
     'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
     'extra_server_args': '',
     'extra_agent_args': '',
+    'vault_cluster_addr': VAULT_ADDR,
+    'vault_token': VAULT_TOKEN,
     'env': ENV,
 }
 
