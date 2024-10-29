@@ -18,6 +18,7 @@ client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN, verify=False)
 
 list_var = [
     'keepalived_virtual_ip',
+    'keepalived_nw_interface',
     'load_balancer_port',
     'psql_version',
     'k3s_server_cidr_range',
@@ -29,6 +30,7 @@ list_var = [
 
 vars = {
     'keepalived_virtual_ip': '',
+    'keepalived_nw_interface': '',
     'load_balancer_port': '',
     'psql_version': '',
     'k3s_server_cidr_range': '',

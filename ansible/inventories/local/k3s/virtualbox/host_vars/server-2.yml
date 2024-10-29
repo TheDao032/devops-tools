@@ -1,7 +1,7 @@
 ---
 state: BACKUP
 priority: 100
-interface: eth1
+interface: "{{ keepalived_nw_interface }}"
 auth_type: AH
 auth_pass: renesas
 virtual_ipaddress: "{{ keepalived_virtual_ip }}/24"
