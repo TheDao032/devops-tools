@@ -67,21 +67,21 @@ ansible_exec() {
   # log_info "Running setup k3s psql datastore packages"
   # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/psql-impl/main.yml -i ${INVENTORY} -vvv
 
-  # log_info "Running setup k3s common packages"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/common/main.yml -i ${INVENTORY} -vvv
+  log_info "Running setup k3s common packages"
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/common/main.yml -i ${INVENTORY} -vvv
 
   log_info "Running setup k3s server"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/server-register/main.yml -i ${INVENTORY} -vvv
 
-  # log_info "Running setup k3s load-balancer"
-  # log_info "Running setup k3s haproxy"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/common/main.yml -i ${INVENTORY} -vvv
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/self-signed-cert/main.yml -i ${INVENTORY} -vvv
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/impl-config/main.yml -i ${INVENTORY} -vvv
-  #
-  # log_info "Running setup k3s keepalived"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/common/main.yml -i ${INVENTORY} -vvv
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/impl-config/main.yml -i ${INVENTORY} -vvv
+  log_info "Running setup k3s load-balancer"
+  log_info "Running setup k3s haproxy"
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/common/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/self-signed-cert/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/impl-config/main.yml -i ${INVENTORY} -vvv
+
+  log_info "Running setup k3s keepalived"
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/common/main.yml -i ${INVENTORY} -vvv
+  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/impl-config/main.yml -i ${INVENTORY} -vvv
 
   log_info "Running setup k3s agent"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/agent-register/main.yml -i ${INVENTORY} -vvv

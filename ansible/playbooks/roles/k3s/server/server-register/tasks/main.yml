@@ -114,9 +114,9 @@
         source /home/{{ ansible_user}}/.bashrc
 
         vault login -address={{ vault_cluster_addr }} -method=token {{ vault_token }}
-        vault secrets enable -path=kv_{{ env }} -version=2 kv
+        # vault secrets enable -path={{ env }} -version=2 kv
+        # path="{{ env }}/k3s/creds"  # Replace with your actual path
 
-        path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
         vault kv put {{ k3s_secrets_path }} client_ca_crt={{ cert_authority_data }}
       args:
         executable: /bin/bash
@@ -124,7 +124,7 @@
     - name: Store client-certificate-data in Vault
       become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
-        path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
+        # path="{{ env }}/k3s/creds"  # Replace with your actual path
 
         # Define multiple new key-value pairs
         declare -A new_data
