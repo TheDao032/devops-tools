@@ -58,6 +58,7 @@
     mkdir -p {{ vault_temp_dir_path }}
     vault operator init -key-shares=1 -key-threshold=1 -format=json > {{ vault_operator_path }}
     root_token=$(jq -r '.root_token' {{ vault_operator_path }})
+    unseal_key=$(jq -r '.unseal_keys_b64[0]' {{ vault_operator_path }})
 
     # Export the VAULT_TOKEN environment variable
     echo "export VAULT_TOKEN=$root_token" >> /home/{{ ansible_user }}/.bashrc
@@ -65,5 +66,6 @@
 
     # Verify that the token was correctly extracted and set
     echo "VAULT_TOKEN set to: $VAULT_TOKEN"
+    vault operator unseal ${unseal_key}
   args:
     executable: /bin/bash

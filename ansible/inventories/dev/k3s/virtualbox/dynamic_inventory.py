@@ -44,9 +44,9 @@ vars = {
 }
 
 vms = [
-    "server-1",
+    'server-1',
     # "server-2",
-    "agent-1",
+    'agent-1',
     # "agent-2"
 ]
 
@@ -63,8 +63,8 @@ def get_ips_from_vault():
         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
         # secret_path = f'kv_{ENV}_terraform/data/k3s/vms'
         # secret_response = client.secrets.kv.v2.read_secret_version(path=secret_path)
-        secret_path = 'k3s/vms'  # Use only the path relative to the mount point
-        mount_point = f'kv_{ENV}_terraform'  # Specify the correct mount point
+        secret_path = 'k3s/params'  # Use only the path relative to the mount point
+        mount_point = ENV  # Specify the correct mount point
 
         # Use the correct mount point when reading the secret
         secret_response = client.secrets.kv.v2.read_secret_version(
@@ -92,8 +92,8 @@ def get_k3s_secrets_from_vault():
             return
 
         # Assuming IPs are stored in the secret path 'kv/data/vms' in Vault
-        secret_path = 'k3s/envs'  # Use only the path relative to the mount point
-        mount_point = f'kv_{ENV}_terraform'  # Specify the correct mount point
+        secret_path = 'k3s/params'  # Use only the path relative to the mount point
+        mount_point = ENV  # Specify the correct mount point
 
         # Use the correct mount point when reading the secret
         secret_response = client.secrets.kv.v2.read_secret_version(
