@@ -47,7 +47,7 @@ vms = [
     'server-1',
     # "server-2",
     'agent-1',
-    # "agent-2"
+    "agent-2"
 ]
 
 # Define a function to get IPs from Vault
