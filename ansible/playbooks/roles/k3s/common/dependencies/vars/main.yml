@@ -7,6 +7,7 @@ debian:
     - wireguard
     - gpg
     - wget
+    - jq
   vault_packages:
     - vault
 
@@ -15,6 +16,7 @@ rhel:
     - curl
     - ca-certificates
     - yum-utils
+    - jq
 
 
 centos:
@@ -23,3 +25,4 @@ centos:
     - ca-certificates
     - yum-utils
     - epel-release
+    - jq

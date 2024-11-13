@@ -64,7 +64,7 @@ ansible_exec() {
 
   log_info "Running setup vault dependencies packages"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/dependencies/main.yml -i ${INVENTORY} -vvv
-  ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/store-secrets/main.yml -i ${INVENTORY} -vvv
+  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/store-secrets/main.yml -i ${INVENTORY} -vvv
 }
 
 vagrant_init ${vagrant_plugins[@]}

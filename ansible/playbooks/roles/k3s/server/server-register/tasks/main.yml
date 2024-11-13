@@ -111,6 +111,7 @@
       ansible.builtin.shell: |
         echo "export VAULT_ADDR={{ vault_cluster_addr }}" >> /home/{{ ansible_user}}/.bashrc
         echo "export VAULT_TOKEN={{ vault_token }}" >> /home/{{ ansible_user}}/.bashrc
+        echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user}}/.bashrc
         source /home/{{ ansible_user}}/.bashrc
 
         vault login -address={{ vault_cluster_addr }} -method=token {{ vault_token }}
