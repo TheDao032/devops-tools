@@ -56,7 +56,7 @@ vagrant_init() {
     fi
   done
 
-  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision
+  cd ${VAGRANT_DIR} && VAGRANT_VAGRANTFILE=${VAGRANTFILE} RHEL_USERNAME=${RHEL_USERNAME} RHEL_PASSWORD=${RHEL_PASSWORD} PROVIDER=${PROVIDER} VBOX_GUEST_DISK=${VBOX_GUEST_DISK} NETWORK_MODE=${NETWORK_MODE} vagrant up --provider ${PROVIDER} --provision && cd ..
 }
 
 ansible_exec() {
@@ -67,6 +67,6 @@ ansible_exec() {
   # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/store-secrets/main.yml -i ${INVENTORY} -vvv
 }
 
-vagrant_init ${vagrant_plugins[@]}
+# vagrant_init ${vagrant_plugins[@]}
 
 ansible_exec
