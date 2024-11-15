@@ -109,15 +109,11 @@
     - name: Enable kv secrets with specific path
       become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
-        echo "export VAULT_ADDR={{ vault_cluster_addr }}" >> /home/{{ ansible_user}}/.bashrc
-        echo "export VAULT_TOKEN={{ vault_token }}" >> /home/{{ ansible_user}}/.bashrc
-        echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user}}/.bashrc
-        source /home/{{ ansible_user}}/.bashrc
+        export VAULT_ADDR={{ vault_cluster_addr }}
+        export VAULT_TOKEN={{ vault_token }}
+        export VAULT_SKIP_VERIFY=true
 
         vault login -address={{ vault_cluster_addr }} -method=token {{ vault_token }}
-        # vault secrets enable -path={{ env }} -version=2 kv
-        # path="{{ env }}/k3s/creds"  # Replace with your actual path
-
         vault kv put {{ k3s_secrets_path }} client_ca_crt={{ cert_authority_data }}
       args:
         executable: /bin/bash
@@ -125,8 +121,6 @@
     - name: Store client-certificate-data in Vault
       become_user: "{{ ansible_user }}"
       ansible.builtin.shell: |
-        # path="{{ env }}/k3s/creds"  # Replace with your actual path
-
         # Define multiple new key-value pairs
         declare -A new_data
         new_data["host"]="{{ load_balancer_virtual_url }}"
