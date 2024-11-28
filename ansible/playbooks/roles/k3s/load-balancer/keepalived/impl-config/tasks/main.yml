@@ -8,18 +8,9 @@
     group: root  # Set file group (optional)
     mode: '0644'
     force: true
-
-# - name: Verify contents of keepalived.conf
-#   ansible.builtin.command:
-#     cmd: cat /tmp/keepalived.conf > {{ keepalive_conf_path }}/keepalived.conf
-#   register: keepalived_content
-
-# - name: Debug keepalived.conf contents
-#   debug:
-#     msg: "{{ keepalived_content.stdout }}"
-
 - name: Restart Keepalived service after config update
-  ansible.builtin.systemd:
+  become: true
+  ansible.builtin.systemd_service:
     name: keepalived
     state: restarted
     enabled: true

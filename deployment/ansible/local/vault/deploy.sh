@@ -67,6 +67,6 @@ ansible_exec() {
   # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/store-secrets/main.yml -i ${INVENTORY} -vvv
 }
 
-# vagrant_init ${vagrant_plugins[@]}
+vagrant_init ${vagrant_plugins[@]}
 
 ansible_exec

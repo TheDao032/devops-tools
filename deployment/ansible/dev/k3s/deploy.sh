@@ -67,7 +67,7 @@ ansible_exec() {
   # log_info "Running setup k3s psql datastore packages"
   # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/psql-impl/main.yml -i ${INVENTORY} -vvv
 
-  log_info "Running setup k3s common packages"
+  log_info "Running setup k3s"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/site.yml -i ${INVENTORY} -e "ansible_user=${ANSIBLE_USERNAME} ansible_password=${ANSIBLE_PASSWORD} ansible_become_password=${ANSIBLE_PASSWORD}" -vvv
 
   # log_info "Running setup k3s common packages"

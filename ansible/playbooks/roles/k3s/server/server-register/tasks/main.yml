@@ -108,11 +108,11 @@
     # Step 5: Store the values in Vault (assuming Vault CLI is available)
     - name: Enable kv secrets with specific path
       become_user: "{{ ansible_user }}"
+      environment:
+        VAULT_ADDR: "{{ vault_cluster_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+        VAULT_SKIP_VERIFY: "true"
       ansible.builtin.shell: |
-        export VAULT_ADDR={{ vault_cluster_addr }}
-        export VAULT_TOKEN={{ vault_token }}
-        export VAULT_SKIP_VERIFY=true
-
         vault login -address={{ vault_cluster_addr }} -method=token {{ vault_token }}
         vault kv put {{ k3s_secrets_path }} client_ca_crt={{ cert_authority_data }}
       args:
@@ -120,6 +120,10 @@
 
     - name: Store client-certificate-data in Vault
       become_user: "{{ ansible_user }}"
+      environment:
+        VAULT_ADDR: "{{ vault_cluster_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+        VAULT_SKIP_VERIFY: "true"
       ansible.builtin.shell: |
         # Define multiple new key-value pairs
         declare -A new_data

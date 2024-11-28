@@ -7,11 +7,10 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    - role: ../../roles/k3s/common/dependencies
-    - role: ../../roles/k3s/common/kennel-config
+    - role: ../roles/k3s/common/dependencies
+    - role: ../roles/k3s/common/kennel-config
 
----
-- name: k3s-setup
+- name: k3s-server-setup
   hosts: server
   become: true
   become_user: root
@@ -20,12 +19,29 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
-    - role: ../../roles/k3s/server/server-register # k3s Server Register
+    - role: ../roles/k3s/server/server-register # k3s Server Register
 
-    - role: ../../roles/k3s/load-balancer/haproxy/common
-    - role: ../../roles/k3s/load-balancer/haproxy/self-signed-cert
-    - role: ../../../../roles/k3s/load-balancer/haproxy/impl-config
+- name: k3s-loadbancer-setup
+  hosts: server
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s/load-balancer/haproxy/common
+    - role: ../roles/k3s/load-balancer/haproxy/self-signed-cert
+    - role: ../roles/k3s/load-balancer/haproxy/impl-config
 
-    - role: ../../../../roles/k3s/load-balancer/keepalived/common
-    - role: ../../roles/k3s/load-balancer/keepalived/impl-config
-    - role: ../../roles/k3s/agent/agent-register
+    - role: ../roles/k3s/load-balancer/keepalived/common
+    - role: ../roles/k3s/load-balancer/keepalived/impl-config
+
+- name: k3s-agent-setup
+  hosts: agent
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s/agent/agent-register
