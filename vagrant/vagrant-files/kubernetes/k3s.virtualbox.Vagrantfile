@@ -61,8 +61,8 @@ ram_per_worker = (remaining_ram / NUM_AGENTS).to_i
 cpu_per_worker = (remaining_cpu / NUM_AGENTS).to_i
 
 # Ensure minimum resources per worker node
-ram_per_worker = [ram_per_worker, 2048].max # At least 2 GB RAM per worker
-cpu_per_worker = [cpu_per_worker, 1].max    # At least 1 CPU core per worker
+ram_per_worker = [ram_per_worker, 4096].max # At least 4 GB RAM per worker
+cpu_per_worker = [cpu_per_worker, 3].max    # At least 3 CPU core per worker
 
 # Resource allocation summary
 RESOURCES = {
