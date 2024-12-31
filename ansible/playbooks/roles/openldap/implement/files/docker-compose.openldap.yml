@@ -1,0 +1,27 @@
+version: '3.8'
+
+networks:
+  openldap:
+    driver: bridge
+
+services:
+  openldap:
+    image: bitnami/openldap:latest
+    ports:
+      - '1389:1389'
+      - '1636:1636'
+    environment:
+      LDAP_ADMIN_USERNAME: admin
+      LDAP_ADMIN_PASSWORD: adminpassword
+      LDAP_USERS: user01,user02
+      LDAP_PASSWORDS: password1,password2
+      LDAP_ROOT: dc=nthedao,dc=info
+      LDAP_ADMIN_DN: cn=admin,dc=nthedao,dc=info
+    networks:
+      - openldap
+    volumes:
+      - 'openldap_data:/bitnami/openldap'
+
+volumes:
+  openldap_data:
+    driver: local

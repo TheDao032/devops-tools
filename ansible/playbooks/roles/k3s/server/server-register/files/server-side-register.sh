@@ -14,7 +14,9 @@ if [[ -f "${SERVER_TOKEN_FILE}" ]];
 then
       # --node-taint CriticalAddonsOnly=true:NoExecute \
   curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" sh -s - --flannel-external-ip \
+      --resolv-conf /etc/resolv.conf \
       --flannel-backend wireguard-native \
+      --disable coredns \
       --server ${API_URL} \
       --write-kubeconfig-mode "0644" \
       --node-ip ${SERVER_SIDE_IP} \

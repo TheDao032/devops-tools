@@ -5,9 +5,11 @@ set -e
 KEEPALIVED_VIRTUAL_IP=$1
 SERVER_IP=$2
 
-    # --node-taint CriticalAddonsOnly=true:NoExecute
+    # --node-taint CriticalAddonsOnly=true:NoExecute \
 curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" sh -s - --cluster-init \
     --flannel-external-ip \
+    --resolv-conf /etc/resolv.conf \
+    --disable coredns \
     --flannel-backend wireguard-native \
     --write-kubeconfig-mode "0644" \
     --node-ip ${SERVER_IP} \
