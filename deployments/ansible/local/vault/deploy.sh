@@ -5,7 +5,7 @@ set -e
 ANSIBLE_ENV=${ANSIBLE_ENV:-"local"}
 SERVICE=${SERVICE:-"vault"}
 PROVIDER=${PROVIDER:-"virtualbox"}
-UTILS_SCRIPT="${UTILS_SCRIPT:-"deployment/utils/setup_env.sh"}"
+UTILS_SCRIPT="${UTILS_SCRIPT:-"deployments/utils/setup_env.sh"}"
 
 DEVOPS_TOOLS_DIR=${DEVOPS_TOOLS_DIR:-${PWD}}
 VAGRANT_DIR=${VAGRANT_DIR:-${DEVOPS_TOOLS_DIR}/vagrant}
@@ -20,7 +20,7 @@ NETWORK_MODE=${NETWORK_MODE:-"NAT"} VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applica
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-# LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-vars/k3s-env.bash
+# LIB_FILE=${DEVOPS_TOOLS_DIR}/deployments/ansible/${ANSIBLE_ENV}/env-vars/k3s-env.bash
 # source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
 RHEL_USERNAME=${1:-""}

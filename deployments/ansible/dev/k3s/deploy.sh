@@ -2,10 +2,10 @@
 
 set -e
 
-ANSIBLE_ENV=${ANSIBLE_ENV:-"local"}
+ANSIBLE_ENV=${ANSIBLE_ENV:-"dev"}
 SERVICE=${SERVICE:-"k3s"}
 PROVIDER=${PROVIDER:-"virtualbox"}
-UTILS_SCRIPT="${UTILS_SCRIPT:-"deployment/utils/setup_env.sh"}"
+UTILS_SCRIPT="${UTILS_SCRIPT:-"deployments/utils/setup_env.sh"}"
 
 DEVOPS_TOOLS_DIR=${DEVOPS_TOOLS_DIR:-${PWD}}
 VAGRANT_DIR=${VAGRANT_DIR:-${DEVOPS_TOOLS_DIR}/vagrant}
@@ -21,7 +21,7 @@ VBOX_GUEST_DISK=${VBOX_GUEST_DISK:-"/Applications/VirtualBox.app/Contents/MacOS/
 
 source ${DEVOPS_TOOLS_DIR}/${UTILS_SCRIPT} || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
-# LIB_FILE=${DEVOPS_TOOLS_DIR}/deployment/ansible/${ANSIBLE_ENV}/env-vars/k3s-env.bash
+# LIB_FILE=${DEVOPS_TOOLS_DIR}/deployments/ansible/${ANSIBLE_ENV}/env-vars/k3s-env.bash
 # source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 
 RHEL_USERNAME=${1:-""}
@@ -70,26 +70,6 @@ ansible_exec() {
   log_info "Running setup k3s"
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/site.yml -i ${INVENTORY} -vvv
 
-  # log_info "Running setup k3s common packages"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/common/main.yml -i ${INVENTORY} -vvv
-  #
-  # log_info "Running setup k3s server"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/server-register/main.yml -i ${INVENTORY} -vvv
-  #
-  # log_info "Running setup k3s load-balancer"
-  # log_info "Running setup k3s haproxy"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/common/main.yml -i ${INVENTORY} -vvv
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/self-signed-cert/main.yml -i ${INVENTORY} -vvv
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/haproxy/impl-config/main.yml -i ${INVENTORY} -vvv
-  #
-  # log_info "Running setup k3s keepalived"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/common/main.yml -i ${INVENTORY} -vvv
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/load-balancer/keepalived/impl-config/main.yml -i ${INVENTORY} -vvv
-  #
-  # log_info "Running setup k3s agent"
-  # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/agent-register/main.yml -i ${INVENTORY} -vvv
 }
-
-# vagrant_init ${vagrant_plugins[@]}
 
 ansible_exec

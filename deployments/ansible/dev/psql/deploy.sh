@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-LOCATION=${LOCATION:-"localhost"}
+LOCATION=${LOCATION:-"dev"}
 PROVIDER=${PROVIDER:-"docker"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"build_env/utils/setup_env.sh"}"
 
