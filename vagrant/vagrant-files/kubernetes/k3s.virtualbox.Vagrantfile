@@ -2,8 +2,8 @@
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
 require_relative '../../utils/env'
-require_relative '../../containers/virtualbox/virtualbox'
-require_relative '../../containers/virtualbox/rhel'
+require_relative '../../providers/virtualbox/virtualbox'
+require_relative '../../providers/virtualbox/rhel'
 require_relative '../../utils/machine/virtualbox_mc'
 
 virtuaboxConfig = VirtualboxConfig.new

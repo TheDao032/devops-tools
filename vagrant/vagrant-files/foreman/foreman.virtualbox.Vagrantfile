@@ -2,23 +2,26 @@
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
 require_relative '../../utils/env'
-require_relative '../../providers/vmware_fusion/vmware_fusion'
-require_relative '../../providers/vmware_fusion/rhel'
-require_relative '../../utils/machine/vmware_fusion_mc'
+require_relative '../../providers/virtualbox/virtualbox'
+# require_relative '../../containers/virtualbox/rhel'
+require_relative '../../providers/virtualbox/ubuntu'
+require_relative '../../utils/machine/virtualbox_mc'
 
-vmWareFusionConfig = VMWareFusionConfig.new
-# vmWareFusionConfig.display_config
+virtuaboxConfig = VirtualboxConfig.new
+# virtuaboxConfig.display_config
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
-NUM_SERVERS = vmWareFusionConfig.num_servers
-NUM_AGENTS = vmWareFusionConfig.num_agents
+NUM_SERVERS = virtuaboxConfig.num_servers
+NUM_AGENTS = virtuaboxConfig.num_agents
 
 # Network parameters for NAT mode
-IP_NW = vmWareFusionConfig.ip_nw
+IP_NW = virtuaboxConfig.ip_nw
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20
+# VAULT_IP_START = 30
+# ETCD_IP_START = 40
 
 # Define how much memory your computer has in GB (e.g., 8, 16)
 # Larger clusters will be created if you have more.
@@ -41,8 +44,8 @@ if CPU_CORES < MIN_CPU
 end
 
 # Calculate resources for master nodes
-total_master_ram = (RAM_SIZE * 1024) * 0.25  # 25% of total RAM for all masters
-total_master_cpu = CPU_CORES * 0.25          # 25% of total CPU for all masters
+total_master_ram = (RAM_SIZE * 1024) * 0.75  # 25% of total RAM for all masters
+total_master_cpu = CPU_CORES * 0.5          # 25% of total CPU for all masters
 
 ram_per_master = (total_master_ram / NUM_SERVERS).to_i
 cpu_per_master = (total_master_cpu / NUM_AGENTS).to_i
@@ -72,6 +75,10 @@ RESOURCES = {
     ram: ram_per_worker, # RAM in MB per worker node
     cpu: cpu_per_worker, # CPU cores per worker node
   },
+  # etcd: {
+  #   ram: 1024, # RAM in MB
+  #   cpu: 1, # CPU cores
+  # },
 }
 
 # Output the calculated resources
@@ -83,24 +90,49 @@ RESOURCES = {
 # end
 
 machines = []
+# machines.push(
+#   {
+#     name: "etcd-server",
+#     box: virtuaboxConfig.ubuntu[:box],
+#     os: virtuaboxConfig.ubuntu[:os],
+#     cpu: RESOURCES[:etcd][:cpu],
+#     ram: RESOURCES[:etcd][:ram],
+#     network: {
+#       name: "",
+#       ports: [
+#         # { guest: 22, host: 2740 + i },
+#         { guest: 80, host: 8180 + 1},
+#         { guest: 443, host: 4530 + 1 }
+#       ],
+#       ip: "#{IP_NW}.#{ETCD_IP_START + 1}"
+#     },
+#     files: [
+#       { source: "./configuration/os/#{virtuaboxConfig.ubuntu[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+#       { source: "./configuration/os/#{virtuaboxConfig.ubuntu[:os]}/.vimrc", destination: "$HOME/.vimrc" }
+#     ]
+#   }
+# )
+
 (1..NUM_SERVERS).each do |i|
   machines.push(
     {
       name: "server-#{i}",
-      box: vmWareFusionConfig.os_systems[:redhat][:box],
-      os: vmWareFusionConfig.os_systems[:redhat][:os],
+      box: virtuaboxConfig.ubuntu[:box],
+      os: virtuaboxConfig.ubuntu[:os],
       cpu: RESOURCES[:server][:cpu],
       ram: RESOURCES[:server][:ram],
       network: {
         name: "",
         ports: [
-          { guest: 22, host: 2730 + i }
+          # { guest: 22, host: 2730 + i },
+          { guest: 80, host: 8080 + i },
+          { guest: 443, host: 4430 + i }
         ],
         ip: "#{IP_NW}.#{SERVER_IP_START + i}"
       },
       files: [
-        { source: "./configuration/os/#{vmWareFusionConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-        { source: "./configuration/os/#{vmWareFusionConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+        { source: "./configuration/os/#{virtuaboxConfig.ubuntu[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{virtuaboxConfig.ubuntu[:os]}/.vimrc", destination: "$HOME/.vimrc" }
       ]
     }
   )
@@ -110,20 +142,22 @@ end
   machines.push(
     {
       name: "agent-#{i}",
-      box: vmWareFusionConfig.os_systems[:redhat][:box],
-      os: vmWareFusionConfig.os_systems[:redhat][:os],
+      box: virtuaboxConfig.ubuntu[:box],
+      os: virtuaboxConfig.ubuntu[:os],
       cpu: RESOURCES[:agent][:cpu],
       ram: RESOURCES[:agent][:ram],
       network: {
         name: "",
         ports: [
-          { guest: 22, host: 2740 + i }
+          # { guest: 22, host: 2740 + i },
+          { guest: 80, host: 8090 + i },
+          { guest: 443, host: 4440 + i }
         ],
         ip: "#{IP_NW}.#{AGENT_IP_START + i}"
       },
       files: [
-        { source: "./configuration/os/#{vmWareFusionConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-        { source: "./configuration/os/#{vmWareFusionConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+        { source: "./configuration/os/#{virtuaboxConfig.ubuntu[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{virtuaboxConfig.ubuntu[:os]}/.vimrc", destination: "$HOME/.vimrc" }
       ]
     }
   )
@@ -140,7 +174,7 @@ Vagrant.configure("2") do |config|
 
   # Every Vagrant development environment requires a box. You can search for
   # boxes at https://vagrantcloud.com/search.
-  config.vm.box = "nthedao2705/rhel-9"
+  # config.vm.box = "base"
 
   config.vm.boot_timeout = 900
 
@@ -151,13 +185,14 @@ Vagrant.configure("2") do |config|
   config.vbguest.auto_update = false
 
   machines.each do |machine|
-    vm = RhelVMFusion.new(
+    vm = UbuntuVMVirtualbox.new(
       box = machine[:box],
       config = config,
       name = machine[:name],
       hostname = machine[:name],
       ip = machine[:network][:ip],
-      network_mode = vmWareFusionConfig.network_mode,
+      network_mode = virtuaboxConfig.network_mode,
+      vbox_guest_path = virtuaboxConfig.vbox_guest_disk,
       ports = machine[:network][:ports],
       provisioning_files = machine[:files],
       memory = machine[:ram],
@@ -168,16 +203,17 @@ Vagrant.configure("2") do |config|
       os = machine[:os],
       ip_nw = IP_NW,
       machines = machines,
-      os_system_info = vmWareFusionConfig.os_systems[:redhat]
+      os_system_info = virtuaboxConfig.ubuntu
     )
   end
 
-  virtualMC = VMWareFusionMC.new(
+  virtualMC = VirtualBoxMC.new(
     config = config,
     adapter = "",
     machines = machines,
-    provider = vmWareFusionConfig.provider,
-    network_mode = vmWareFusionConfig.network_mode
+    provider = virtuaboxConfig.provider,
+    network_mode = virtuaboxConfig.network_mode,
+    public_key = "C:\\Users\\a5153103\\.ssh\\id_rsa.pub"
   )
 
   virtualMC.trigger

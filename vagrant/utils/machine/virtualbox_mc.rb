@@ -32,7 +32,7 @@ class VirtualBoxMC < Machine
               if get_machine_status(machine[:name])
                 system("vagrant upload hosts.tmp /tmp/hosts.tmp #{machine[:name]}")
                 system("vagrant ssh #{machine[:name]} -c 'cat /tmp/hosts.tmp | sudo tee -a /etc/hosts'")
-                system("vagrant upload ~/.ssh/id_rsa.pub /tmp/id_rsa.pub #{machine[:name]}")
+                system("vagrant upload #{@public_key} /tmp/id_rsa.pub #{machine[:name]}")
                 system("vagrant ssh #{machine[:name]} -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
               end
             end
@@ -64,7 +64,7 @@ class VirtualBoxMC < Machine
           if all_machines_up()
             puts "    Gathering IP addresses of clusters..."
             @machines.each do |machine|
-              system("vagrant upload ~/.ssh/id_rsa.pub /tmp/id_rsa.pub #{machine[:name]}")
+              system("vagrant upload #{@public_key} /tmp/id_rsa.pub #{machine[:name]}")
               system("vagrant ssh #{machine[:name]} -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
             end
             puts <<~EOF

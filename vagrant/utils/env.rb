@@ -1,5 +1,5 @@
 class Config
-  attr_accessor :provider, :network_mode, :num_servers, :num_agents
+  attr_accessor :provider, :network_mode, :num_servers, :num_agents, :ubuntu, :centos, :redhat
 
   def initialize
     @provider = ENV["PROVIDER"] || "default_provider"
@@ -11,8 +11,21 @@ class Config
     #            Use this mode if for some reason BRIDGE doesn't work for you.
     @network_mode = ENV["NETWORK_MODE"] || "default_mode"
     @num_servers = ENV["NUM_SERVERS"] || 1
-    @num_agents = ENV["NUM_AGENTS"] || 1
-
+    @num_agents = ENV["NUM_AGENTS"] || 2
+    @ubuntu = {
+      box: "ubuntu/jammy64",
+      os: "ubuntu"
+    }
+    @centos = {
+      box: "centos/7",
+      os: "centos"
+    }
+    @redhat = {
+      box: "alvistack/rhel-9",
+        os: "rhel",
+        rhelUsername: ENV['RHEL_USERNAME'] || "dump_user",
+        rhelPassword: ENV['RHEL_PASSWORD'] || "dump_password"
+    }
   end
 
   def display_config
@@ -22,7 +35,7 @@ class Config
 end
 
 class DockerConfig < Config
-  attr_accessor :repository, :img_name, :img_tag, :docker_img, :docker_network_name, :docker_network_subnet, :docker_network, :os_systems
+  attr_accessor :repository, :img_name, :img_tag, :docker_img, :docker_network_name, :docker_network_subnet, :docker_network
 
   def initialize
     super
@@ -33,23 +46,6 @@ class DockerConfig < Config
     @docker_network_name = ENV["DOCKER_NETWORK_NAME"] || "vagrant"
     @docker_network_subnet = ENV["DOCKER_NETWORK_SUBNET"] || "172.20.10.0/24"
     @docker_network = ENV["DOCKER_NETWORK"] || "172.20.10"
-
-    @os_systems = {
-      ubuntu: {
-        box: "ubuntu/jammy64",
-        os: "ubuntu"
-      },
-      centos: {
-        box: "centos/7",
-        os: "centos"
-      },
-      redhat: {
-        box: "alvistack/rhel-9",
-        os: "rhel",
-        rhelUsername: ENV['RHEL_USERNAME'] || "dump_user",
-        rhelPassword: ENV['RHEL_PASSWORD'] || "dump_password"
-      }
-    }
   end
 
   def display_config
@@ -61,12 +57,11 @@ class DockerConfig < Config
     puts "Docker Network Name: #{@docker_network_name}"
     puts "Docker Network Subnet: #{@docker_network_subnet}"
     puts "Docker Network: #{@docker_network}"
-    puts "Operating Systems: #{@os_systems}"
   end
 end
 
 class VirtualboxConfig < Config
-  attr_accessor :vbox_guest_disk, :os_systems, :ip_nw
+  attr_accessor :vbox_guest_disk, :ip_nw
 
   def initialize
     super
@@ -74,59 +69,26 @@ class VirtualboxConfig < Config
     # VBoxGuest
     @ip_nw = ENV["IP_NW"] || '192.168.56'
     @vbox_guest_disk = ENV["VBOX_GUEST_DISK"] || "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
-
-    @os_systems = {
-      ubuntu: {
-        box: "ubuntu/jammy64",
-        os: "ubuntu"
-      },
-      centos: {
-        box: "centos/7",
-        os: "centos"
-      },
-      redhat: {
-        box: "alvistack/rhel-9",
-        os: "rhel",
-        rhelUsername: ENV['RHEL_USERNAME'] || "dump_user",
-        rhelPassword: ENV['RHEL_PASSWORD'] || "dump_password"
-      }
-    }
   end
 
   def display_config
     super
     puts "Repository: #{@vbox_guest_disk}"
-    puts "Operating Systems: #{@os_systems}"
+    puts "IP Network: #{@ip_nw}"
   end
 end
 
 class VMWareFusionConfig < Config
-  attr_accessor :os_systems
+  attr_accessor :ip_nw
 
   def initialize
     super
 
     @ip_nw = ENV["IP_NW"] || '192.168.10'
-    @os_systems = {
-      ubuntu: {
-        box: "hashicorp/bionic64",
-        os: "ubuntu"
-      },
-      centos: {
-        box: "centos/7",
-        os: "centos"
-      },
-      redhat: {
-        box: "generic-x64/rhel9",
-        os: "rhel",
-        rhelUsername: ENV['RHEL_USERNAME'] || "dump_user",
-        rhelPassword: ENV['RHEL_PASSWORD'] || "dump_password"
-      }
-    }
   end
 
   def display_config
     super
-    puts "Operating Systems: #{@os_systems}"
+    puts "Ip Network: #{@ip_nw}"
   end
 end
