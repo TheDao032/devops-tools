@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-LOCATION=${LOCATION:-"dev"}
+ENVIRONMENT=${ENVIRONMENT}
 PROVIDER=${PROVIDER:-"docker"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"build_env/utils/setup_env.sh"}"
 
@@ -78,52 +78,66 @@ ansible_exec() {
   local group=$1
   log_info "Running setup PostgreSQL as ${group}."
   if [ "${group}" = "master" ]; then
-    # PostgreSQL Common Packages
-    log_info "Running setup PostgreSQL common packages as ${group}."
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/common/dependencies.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    if [ $? -eq 0 ]; then
-        log_info "log" "Ansible PostgreSQL common packages for ${group} exec successfully."
-    else
-        log_info "error" "Ansible PostgreSQL common packages for ${group} failed to exec."
+    # # PostgreSQL Common Packages
+    # log_info "Running setup PostgreSQL common packages as ${group}."
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/common/dependencies.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # if [ $? -eq 0 ]; then
+    #     log_info "log" "Ansible PostgreSQL common packages for ${group} exec successfully."
+    # else
+    #     log_info "error" "Ansible PostgreSQL common packages for ${group} failed to exec."
+    #
+    #     exit 1
+    # fi
 
-        exit 1
-    fi
+    # # PostgreSQL Citus Setup
+    # log_info "Running setup PostgreSQL Citus as ${group}."
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/citus/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/citus/coordinator-conn-worker.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # log_success "Running setup PostgreSQL Citus as ${group} successfully."
 
-    # PostgreSQL Citus Setup
-    log_info "Running setup PostgreSQL Citus as ${group}."
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/citus/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/citus/coordinator-conn-worker.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    log_success "Running setup PostgreSQL Citus as ${group} successfully."
+    # # PostgreSQL Repmgr Setup
+    # # Master
+    # log_info "Running setup PostgreSQL Repmgr as ${group}."
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/primary-conf.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/primary-register.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # log_info "Running setup PostgreSQL Repmgr as ${group} successfully."
 
-    # PostgreSQL Repmgr Setup
+    # # PostgreSQL Pgbouncer Setup
+    # log_info "Running setup PostgreSQL Pgbouncer as ${group}."
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/pgbouncer/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
+    # log_info "Running setup PostgreSQL Pgbouncer as ${group} successfully."
+
+    # PostgreSQL Setup
     # Master
-    log_info "Running setup PostgreSQL Repmgr as ${group}."
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/primary-conf.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/primary-register.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
-    log_info "Running setup PostgreSQL Repmgr as ${group} successfully."
-
-    # PostgreSQL Pgbouncer Setup
     log_info "Running setup PostgreSQL Pgbouncer as ${group}."
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/pgbouncer/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/master -vvv
+    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/master-site.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/master -vvv
     log_info "Running setup PostgreSQL Pgbouncer as ${group} successfully."
   else
-    # PostgreSQL Common Packages
-    log_info "Running setup PostgreSQL common packages as ${group}."
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/common/dependencies.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/replica -vvv
-    log_success "Running setup PostgreSQL common packages as ${group} successfully."
+    # # PostgreSQL Common Packages
+    # log_info "Running setup PostgreSQL common packages as ${group}."
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/common/dependencies.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/replica -vvv
+    # log_success "Running setup PostgreSQL common packages as ${group} successfully."
 
-    # PostgreSQL Repmgr Setup
+    # # PostgreSQL Repmgr Setup
+    # # Slave
+    # log_info "Running setup PostgreSQL Repmgr as ${group}."
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/replica -vvv
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/standby-conf.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/replica -vvv
+    # ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/standby-register.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/replica -vvv
+    # log_info "Running setup PostgreSQL Repmgr as ${group} successfully."
+
+    # PostgreSQL Setup
     # Slave
-    log_info "Running setup PostgreSQL Repmgr as ${group}."
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/common.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/replica -vvv
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/standby-conf.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/replica -vvv
-    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/repmgr/standby-register.yml -i ${ANSIBLE_INVENTORIES_DIR}/${LOCATION}/${PROVIDER}/replica -vvv
-    log_info "Running setup PostgreSQL Repmgr as ${group} successfully."
+    log_info "Running setup PostgreSQL as ${group}."
+    ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/postgresql-playbooks/slave-site.yml -i ${ANSIBLE_INVENTORIES_DIR}/${ENVIRONMENT}/${PROVIDER}/replica -vvv
+    log_info "Running setup PostgreSQL as ${group} successfully."
   fi
 }
 
 docker_init ${DOCKER_NETWORK_NAME} ${DOCKER_NETWORK_DRIVER} ${DOCKER_NETWORK_SUBNET}
 vagrant_init ${vagrant_plugins[@]}
 
-ansible_exec ${VM_ENV_INVENTORY}
+# ansible_exec ${VM_ENV_INVENTORY}
+ansible_exec "master"
+ansible_exec "slave"

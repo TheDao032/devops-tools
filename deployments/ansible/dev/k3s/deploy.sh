@@ -10,7 +10,7 @@ for LIB_FILE in "${LIB_DIR}"/*.bash; do
   source "${LIB_FILE}" || { log_info "$(date -u) - FATAL - failure occured while reading ${LIB_FILE}"; exit 1; }
 done
 
-ENVIRONMENT=${ENVIRONMENT:-"dev"}
+ENVIRONMENT=${ENVIRONMENT}
 PROVIDER=${PROVIDER:-"virtualbox"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"deployments/utils/setup_env.sh"}"
 
