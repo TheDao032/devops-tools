@@ -23,7 +23,7 @@ IMAGE=${IMAGE:-"ubuntu"}
 TAG=${IMAGE:-"latest"}
 VAGRANT_PASS=vagrant
 
-VM_ENV_INVENTORY=$1
+# VM_ENV_INVENTORY=$1
 
 declare vagrant_plugins=(
   "vagrant-vbguest"
