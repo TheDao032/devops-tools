@@ -45,7 +45,7 @@ end
 
 # Calculate resources for master nodes
 total_master_ram = (RAM_SIZE * 1024) * 0.75  # 25% of total RAM for all masters
-total_master_cpu = CPU_CORES * 0.5          # 25% of total CPU for all masters
+total_master_cpu = CPU_CORES * 0.5          # 50% of total CPU for all masters
 
 ram_per_master = (total_master_ram / NUM_SERVERS).to_i
 cpu_per_master = (total_master_cpu / NUM_AGENTS).to_i
@@ -116,8 +116,8 @@ machines = []
 (1..NUM_SERVERS).each do |i|
   machines.push(
     {
-      name: "server-#{i}",
-      box: virtuaboxConfig.ubuntu[:box],
+      name: "puppet-server-#{i}",
+      box: virtuaboxConfig.ubuntu[:bionic_box],
       os: virtuaboxConfig.ubuntu[:os],
       cpu: RESOURCES[:server][:cpu],
       ram: RESOURCES[:server][:ram],
@@ -141,8 +141,8 @@ end
 (1..NUM_AGENTS).each do |i|
   machines.push(
     {
-      name: "agent-#{i}",
-      box: virtuaboxConfig.ubuntu[:box],
+      name: "puppet-agent-#{i}",
+      box: virtuaboxConfig.ubuntu[:focal_box],
       os: virtuaboxConfig.ubuntu[:os],
       cpu: RESOURCES[:agent][:cpu],
       ram: RESOURCES[:agent][:ram],
@@ -213,7 +213,6 @@ Vagrant.configure("2") do |config|
     machines = machines,
     provider = virtuaboxConfig.provider,
     network_mode = virtuaboxConfig.network_mode,
-    public_key = "C:\\Users\\a5153103\\.ssh\\id_rsa.pub"
   )
 
   virtualMC.trigger

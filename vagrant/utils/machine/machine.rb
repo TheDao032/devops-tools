@@ -1,13 +1,13 @@
 class Machine
   attr_accessor :config, :adapter, :machines, :provider, :network_mode
 
-  def initialize(config, adapter, machines = [], provider, network_mode, public_key)
+  def initialize(config, adapter, machines = [], provider, network_mode)
     @config = config
     @adapter = adapter
     @machines = machines
     @provider = provider
     @network_mode = network_mode
-    @public_key = public_key
+    @public_key = ENV["PUBLIC_KEY"] || "~/.ssh/id_rsa.pub"
   end
 
   def get_machine_status(vm_name)

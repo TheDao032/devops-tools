@@ -24,7 +24,7 @@
     - name: Exec server register script
       when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] in ansible_hostname
       ansible.builtin.shell: |
-        {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ ansible_host }}
+        {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ ansible_host }}
       args:
         executable: /bin/bash
 

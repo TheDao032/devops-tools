@@ -11,9 +11,11 @@ class Config
     #            Use this mode if for some reason BRIDGE doesn't work for you.
     @network_mode = ENV["NETWORK_MODE"] || "default_mode"
     @num_servers = ENV["NUM_SERVERS"] || 1
-    @num_agents = ENV["NUM_AGENTS"] || 2
+    @num_agents = ENV["NUM_AGENTS"] || 1
     @ubuntu = {
-      box: "ubuntu/jammy64",
+      jammy_box: "ubuntu/jammy64",
+      focal_box: "ubuntu/focal64",
+      bionic_box: "ubuntu/bionic64",
       os: "ubuntu"
     }
     @centos = {

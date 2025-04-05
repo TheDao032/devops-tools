@@ -2,7 +2,7 @@
 
 set -e
 
-ANSIBLE_ENV=${ANSIBLE_ENV:-"local"}
+ENVIRONMENT=${ENVIRONMENT:-"local"}
 SERVICE=${SERVICE:-"k3s"}
 PROVIDER=${PROVIDER:-"virtualbox"}
 UTILS_SCRIPT="${UTILS_SCRIPT:-"deployments/utils/setup_env.sh"}"

@@ -7,6 +7,7 @@ KEEPALIVED_VIRTUAL_IP=$2
 API_ENDPOINT=$3
 API_PORT=$4
 SERVER_SIDE_IP=$5
+LOAD_BALANCER_PORT=$6
 
 API_URL=https://${API_ENDPOINT}:${API_PORT}
 
@@ -22,6 +23,8 @@ then
       --node-ip ${SERVER_SIDE_IP} \
       --node-external-ip ${SERVER_SIDE_IP} \
       --tls-san ${KEEPALIVED_VIRTUAL_IP} \
+      --advertise-address ${KEEPALIVED_VIRTUAL_IP} \
+      --advertise-port ${LOAD_BALANCER_PORT} \
       --token-file ${SERVER_TOKEN_FILE}
 
   exit 0

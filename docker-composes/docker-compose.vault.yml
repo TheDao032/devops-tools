@@ -1,0 +1,37 @@
+services:
+  infra-builder:
+    image: nthedao/infra-builder:latest
+    container_name: builder
+    hostname: builder
+    restart: unless-stopped
+    tty: true
+    networks:
+      - k3d-local
+    privileged: true
+  vault-server:
+    image: hashicorp/vault:latest
+    container_name: vault
+    hostname: vault
+    restart: unless-stopped
+    ports:
+      - "8201:8200"  # Map port 8200 of the container to port 8202 on the host
+    volumes:
+      - ./vault-config:/vault/config
+      - ./vault/data:/vault/data
+      - ./vault/file:/vault/file
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_ADDR: "http://0.0.0.0:8200"
+      VAULT_API_ADDR: "http://0.0.0.0:8200"
+      VAULT_CLUSTER_ADDR: "http://0.0.0.0:8201"
+    #   VAULT_DEV_ROOT_TOKEN_ID: devtoken # for server dev env
+    command: ["vault", "server", "-config=/vault/config/vault.hcl"]
+    networks:
+      - k3d-local
+    privileged: true
+
+networks:
+  k3d-local:
+    external: true
+    driver: bridge

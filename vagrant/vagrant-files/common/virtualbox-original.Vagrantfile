@@ -52,7 +52,7 @@ VBOX_GUEST_DISK_PATH = "C:\Program Files\Oracle\VirtualBox\VBoxGuestAdditions.is
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
 NUM_MASTER_CLUSTERS = 1
-NUM_SLAVE_CLUSTERS = 1
+NUM_SLAVE_CLUSTERS = 0
 
 # Network parameters for NAT mode
 IP_NW = "192.168.10"
