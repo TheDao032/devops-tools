@@ -51,12 +51,12 @@
 
 - name: Vault operator initalize
   ansible.builtin.shell: |
-    # echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user }}/.bashrc
-    # echo "export VAULT_ADDR=https://{{ hostvars['server']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
-    # source /home/{{ ansible_user }}/.bashrc
-
     export VAULT_SKIP_VERIFY=true
     export VAULT_ADDR=https://{{ hostvars['server']['ansible_host']}}:8200
+
+    echo "export VAULT_SKIP_VERIFY=true" >> /home/{{ ansible_user }}/.bashrc
+    echo "export VAULT_ADDR=https://{{ hostvars['server']['ansible_host']}}:8200" >> /home/{{ ansible_user }}/.bashrc
+    source /home/{{ ansible_user }}/.bashrc
 
     mkdir -p {{ vault_temp_dir_path }}
     vault operator init -key-shares=1 -key-threshold=1 -format=json > {{ vault_operator_path }}
