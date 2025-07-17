@@ -1,0 +1,138 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for macos
+
+- name: Setup Requirement Packages
+  block:
+    - name: Update homebrew
+      community.general.homebrew:
+        update_homebrew: true
+
+    - name: Install Packages
+      community.general.homebrew:
+        name: "{{ item.name }}"
+        force_formula: "{{ item.force_formula }}"
+        state: present
+      with_items: "{{ packages }}"
+
+    - name: Run basic PowerShell script
+      ansible.builtin.shell:
+        cmd: |
+          git config --global user.email "{{ github_email }}"
+          git config --global user.name "{{ github_user }}"
+
+          git config --global core.autocrlf false
+          git config --global core.filemode false
+          git config --global core.fscache true
+          git config --global core.preloadindex true
+          git config --global depot-tools.allowGlobalGitConfig false
+          git config --global http.sslVerify false
+          git config --global https.sslVerify false
+          git config --global http.postBuffer 1048576000 # 1GB
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 999999
+          git config --global safe.directory E:/actions-runner/_work/herond-browser/herond-browser
+          git config --global safe.directory '*'
+      args:
+        chdir: "/Users/{{ ansible_user }}"
+        executable: /bin/bash
+
+- name: Configure NVM And Setup NodeJS
+  block:
+    - name: Copy scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ scripts_path }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      with_items: "{{ scripts }}"
+
+    - name: Install NVM and setup NodeJS
+      ansible.builtin.shell:
+        cmd: "/bin/bash -c '{{ scripts_path }}/{{ item }}'"
+      args:
+        chdir: "/Users/{{ ansible_user }}"
+        executable: /bin/bash
+      with_items: "{{ scripts }}"
+
+- name: Configure NVM And Setup NodeJS
+  block:
+    - name: Copy scripts to the remote host
+      ansible.builtin.copy:
+        src: "env-configure.sh"
+        dest: "{{ scripts_path }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Install NVM and setup NodeJS
+      ansible.builtin.shell:
+        cmd: "/bin/bash -c '{{ scripts_path }}/env-configure.sh {{ ansible_password }}'"
+      args:
+        chdir: "/Users/{{ ansible_user }}"
+        executable: /bin/bash
+
+- name: Copy Apple Certificates To Remote Host
+  block:
+    - name: Create provision profiles dir
+      ansible.builtin.shell: |
+        mkdir -p {{ apple_certificates_path }}
+      args:
+        chdir: "/Users/{{ ansible_user }}"
+        executable: /bin/bash
+
+    - name: Copy scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ apple_certificates_path }}"
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+      with_items: "{{ apple_certificates }}"
+
+    - name: Create provision profiles dir
+      ansible.builtin.shell: |
+        security unlock-keychain -p "{{ ansible_password }}" ~/Library/Keychains/login.keychain-db
+
+        # Import certificate
+        security import {{ item }} \
+          -k ~/Library/Keychains/login.keychain-db \
+          -P "{{ p12_password }}" \
+          -T /usr/bin/codesign \
+          -T /usr/bin/security \
+          -T /usr/bin/xcodebuild
+
+        # Set permissions
+        security set-key-partition-list -S apple-tool:,apple: -s \
+        -k "{{ ansible_password }}" ~/Library/Keychains/login.keychain-db
+      args:
+        chdir: "{{ apple_certificates_path }}"
+        executable: /bin/bash
+      with_items: "{{ apple_certificates }}"
+
+- name: Install XCode
+  block:
+    - name: Install XCode
+      ansible.builtin.shell: |
+        softwareupdate --install
+      args:
+        executable: /bin/bash
+
+
+# - name: Configure Ruby & Gem
+#   block:
+#     - name: Init rbenv
+#       ansible.builtin.shell: |
+#         rbenv init
+#         echo 'eval "$(rbenv init - zsh)"' >> ~/.bashrc
+#       args:
+#         executable: /bin/bash
+#
+#     - name: Install Ruby & Gem
+#       ansible.builtin.shell: |
+#         rbenv install 3.2.2
+#         rbenv global 3.2.2
+#       args:
+#         executable: /bin/bash
+

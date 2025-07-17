@@ -1,0 +1,49 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for ios
+
+
+provision_profiles_path: "~/Library/MobileDevice/Provisioning\ Profiles"
+provision_profiles:
+  - Herond_iOS_Release.mobileprovision
+  - Herond_iOS_Release_Action_Extension.mobileprovision
+  - Herond_iOS_Release_Intents_Extension.mobileprovision
+  - Herond_iOS_Release_Share_Extension.mobileprovision
+  - Herond_iOS_Release_Widgets_Extension.mobileprovision
+
+apple_certificates_path: /Users/{{ ansible_user }}/apple_certificates
+p12_password: herond@2025
+apple_certificates:
+  - distribution.cer
+  # - distribution.p12
+
+build_key_path: "~/credentials"
+packages:
+  - name: pyenv
+    force_formula: false
+    state: present
+  - name: python@3.13
+    force_formula: false
+    state: present
+  - name: python-setuptools
+    force_formula: false
+    state: present
+  - name: build-essential
+    force_formula: false
+    state: present
+  - name: rbenv
+    force_formula: false
+    state: present
+  - name: ruby-build
+    force_formula: false
+    state: present
+  - name: xcodes
+    force_formula: false
+    state: present
+  - name: xcodes
+    force_formula: true
+    state: present
+
+scripts_path: /usr/bin
+scripts:
+  - nvm-setup.sh
