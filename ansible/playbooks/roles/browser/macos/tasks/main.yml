@@ -31,8 +31,6 @@
           git config --global http.postBuffer 1048576000 # 1GB
           git config --global http.lowSpeedLimit 0
           git config --global http.lowSpeedTime 999999
-          git config --global safe.directory E:/actions-runner/_work/herond-browser/herond-browser
-          git config --global safe.directory '*'
       args:
         chdir: "/Users/{{ ansible_user }}"
         executable: /bin/bash
