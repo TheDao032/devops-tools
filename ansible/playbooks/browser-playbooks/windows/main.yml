@@ -1,0 +1,8 @@
+---
+- name: android-dependencies-install
+  hosts: windows
+  tasks:
+    - name: Ping all nodes
+      ansible.windows.win_ping:
+  roles:
+    - role: playbooks/roles/browser/windows

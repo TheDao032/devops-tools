@@ -5,11 +5,25 @@
     - name: Update cache
       ansible.builtin.apt:
         update_cache: yes
+    - name: Install Ansible Common Package Debian OS
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian.packages }}"
+
+    - name: Install Dependencies For vault
+      ansible.builtin.shell: |
+        wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        gpg --no-default-keyring --keyring /usr/share/keyrings/hashicorp-archive-keyring.gpg --fingerprint
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+      args:
+        executable: /bin/bash
+
     - name: Install Ansible Package Debian OS
       ansible.builtin.apt:
         name: "{{ item }}"
         state: present
-      with_items: "{{ debian_packages }}"
+      with_items: "{{ debian.vault_packages }}"
   when: ansible_facts['os_family'] == "Debian"
 
 - name: Install Ansible Package RedHat OS
@@ -21,12 +35,19 @@
       ansible.builtin.yum:
         name: "{{ item }}"
         state: present
-      with_items: "{{ rhel_packages }}"
+      with_items: "{{ rhel.common_packages }}"
 
     - name: Install Dependencies For wireguard flannel-backend
       ansible.builtin.shell: |
         yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-9.noarch.rpm https://www.elrepo.org/elrepo-release-9.el9.elrepo.noarch.rpm
         yum install -y wireguard-tools
+      args:
+        executable: /bin/bash
+
+    - name: Install Dependencies For vault
+      ansible.builtin.shell: |
+        yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+        yum -y install vault
       args:
         executable: /bin/bash
   when: ansible_facts['os_family'] == "RedHat"
@@ -40,13 +61,20 @@
       ansible.builtin.yum:
         name: "{{ item }}"
         state: present
-      with_items: "{{ centos_packages }}"
+      with_items: "{{ centos.common_packages }}"
 
     - name: Install Dependencies For wireguard flannel-backend
       ansible.builtin.shell: |
         yum-config-manager --setopt=centosplus.includepkgs="kernel-plus, kernel-plus-*" --setopt=centosplus.enabled=1 --save
         sed -e 's/^DEFAULTKERNEL=kernel-core$/DEFAULTKERNEL=kernel-plus-core/' -i /etc/sysconfig/kernel
         yum install kernel-plus wireguard-tools
+      args:
+        executable: /bin/bash
+
+    - name: Install Dependencies For vault
+      ansible.builtin.shell: |
+        yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+        yum -y install vault
       args:
         executable: /bin/bash
   when: ansible_facts['os_family'] == "CentOS"

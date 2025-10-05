@@ -1,0 +1,141 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for windows
+
+- name: Setup Requirement Packages
+  block:
+    - name: Install {{ item.name }} from specified repository
+      win_chocolatey:
+        name: "{{ item.name }}"
+        version: "{{ item.version }}"
+        state: present
+      with_items: "{{ packages }}"
+
+    - name: Add GitHub generic credential to Windows Credential Manager
+      ansible.windows.win_powershell:
+        script: |
+          $target = "{{ item.target }}"
+          $username = "{{ item.user }}"
+          $password = "{{ item.password }}"
+          cmdkey /add:$target /user:$username /pass:$password
+      with_items: "{{ generic_credentials }}"
+
+    - name: Run basic PowerShell script
+      ansible.windows.win_powershell:
+        script: |
+          pip3.exe install castlabs_evs
+
+          git config --global user.email "{{ github_email }}"
+          git config --global user.name "{{ github_user }}"
+
+          git config --global core.autocrlf false
+          git config --global core.filemode false
+          git config --global core.fscache true
+          git config --global core.preloadindex true
+          git config --global depot-tools.allowGlobalGitConfig false
+          git config --global http.sslVerify false
+          git config --global https.sslVerify false
+          git config --global http.postBuffer 1048576000 # 1GB
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 999999
+
+- name: Setup Certificate For Init Sync Herond Core
+  block:
+    - name: Ensure C:\Temp exists
+      win_file:
+        path: C:\Temp
+        state: directory
+
+    - name: Copy script to Windows host
+      ansible.windows.win_copy:
+        src: cert_setup.ps1      # from role's files/
+        dest: C:\Temp\cert_setup.ps1
+
+    - name: Exec Certificate Installation Script
+      win_command: >
+        C:\Temp\cert_setup.ps1
+
+- name: Configure NVM And Setup NodeJS
+  block:
+    - name: Run basic PowerShell script
+      ansible.windows.win_powershell:
+        script: |
+          nvm install 22
+          nvm use 22
+
+- name: Install Visual Studio 2022
+  block:
+    - name: Ensure C:\Temp exists
+      win_file:
+        path: C:\Temp
+        state: directory
+
+    - name: Download Visual Studio 2022 Community Bootstrapper
+      win_get_url:
+        url: https://aka.ms/vs/17/release/vs_community.exe
+        dest: C:\Temp\vs_community.exe
+
+    - name: Install Visual Studio 2022 with components via CLI
+      win_command: >
+        C:\Temp\vs_community.exe
+        --quiet --wait --norestart --nocache
+        --add Microsoft.VisualStudio.Workload.NativeDesktop
+        --add Microsoft.VisualStudio.Component.VC.ATLMFC
+        --add Microsoft.VisualStudio.Component.VC.Tools.ARM64
+        --add Microsoft.VisualStudio.Component.VC.MFC.ARM64
+        --add Microsoft.VisualStudio.Component.Windows11SDK.22621
+        --add Microsoft.VisualStudio.Component.Windows10SDK.26100
+        --add Microsoft.VisualStudio.Component.Windows10SDK.26100.Desktop
+        --add Microsoft.VisualStudio.Component.Windows10SDK.26100.DebuggingTools
+        --includeRecommended
+      args:
+        chdir: C:\Temp
+
+- name: Install and Congigure OpenSSH.Server
+  block:
+    - name: Install OpenSSH.Server capability
+      ansible.windows.win_powershell:
+        script: |
+          Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+
+    - name: Start sshd service
+      win_service:
+        name: sshd
+        state: started
+        start_mode: auto
+
+    - name: Enable firewall rule for sshd
+      ansible.windows.win_powershell:
+        script: |
+          if (-not (Get-NetFirewallRule -Name "sshd" -ErrorAction SilentlyContinue)) {
+            New-NetFirewallRule -Name sshd -DisplayName 'OpenSSH Server (sshd)' `
+              -Enabled True -Direction Inbound -Protocol TCP -Action Allow -LocalPort 22
+          }
+
+    - name: Create .ssh directory
+      ansible.windows.win_powershell:
+        script: |
+          $sshDir = "$env:USERPROFILE\.ssh"
+          if (-not (Test-Path $sshDir)) {
+            New-Item -ItemType Directory -Path $sshDir
+          }
+
+    - name: Create empty authorized_keys file (if missing)
+      ansible.windows.win_powershell:
+        script: |
+          $keyPath = "$env:USERPROFILE\.ssh\authorized_keys"
+          if (-Not (Test-Path $keyPath)) {
+            New-Item -Path $keyPath -ItemType File -Force
+          }
+
+    - name: Set public key (replace with your actual key)
+      win_copy:
+        content: "{{ local_public_key }}"  # your public key here
+        dest: "C:\\Users\\Administrator\\.ssh\\authorized_keys"
+
+    - name: Set permissions for authorized_keys
+      ansible.windows.win_powershell:
+        script: |
+          $keyPath = "$env:USERPROFILE\.ssh\authorized_keys"
+          icacls $keyPath /inheritance:r
+          icacls $keyPath /grant "Administrator:F"

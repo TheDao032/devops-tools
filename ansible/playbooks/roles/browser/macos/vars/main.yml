@@ -1,0 +1,34 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for macos
+
+packages:
+  - name: pyenv
+    force_formula: false
+  - name: python@3.13
+    force_formula: false
+  - name: python-setuptools
+    force_formula: false
+  - name: build-essential
+    force_formula: false
+  - name: rbenv
+    force_formula: false
+  - name: ruby-build
+    force_formula: false
+  - name: xcodes
+    force_formula: false
+  - name: xcodes
+    force_formula: true
+
+
+scripts_path: /usr/bin
+scripts:
+  - nvm-setup.sh
+  - python27.sh
+
+apple_certificates_path: /Users/{{ ansible_user }}/apple_certificates
+p12_password: herond@2025
+apple_certificates:
+  - developerID_application.cer
+  - developerID_installer.cer
+  - development.cer

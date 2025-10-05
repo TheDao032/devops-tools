@@ -1,0 +1,17 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for android
+
+debian_packages:
+  - build-essential
+  - python3
+  - python-setuptools
+  - python3-distutils
+  - openjdk-21-jdk
+  - openjdk-21-jre
+  - pkg-config
+  - libglib2.0-dev
+
+scripts_path: /usr/bin
+scripts:
+  - nvm-setup.sh

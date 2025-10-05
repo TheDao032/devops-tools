@@ -3,5 +3,5 @@
 vault_cluster_addr: "https://{{ ansible_host }}:8201"
 vault_api_addr: "https://{{ ansible_host }}:8200"
 
-vault_kv_path: "kv_{{ env }}"
-vault_secrets_path: "kv_{{ env }}/vault/server-secrets"  # Replace with your actual path
+vault_kv_path: "{{ env }}"
+vault_secrets_path: "{{ env }}/vault/creds"  # Replace with your actual path
