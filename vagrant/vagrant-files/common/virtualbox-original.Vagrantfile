@@ -46,12 +46,13 @@ RAM_SIZE = 16
 CPU_CORES = 8
 
 # VBoxGuest
-VBOX_GUEST_DISK_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
+# VBOX_GUEST_DISK_PATH = "/Applications/VirtualBox.app/Contents/MacOS/VBoxGuestAdditions.iso"
+VBOX_GUEST_DISK_PATH = "C:\Program Files\Oracle\VirtualBox\VBoxGuestAdditions.iso"
 
 # Define the number of slave clusters
 # If this number is changed, remember to update setup-hosts.sh script with the new hosts IP details in /etc/hosts of each VM.
 NUM_MASTER_CLUSTERS = 1
-NUM_SLAVE_CLUSTERS = 1
+NUM_SLAVE_CLUSTERS = 0
 
 # Network parameters for NAT mode
 IP_NW = "192.168.10"

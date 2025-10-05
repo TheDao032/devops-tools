@@ -1,0 +1,8 @@
+---
+- name: ios-dependencies-install
+  hosts: ios
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: playbooks/roles/browser/ios

@@ -1,0 +1,41 @@
+---
+- name: dependencies-setup
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/dependencies
+
+# PostgreSQL Repmgr Setup
+- name: repmgr-setup
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/repmgr/common
+
+- name: repmgr-standby-config
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/repmgr/standby-conf
+
+- name: repmgr-standby-register
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/repmgr/standby-register

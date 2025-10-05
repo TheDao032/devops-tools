@@ -1,0 +1,55 @@
+#SPDX-License-Identifier: MIT-0
+---
+# tasks file for android
+
+- name: Setup Requirement Packages Debian OS
+  become: true
+  become_user: root
+  block:
+    - name: Update cache
+      ansible.builtin.apt:
+        update_cache: yes
+    - name: Install Packages Debian OS
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+      with_items: "{{ debian_packages }}"
+    - name: Run basic PowerShell script
+      ansible.builtin.shell:
+        cmd: |
+          git config --global user.email "{{ github_email }}"
+          git config --global user.name "{{ github_user }}"
+
+          git config --global core.autocrlf false
+          git config --global core.filemode false
+          git config --global core.fscache true
+          git config --global core.preloadindex true
+          git config --global depot-tools.allowGlobalGitConfig false
+          git config --global http.sslVerify false
+          git config --global https.sslVerify false
+          git config --global http.postBuffer 1048576000
+          git config --global http.lowSpeedLimit 0
+          git config --global http.lowSpeedTime 999999
+      args:
+        chdir: "/home/{{ ansible_user }}"
+        executable: /bin/bash
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Configure NVM And Setup NodeJS
+  block:
+    - name: Copy scripts to the remote host
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ scripts_path }}"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+      with_items: "{{ scripts }}"
+
+    - name: Install NVM and setup NodeJS
+      ansible.builtin.shell:
+        cmd: "/bin/bash -c '{{ scripts_path }}/{{ item }}'"
+      args:
+        chdir: /home/ubuntu
+        executable: /bin/bash
+      with_items: "{{ scripts }}"

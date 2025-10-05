@@ -1,0 +1,8 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for git/common
+debian_packages:
+  - python3
+
+rhel_packages:
+  - python3

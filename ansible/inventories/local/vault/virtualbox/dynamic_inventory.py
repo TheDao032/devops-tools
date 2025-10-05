@@ -14,7 +14,7 @@ ENV = os.getenv('ENVIRONMENT')
 # client = hvac.Client(url=VAULT_ADDR, token=VAULT_TOKEN)
 
 vms = [
-    "server-1",
+    "server",
 ]
 
 vars = {
@@ -80,12 +80,12 @@ def generate_inventory():
     groups = {
         'all': {
             'children': [
-                'server',
+                'vault-server',
             ],
             'vars': vars
         },
 
-        'server': {
+        'vault-server': {
             'hosts': [],
             'vars': vars
         },
@@ -116,7 +116,7 @@ def generate_inventory():
     for vm, ip in ips.items():
         if ip:
             if "server" in vm:
-                groups['server']['hosts'].append(vm)
+                groups['vault-server']['hosts'].append(vm)
 
             hostvars['_meta']['hostvars'].update({
                 vm: {

@@ -1,6 +1,6 @@
 ---
 - name: dependencies-setup
-  hosts: all
+  hosts: vault-server
   become: true
   become_user: root
   tasks:

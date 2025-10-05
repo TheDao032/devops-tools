@@ -1,7 +1,7 @@
 # -*- mode: ruby -*-
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
-require_relative '../../containers/docker'
+require_relative '../../providers/docker'
 require_relative '../../utils/machine/docker_mc'
 require_relative '../../utils/env'
 

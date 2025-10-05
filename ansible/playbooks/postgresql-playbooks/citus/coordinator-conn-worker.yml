@@ -1,5 +1,5 @@
 ---
-- name: repmgr-coordinator-conf
+- name: citus-coordinator-conf
   hosts: coordinator
   become: true
   become_user: root

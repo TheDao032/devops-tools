@@ -7,6 +7,7 @@ class Machine
     @machines = machines
     @provider = provider
     @network_mode = network_mode
+    @public_key = ENV["PUBLIC_KEY"] || "~/.ssh/id_rsa.pub"
   end
 
   def get_machine_status(vm_name)
