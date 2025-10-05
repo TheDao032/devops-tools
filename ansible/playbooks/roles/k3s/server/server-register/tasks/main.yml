@@ -22,9 +22,9 @@
       ignore_errors: true
 
     - name: Exec server register script
-      when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] in ansible_hostname
+      when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] in ansible_hostname
       ansible.builtin.shell: |
-        {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ ansible_host }}
+        {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ ansible_host }}
       args:
         executable: /bin/bash
 
@@ -43,7 +43,7 @@
         mode: '0644'
 
     - name: Exec register script for sidecard server
-      when: k3s_version_output.rc != 0 and hostvars[groups['server'][0]]['ansible_hostname'] not in ansible_hostname
+      when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] not in ansible_hostname
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-side-register.sh /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ api_endpoint }} {{ api_port }} {{ ansible_host }}
       args:
@@ -108,19 +108,23 @@
     # Step 5: Store the values in Vault (assuming Vault CLI is available)
     - name: Enable kv secrets with specific path
       become_user: "{{ ansible_user }}"
+      environment:
+        VAULT_ADDR: "{{ vault_cluster_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+        VAULT_SKIP_VERIFY: "true"
       ansible.builtin.shell: |
-        vault secrets enable -path=kv_{{ env }} -version=2 kv
-
-        path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
+        vault login -address={{ vault_cluster_addr }} -method=token {{ vault_token }}
         vault kv put {{ k3s_secrets_path }} client_ca_crt={{ cert_authority_data }}
       args:
         executable: /bin/bash
 
     - name: Store client-certificate-data in Vault
       become_user: "{{ ansible_user }}"
+      environment:
+        VAULT_ADDR: "{{ vault_cluster_addr }}"
+        VAULT_TOKEN: "{{ vault_token }}"
+        VAULT_SKIP_VERIFY: "true"
       ansible.builtin.shell: |
-        path="kv_{{ env }}/k3s/server-secrets"  # Replace with your actual path
-
         # Define multiple new key-value pairs
         declare -A new_data
         new_data["host"]="{{ load_balancer_virtual_url }}"

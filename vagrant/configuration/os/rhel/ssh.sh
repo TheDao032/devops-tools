@@ -17,6 +17,8 @@ then
 fi
 
 sh -c "sudo subscription-manager register --username ${RHEL_USERNAME} --password ${RHEL_PASSWORD} --auto-attach"
+# sh -c "sudo subscription-manager release --set=9.5"
+sh -c "sudo dnf config-manager --set-disabled home_alvistack"
 sh -c 'sudo yum update -y && sudo yum install sshpass -y' > /dev/null 2>&1 &
 
 exit 0

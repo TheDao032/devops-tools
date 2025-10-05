@@ -2,8 +2,8 @@
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
 require_relative '../../utils/env'
-require_relative '../../containers/virtualbox/virtualbox'
-require_relative '../../containers/virtualbox/rhel'
+require_relative '../../providers/virtualbox/virtualbox'
+require_relative '../../providers/virtualbox/rhel'
 require_relative '../../utils/machine/virtualbox_mc'
 
 virtuaboxConfig = VirtualboxConfig.new
@@ -19,7 +19,8 @@ IP_NW = virtuaboxConfig.ip_nw
 # Host address start points
 SERVER_IP_START = 10
 AGENT_IP_START = 20
-ETCD_IP_START = 30
+VAULT_IP_START = 30
+ETCD_IP_START = 40
 
 # Define how much memory your computer has in GB (e.g., 8, 16)
 # Larger clusters will be created if you have more.
@@ -60,8 +61,8 @@ ram_per_worker = (remaining_ram / NUM_AGENTS).to_i
 cpu_per_worker = (remaining_cpu / NUM_AGENTS).to_i
 
 # Ensure minimum resources per worker node
-ram_per_worker = [ram_per_worker, 2048].max # At least 2 GB RAM per worker
-cpu_per_worker = [cpu_per_worker, 1].max    # At least 1 CPU core per worker
+ram_per_worker = [ram_per_worker, 4096].max # At least 4 GB RAM per worker
+cpu_per_worker = [cpu_per_worker, 3].max    # At least 3 CPU core per worker
 
 # Resource allocation summary
 RESOURCES = {
@@ -91,8 +92,8 @@ machines = []
 # machines.push(
 #   {
 #     name: "etcd-server",
-#     box: virtuaboxConfig.os_systems[:redhat][:box],
-#     os: virtuaboxConfig.os_systems[:redhat][:os],
+#     box: virtuaboxConfig.redhat[:box],
+#     os: virtuaboxConfig.redhat[:os],
 #     cpu: RESOURCES[:etcd][:cpu],
 #     ram: RESOURCES[:etcd][:ram],
 #     network: {
@@ -105,8 +106,8 @@ machines = []
 #       ip: "#{IP_NW}.#{ETCD_IP_START + 1}"
 #     },
 #     files: [
-#       { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-#       { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+#       { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+#       { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.vimrc", destination: "$HOME/.vimrc" }
 #     ]
 #   }
 # )
@@ -115,8 +116,8 @@ machines = []
   machines.push(
     {
       name: "server-#{i}",
-      box: virtuaboxConfig.os_systems[:redhat][:box],
-      os: virtuaboxConfig.os_systems[:redhat][:os],
+      box: virtuaboxConfig.redhat[:box],
+      os: virtuaboxConfig.redhat[:os],
       cpu: RESOURCES[:server][:cpu],
       ram: RESOURCES[:server][:ram],
       network: {
@@ -129,8 +130,8 @@ machines = []
         ip: "#{IP_NW}.#{SERVER_IP_START + i}"
       },
       files: [
-        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+        { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.vimrc", destination: "$HOME/.vimrc" }
       ]
     }
   )
@@ -140,8 +141,8 @@ end
   machines.push(
     {
       name: "agent-#{i}",
-      box: virtuaboxConfig.os_systems[:redhat][:box],
-      os: virtuaboxConfig.os_systems[:redhat][:os],
+      box: virtuaboxConfig.redhat[:box],
+      os: virtuaboxConfig.redhat[:os],
       cpu: RESOURCES[:agent][:cpu],
       ram: RESOURCES[:agent][:ram],
       network: {
@@ -154,12 +155,35 @@ end
         ip: "#{IP_NW}.#{AGENT_IP_START + i}"
       },
       files: [
-        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
-        { source: "./configuration/os/#{virtuaboxConfig.os_systems[:redhat][:os]}/.vimrc", destination: "$HOME/.vimrc" }
+        { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+        { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.vimrc", destination: "$HOME/.vimrc" }
       ]
     }
   )
 end
+
+machines.push(
+  {
+    name: "server",
+    box: virtuaboxConfig.redhat[:box],
+    os: virtuaboxConfig.redhat[:os],
+    cpu: RESOURCES[:agent][:cpu],
+    ram: RESOURCES[:agent][:ram],
+    network: {
+      name: "",
+      ports: [
+        # { guest: 22, host: 2750},
+        { guest: 80, host: 8101},
+        { guest: 443, host: 4451}
+      ],
+      ip: "#{IP_NW}.#{VAULT_IP_START + 1}"
+    },
+    files: [
+      { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.tmux.conf", destination: "$HOME/.tmux.conf" },
+      { source: "./configuration/os/#{virtuaboxConfig.redhat[:os]}/.vimrc", destination: "$HOME/.vimrc" }
+    ]
+  }
+)
 
 # All Vagrant configuration is done below. The "2" in Vagrant.configure
 # configures the configuration version (we support older styles for
@@ -201,7 +225,7 @@ Vagrant.configure("2") do |config|
       os = machine[:os],
       ip_nw = IP_NW,
       machines = machines,
-      os_system_info = virtuaboxConfig.os_systems[:redhat]
+      os_system_info = virtuaboxConfig.redhat
     )
   end
 

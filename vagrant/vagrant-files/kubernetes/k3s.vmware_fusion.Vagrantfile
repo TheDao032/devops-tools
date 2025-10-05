@@ -2,8 +2,8 @@
 # vi:set ft=ruby sw=2 ts=2 sts=2:
 
 require_relative '../../utils/env'
-require_relative '../../containers/vmware_fusion/vmware_fusion'
-require_relative '../../containers/vmware_fusion/rhel'
+require_relative '../../providers/vmware_fusion/vmware_fusion'
+require_relative '../../providers/vmware_fusion/rhel'
 require_relative '../../utils/machine/vmware_fusion_mc'
 
 vmWareFusionConfig = VMWareFusionConfig.new

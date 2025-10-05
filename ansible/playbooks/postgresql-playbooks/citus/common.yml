@@ -1,5 +1,5 @@
 ---
-- name: repmgr-commmon-conf
+- name: citus-commmon-conf
   hosts: psql-clusters
   become: true
   become_user: root

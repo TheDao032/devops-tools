@@ -1,0 +1,73 @@
+---
+- name: dependencies-setup
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/dependencies
+
+# PostgreSQL Citus Setup
+- name: citus-commmon-conf
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/citus/common
+
+- name: citus-coordinator-conf
+  hosts: coordinator
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/citus/coordinator-conn-worker
+
+# PostgreSQL Repmgr Setup
+- name: repmgr-setup
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/repmgr/common
+
+- name: repmgr-primary-config
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/repmgr/primary-conf
+
+- name: repmgr-primary-register
+  hosts: psql-clusters
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/repmgr/primary-register
+
+# PostgreSQL Pgbouncer Setup
+- name: pgbouncer-commmon-conf
+  hosts: connection-pool
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/postgresql/pgbouncer/common

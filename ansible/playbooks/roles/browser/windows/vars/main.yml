@@ -1,0 +1,26 @@
+#SPDX-License-Identifier: MIT-0
+---
+# vars file for windows
+
+packages:
+  - name: git.install
+    version: '2.50.0'
+  - name: nvm
+    version: '1.2.2'
+  - name: python2
+    version: '2.7.18'
+  - name: python3
+    version: '3.14.0-b3'
+  - name: jq
+    version: '1.7.1'
+
+local_public_key: ''
+
+generic_credentials:
+  - target: git:https://github.com
+    user: ''
+    password: ''
+
+# envs:
+#   - key: SSL_CERT_FILE
+#     value: python -m certifi

@@ -7,6 +7,7 @@ KEEPALIVED_VIRTUAL_IP=$2
 API_ENDPOINT=$3
 API_PORT=$4
 SERVER_SIDE_IP=$5
+LOAD_BALANCER_PORT=$6
 
 API_URL=https://${API_ENDPOINT}:${API_PORT}
 
@@ -14,12 +15,16 @@ if [[ -f "${SERVER_TOKEN_FILE}" ]];
 then
       # --node-taint CriticalAddonsOnly=true:NoExecute \
   curl -sfL https://get.k3s.io | INSTALL_K3S_EXEC="server" sh -s - --flannel-external-ip \
+      --resolv-conf /etc/resolv.conf \
       --flannel-backend wireguard-native \
+      --disable coredns \
       --server ${API_URL} \
       --write-kubeconfig-mode "0644" \
       --node-ip ${SERVER_SIDE_IP} \
       --node-external-ip ${SERVER_SIDE_IP} \
       --tls-san ${KEEPALIVED_VIRTUAL_IP} \
+      --advertise-address ${KEEPALIVED_VIRTUAL_IP} \
+      --advertise-port ${LOAD_BALANCER_PORT} \
       --token-file ${SERVER_TOKEN_FILE}
 
   exit 0

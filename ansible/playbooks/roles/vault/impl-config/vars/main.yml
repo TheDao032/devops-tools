@@ -3,7 +3,7 @@
 vault_cluster_addr: "https://{{ ansible_host }}:8201"
 vault_api_addr: "https://{{ ansible_host }}:8200"
 
-etcd_endpoint: "https://{{ hostvars[groups['server'][0]]['ansible_host'] }}:2379"
+etcd_endpoint: "https://{{ hostvars['server']['ansible_host'] }}:2379"
 vault_tls_dir: /opt/vault/tls
 vault_data_dir: /opt/vault/data
 vault_config_dir: /opt/vault/vault.d
