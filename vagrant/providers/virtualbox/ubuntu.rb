@@ -28,7 +28,6 @@ class UbuntuVMVirtualbox < VirtualBoxVM
       v.name = @name
       v.memory = @memory
       v.cpus = @cpus
-      v.customize ["storageattach", :id, "--storagectl", "IDE", "--port", 1, "--device", 0, "--type", "dvddrive", "--medium", @vbox_guest_path]
 
       # vb.customize ["createhd", "--filename", "#{@name}.vdi", "--size", @disk_size * 1024]
       # vb.customize ["storagectl", :id, "--name", "SATA Controller", "--add", "sata", "--controller", "IntelAHCI"]

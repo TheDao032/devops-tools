@@ -22,7 +22,7 @@
       ignore_errors: true
 
     - name: Exec server register script
-      when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] in ansible_hostname
+      when: k3s_version_output.rc != 0 and inventory_hostname == groups['server'][0]
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-register.sh {{ keepalived_virtual_ip }} {{ load_balancer_port }} {{ ansible_host }}
       args:
@@ -33,7 +33,7 @@
     - name: Slurp file content from the specific host
       ansible.builtin.slurp:
         src: /var/lib/rancher/k3s/server/token
-      delegate_to: server-1
+      delegate_to: "{{ groups['server'][0] }}"
       register: server_token
 
     - name: Send k3s token from server to all other server
@@ -43,7 +43,7 @@
         mode: '0644'
 
     - name: Exec register script for sidecard server
-      when: k3s_version_output.rc != 0 and hostvars['server-1']['ansible_hostname'] not in ansible_hostname
+      when: k3s_version_output.rc != 0 and inventory_hostname != groups['server'][0]
       ansible.builtin.shell: |
         {{ k3s_server_scripts_path }}/server-side-register.sh /tmp/k3s-server-token {{ keepalived_virtual_ip }} {{ api_endpoint }} {{ api_port }} {{ ansible_host }}
       args:

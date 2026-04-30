@@ -1,6 +1,6 @@
 ---
 - name: haproxy-implement-config-setup
-  hosts: server
+  hosts: infra
   become: true
   become_user: root
   tasks:

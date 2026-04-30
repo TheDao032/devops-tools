@@ -3,7 +3,7 @@
 k3s_server_scripts:
   - server-register.sh
   - server-side-register.sh
-psql_k3s_datastore_uri: "postgres://{{ psql_k3s_user }}:{{ psql_k3s_pass }}@{{ hostvars['server-1']['ansible_host'] }}:{{ psql_k3s_port }}/k3s"
+psql_k3s_datastore_uri: "postgres://{{ psql_k3s_user }}:{{ psql_k3s_pass }}@{{ hostvars[groups['server'][0]]['ansible_host'] }}:{{ psql_k3s_port }}/k3s"
 k3s_server_scripts_path: /tmp
 load_balancer_virtual_url: "https://{{ keepalived_virtual_ip }}:{{ load_balancer_port }}"
 k3s_secrets_path: "{{ env }}/k3s/creds"

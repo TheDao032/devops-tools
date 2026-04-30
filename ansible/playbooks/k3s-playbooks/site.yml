@@ -22,7 +22,7 @@
     - role: ../roles/k3s/server/server-register # k3s Server Register
 
 - name: k3s-loadbancer-setup
-  hosts: server
+  hosts: infra
   become: true
   become_user: root
   tasks:

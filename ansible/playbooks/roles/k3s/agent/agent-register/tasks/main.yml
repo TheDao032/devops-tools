@@ -19,7 +19,7 @@
     - name: Slurp server token from the server
       ansible.builtin.slurp:
         src: /var/lib/rancher/k3s/server/token
-      delegate_to: server-1
+      delegate_to: "{{ groups['server'][0] }}"
       register: server_token
 
     - name: Send k3s token from server to all other cluster

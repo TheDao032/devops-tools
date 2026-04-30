@@ -7,7 +7,25 @@ class Machine
     @machines = machines
     @provider = provider
     @network_mode = network_mode
-    @public_key = ENV["PUBLIC_KEY"] || "~/.ssh/id_rsa.pub"
+    @public_key = resolve_public_key
+  end
+
+  def resolve_public_key
+    candidate = ENV["PUBLIC_KEY"]
+    if candidate && !candidate.empty?
+      expanded = File.expand_path(candidate)
+      return expanded if File.exist?(expanded)
+    end
+
+    [
+      "~/.ssh/id_ed25519.pub",
+      "~/.ssh/id_rsa.pub"
+    ].each do |path|
+      expanded = File.expand_path(path)
+      return expanded if File.exist?(expanded)
+    end
+
+    nil
   end
 
   def get_machine_status(vm_name)

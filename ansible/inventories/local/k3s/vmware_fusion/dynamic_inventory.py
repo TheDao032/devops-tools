@@ -32,7 +32,7 @@ vars = {
     'psql_version': '',
     'k3s_server_cidr_range': '',
     'k3s_version': '',
-    'api_endpoint': "{{ hostvars['server-1']['ansible_host'] }}",
+    'api_endpoint': "{{ hostvars[groups['server'][0]]['ansible_host'] }}",
     'extra_server_args': '',
     'extra_agent_args': '',
     'env': ENV,
@@ -136,7 +136,8 @@ def generate_inventory():
         'all': {
             'children': [
                 'server',
-                'agent'
+                'agent',
+                'infra',
             ],
             'vars': vars
         },
@@ -147,6 +148,10 @@ def generate_inventory():
         },
 
         'agent': {
+            'hosts': [],
+            'vars': vars
+        },
+        'infra': {
             'hosts': [],
             'vars': vars
         },

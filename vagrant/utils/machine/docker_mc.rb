@@ -14,46 +14,39 @@ class DockerMC < Machine
         trigger.ruby do |env, machine|
           if all_machines_up()
             puts "    Gathering IP addresses of containers..."
-            ips = []
+            machine_ips = []
 
             @machines.each do |machine|
               container_id = %x{docker ps --filter "name=#{machine[:name]}" --format "{{.ID}}"}.chomp
-              container_ids.push(container_id)
+              next if container_id.empty?
+
               ip = %x{docker inspect -f '{{.NetworkSettings.Networks.#{machine[:network][:name]}.IPAddress}}' #{container_id}}.chomp
-              ips.push(ip)
+              next if ip.empty?
+
+              machine_ips << [machine, ip]
             end
 
-            hosts = ""
-            ips.each_with_index do |ip, i|
-              hosts << ip << "  " << @machines[i][:name] << "\n"
-            end
-
-            # Output and set /etc/hosts on each container
+            hosts = machine_ips.map { |machine_spec, ip| "#{ip}  #{machine_spec[:name]}" }.join("\n")
 
             puts "    Setting /etc/hosts on containers..."
-            container_id = %x{docker ps --filter "name=#{machine.name}" --format "{{.ID}}"}.chomp
-            if File.exist?("hosts.tmp.#{machine.name}")
-              system("docker cp hosts.tmp.#{machine.name} #{container_id}:/tmp/hosts.tmp")
-              system("docker exec #{container_id} sh -c 'cat /tmp/hosts.tmp | sudo tee -a /etc/hosts'")
-            else
-              puts "hosts.tmp file not found, skipping container #{container_id}."
+            File.open("hosts.tmp", "w") { |file| file.write(hosts) }
+            machine_ips.each do |machine_spec, ip|
+              machine = machine_spec
+              container_id = %x{docker ps --filter "name=#{machine[:name]}" --format "{{.ID}}"}.chomp
+              next if container_id.empty?
+
+              system("docker cp hosts.tmp #{container_id}:/tmp/hosts.tmp")
+              system("docker exec #{container_id} sh -c 'cat /tmp/hosts.tmp >> /etc/hosts'")
+
+              if @public_key
+                system("docker cp #{@public_key} #{container_id}:/tmp/id_rsa.pub")
+                system("docker exec #{container_id} sh -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
+              end
+
+              system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf'")
+              system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.4.4\" >> /etc/resolv.conf'")
             end
-
-            puts "    Setting authorized_keys on containers..."
-            system("docker cp ~/.ssh/id_rsa.pub #{container_id}:/tmp/id_rsa.pub")
-            system("docker exec #{container_id} sh -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
-
-            system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf'")
-            system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.4.4\" >> /etc/resolv.conf'")
-            # end
-
-            # Clean up
-            if File.exist?("hosts.tmp.#{machine.name}")
-              File.delete("hosts.tmp.#{machine.name}")
-              puts "hosts.tmp.#{machine.name} file deleted successfully."
-            else
-              puts "hosts.tmp.#{machine.name} file not found during cleanup."
-            end
+            File.delete("hosts.tmp") if File.exist?("hosts.tmp")
 
             puts <<~EOF
 
@@ -64,8 +57,10 @@ class DockerMC < Machine
 
             EOF
 
-            (1..ips.length).each do |i|
-              puts "  http://#{ips[i]}:#{@machines[i][:ports][0]}"
+            machine_ips.each do |machine_spec, ip|
+              next if machine_spec[:network][:ports].empty?
+
+              puts "  http://#{ip}:#{machine_spec[:network][:ports][0][:guest]}"
             end
             puts ""
           else
@@ -74,19 +69,24 @@ class DockerMC < Machine
         end
       end
     else
-      config.trigger.after :up do |trigger|
+      @config.trigger.after :up do |trigger|
         trigger.name = "Post provisioner"
         trigger.ignore = [:destroy, :halt]
         trigger.ruby do |env, machine|
           if all_machines_up()
             puts "    Gathering IP addresses of containers..."
+            @machines.each do |machine|
+              container_id = %x{docker ps --filter "name=#{machine[:name]}" --format "{{.ID}}"}.chomp
+              next if container_id.empty?
 
-            container_id = %x{docker ps --filter "name=#{machine.name}" --format "{{.ID}}"}.chomp
-            system("docker cp ~/.ssh/id_rsa.pub #{container_id}:/tmp/id_rsa.pub")
-            system("docker exec #{container_id} sh -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
+              if @public_key
+                system("docker cp #{@public_key} #{container_id}:/tmp/id_rsa.pub")
+                system("docker exec #{container_id} sh -c 'cat /tmp/id_rsa.pub >> /home/vagrant/.ssh/authorized_keys'")
+              end
 
-            system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf'")
-            system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.4.4\" >> /etc/resolv.conf'")
+              system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.8.8\" >> /etc/resolv.conf'")
+              system("docker exec #{container_id} sh -c 'echo \"nameserver 8.8.4.4\" >> /etc/resolv.conf'")
+            end
             puts <<~EOF
 
                    VM build complete!

@@ -1,6 +1,6 @@
 ---
 - name: haproxy-dependencies-setup
-  hosts: server
+  hosts: infra
   become: true
   become_user: root
   tasks:

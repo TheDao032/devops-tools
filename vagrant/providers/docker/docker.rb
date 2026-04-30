@@ -1,5 +1,5 @@
 # docker.rb
-require_relative 'vm'
+require_relative '../vm'
 
 class DockerVM < VM
   attr_accessor :box, :env_vars, :volumes

@@ -42,8 +42,8 @@ declare vagrant_plugins=(
 
 # Vagrant setup
 vagrant_init() {
-  local vagrant_plugins=$1
-  for plugin in "${vagrant_plugins[@]}"; do
+  local plugins=("$@")
+  for plugin in "${plugins[@]}"; do
     if vagrant plugin list | grep -q "^${plugin} "; then
       log_info "Vagrant plugin '${plugin}' is already installed."
     else
@@ -71,5 +71,5 @@ ansible_exec() {
   ansible-playbook ${ANSIBLE_PLAYBOOKS_DIR}/site.yml -i ${INVENTORY} -vvv
 
 }
-
-ansible_exec
+vagrant_init "${vagrant_plugins[@]}"
+# ansible_exec
