@@ -1,0 +1,20 @@
+# Bosch / prod / psql / proxmox — VMs on company Proxmox cluster.
+
+all:
+  children:
+    coordinator:
+      hosts:
+        bosch-psql-pve-coord-[1:2]:
+          ansible_host: "10.43.21.{{ 10 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+    worker:
+      hosts:
+        bosch-psql-pve-worker-[1:3]:
+          ansible_host: "10.43.21.{{ 20 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+    pgbouncer:
+      hosts:
+        bosch-psql-pve-pgb-[1:2]:
+          ansible_host: "10.43.21.{{ 4 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+  vars:
+    proxmox_api_host: pve.bosch.internal       # TODO
+    proxmox_node: pve01                         # TODO
+    proxmox_storage: ceph-pool                  # TODO

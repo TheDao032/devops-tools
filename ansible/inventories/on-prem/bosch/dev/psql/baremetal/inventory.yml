@@ -1,0 +1,16 @@
+# Bosch / dev / psql / baremetal — single-node Citus dev cluster.
+
+all:
+  children:
+    coordinator:
+      hosts:
+        bosch-psql-dev-coord-1.dev.bosch.internal:
+          ansible_host: 10.43.31.11
+    worker:
+      hosts:
+        bosch-psql-dev-worker-1.dev.bosch.internal:
+          ansible_host: 10.43.31.21
+        bosch-psql-dev-worker-2.dev.bosch.internal:
+          ansible_host: 10.43.31.22
+  vars:
+    citus_cluster_name: bosch-dev

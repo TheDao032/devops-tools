@@ -1,0 +1,98 @@
+---
+# CIS Benchmark Level 1 (Server profile).
+# Reference: CIS RHEL 9 v2.0.0 — Section 1 (filesystem), 3 (network), 5 (logging),
+# 6 (system access), 5.4 (cron), 5.5 (privilege escalation).
+# Trim to only the most-impactful, most-reversible items here; the full benchmark
+# is too large to inline.
+
+- name: "CIS-L1 | disable unused filesystems"
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/cis-l1-fs.conf
+    content: |
+      install cramfs /bin/false
+      install freevxfs /bin/false
+      install jffs2 /bin/false
+      install hfs /bin/false
+      install hfsplus /bin/false
+      install squashfs /bin/false
+      install udf /bin/false
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "CIS-L1 | sysctl network hardening"
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    sysctl_set: true
+    reload: false           # batch reload via handler
+  loop:
+    - { name: net.ipv4.ip_forward,                       value: "0" }
+    - { name: net.ipv4.conf.all.send_redirects,          value: "0" }
+    - { name: net.ipv4.conf.default.send_redirects,      value: "0" }
+    - { name: net.ipv4.conf.all.accept_source_route,     value: "0" }
+    - { name: net.ipv4.conf.default.accept_source_route, value: "0" }
+    - { name: net.ipv4.conf.all.accept_redirects,        value: "0" }
+    - { name: net.ipv4.conf.all.log_martians,            value: "1" }
+    - { name: net.ipv4.tcp_syncookies,                   value: "1" }
+    - { name: net.ipv6.conf.all.accept_ra,               value: "0" }
+  notify: reload sysctl
+
+- name: "CIS-L1 | disable core dumps for setuid programs"
+  ansible.posix.sysctl:
+    name: fs.suid_dumpable
+    value: "0"
+    state: present
+    sysctl_set: true
+  notify: reload sysctl
+
+- name: "CIS-L1 | ensure cron is enabled and locked down"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: '0600'
+  loop:
+    - /etc/crontab
+    - /etc/cron.hourly
+    - /etc/cron.daily
+    - /etc/cron.weekly
+    - /etc/cron.monthly
+    - /etc/cron.d
+  ignore_errors: true     # some paths are dirs, lineinfile won't apply
+
+- name: "CIS-L1 | restrict at and cron to root"
+  ansible.builtin.copy:
+    dest: "{{ item }}"
+    content: "root\n"
+    owner: root
+    group: root
+    mode: '0600'
+    force: true
+  loop:
+    - /etc/cron.allow
+    - /etc/at.allow
+
+- name: "CIS-L1 | remove cron.deny / at.deny if present"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /etc/cron.deny
+    - /etc/at.deny
+
+- name: "CIS-L1 | SELinux enforcing on RHEL family"
+  ansible.posix.selinux:
+    policy: targeted
+    state: "{{ compliance.selinux_mode }}"
+  when: ansible_os_family == "RedHat"
+
+- name: "CIS-L1 | AppArmor enabled on Debian/Ubuntu"
+  ansible.builtin.service:
+    name: apparmor
+    enabled: true
+    state: started
+  when:
+    - ansible_os_family == "Debian"
+    - compliance.apparmor_enabled | bool

@@ -1,0 +1,77 @@
+# Tenant-aware Ansible config for on-prem fleets.
+# Activate from deploy scripts:
+#   export ANSIBLE_CONFIG=$REPO_ROOT/ansible/ansible.cfg.on-prem
+#
+# This config does NOT bake in the tenant — TENANT, ENV, SERVICE, PROVIDER are
+# expected to be exported by the deploy.sh wrapper before ansible-playbook
+# runs. The wrapper composes the inventory chain:
+#
+#   inventories/on-prem/_shared/group_vars/
+#   inventories/on-prem/${TENANT}/_company/group_vars/
+#   inventories/on-prem/${TENANT}/${ENV}/${SERVICE}/${PROVIDER}/inventory.yml
+#
+# ...and passes them as repeated `-i` flags. We don't try to encode the chain
+# in `inventory =` here because Ansible merges _files_, but the directories at
+# `_shared` and `_company` have no inventory.yml — only group_vars. They're
+# included via -i pointing at the directory, which Ansible reads as a
+# directory-style inventory.
+
+[defaults]
+# Roles + collections paths are repo-relative.
+roles_path = ./playbooks/roles
+collections_paths = ./collections:~/.ansible/collections
+
+# Performance: profile_tasks shows duration for slow plays during dev.
+callbacks_enabled = profile_tasks, timer
+
+# Quiet output during prod runs; switch to default for debugging.
+stdout_callback = yaml
+display_skipped_hosts = false
+display_ok_hosts = true
+
+# Host key checking is enforced — known_hosts is the source of truth.
+host_key_checking = true
+
+# Vault password resolution. The wrapper must export ANSIBLE_VAULT_PASSWORD_FILE
+# pointing at scripts/tenant/load-vault-password.sh — that script reads the
+# right file from ~/.config/ansible-vault/${TENANT} so we never embed a
+# tenant-specific path here.
+
+# Fact caching keeps repeated runs fast. JSON file backend per tenant.
+fact_caching = jsonfile
+fact_caching_connection = /tmp/ansible-facts/${ANSIBLE_TENANT:-default}
+fact_caching_timeout = 7200
+
+# Deprecation warnings on by default; turn off only in CI to reduce noise.
+deprecation_warnings = true
+
+# Forks: tune by environment. dev=10 (small), prod=25.
+forks = 25
+
+# Avoid pipelining for compliance — auditd captures the underlying ssh
+# transcript and pipelining can break that.
+pipelining = false
+
+# Strategy linear is fine; mitogen would be faster but adds dependency surface.
+strategy = linear
+
+[ssh_connection]
+# ControlMaster speeds up large fleet runs without sacrificing observability.
+ssh_args = -o ControlMaster=auto -o ControlPersist=5m -o ServerAliveInterval=60 -o StrictHostKeyChecking=accept-new
+control_path_dir = /tmp/.ansible-cp/${ANSIBLE_TENANT:-default}
+retries = 3
+
+[privilege_escalation]
+become = true
+become_method = sudo
+become_user = root
+# Password is sourced from the tenant vault file (ansible_become_pass).
+
+[inventory]
+# Allow the YAML, ini, and proxmox plugins. The proxmox plugin lights up
+# once the operator drops a `community.general.proxmox` config under each
+# leaf inventory directory.
+enable_plugins = yaml, ini, auto, host_list, script, community.general.proxmox
+
+[diff]
+always = true

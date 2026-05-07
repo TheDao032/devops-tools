@@ -1,0 +1,13 @@
+---
+# Renesas — OS standardization.
+# Renesas standardizes on RHEL 9 for production; dev permits Ubuntu 22.04.
+# TODO(operator): confirm with Renesas IT.
+
+os:
+  default: rhel-9
+  permitted:
+    - rhel-9
+    - ubuntu-22.04          # dev only
+  hardening_baseline: cis-l2
+  kernel_lockdown: true
+  selinux_mode: enforcing

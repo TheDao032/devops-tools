@@ -1,0 +1,12 @@
+# Renesas / dev / vault / proxmox — single-node Vault VM for dev/test.
+
+all:
+  children:
+    vault_server:
+      hosts:
+        renesas-vault-dev-pve-1:
+          ansible_host: 10.42.42.11
+  vars:
+    proxmox_api_host: pve.renesas.internal     # TODO
+    proxmox_node: pve02                         # TODO
+    proxmox_storage: local-zfs                  # TODO

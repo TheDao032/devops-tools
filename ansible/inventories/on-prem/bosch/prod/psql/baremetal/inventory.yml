@@ -1,0 +1,37 @@
+# Bosch / prod / psql / baremetal — physical PostgreSQL hosts.
+# Citus coordinator + workers + repmgr standby.
+
+all:
+  children:
+    coordinator:
+      hosts:
+        bosch-psql-coord-1.prod.bosch.internal:
+          ansible_host: 10.43.11.11
+          repmgr_role: primary
+          repmgr_node_id: 1
+        bosch-psql-coord-2.prod.bosch.internal:
+          ansible_host: 10.43.11.12
+          repmgr_role: standby
+          repmgr_node_id: 2
+    worker:
+      hosts:
+        bosch-psql-worker-1.prod.bosch.internal:
+          ansible_host: 10.43.11.21
+        bosch-psql-worker-2.prod.bosch.internal:
+          ansible_host: 10.43.11.22
+        bosch-psql-worker-3.prod.bosch.internal:
+          ansible_host: 10.43.11.23
+    witness:
+      hosts:
+        bosch-psql-witness-1.prod.bosch.internal:
+          ansible_host: 10.43.11.30
+    pgbouncer:
+      hosts:
+        bosch-psql-pgb-1.prod.bosch.internal:
+          ansible_host: 10.43.11.5
+        bosch-psql-pgb-2.prod.bosch.internal:
+          ansible_host: 10.43.11.6
+  vars:
+    citus_cluster_name: bosch-prod
+    repmgr_cluster_name: bosch-prod
+    pgbouncer_virtual_ip: 10.43.11.100      # TODO: confirm VIP

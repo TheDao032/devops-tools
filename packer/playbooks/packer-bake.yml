@@ -1,0 +1,107 @@
+---
+# packer-bake.yml — wrapper playbook invoked by Packer's ansible provisioner.
+#
+# Reuses the same `compliance` role used by deployments/ansible/on-prem/...
+# Profile + FIPS toggle come from environment variables that Packer sets via
+# `extra_arguments` in its provisioner block. This keeps tenant-specific
+# values out of the playbook itself.
+#
+# Inputs (env):
+#   COMPLIANCE_PROFILE — cis-l1 | cis-l2
+#   FIPS_MODE          — "true" | "false"
+#   TENANT             — renesas | bosch (used only for /etc/image-metadata)
+#   IMAGE_VERSION      — e.g. 2026-05-01.1 (used in /etc/image-metadata)
+
+- name: Bake hardened base image
+  hosts: default
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate required env vars are set
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'COMPLIANCE_PROFILE') in ['cis-l1', 'cis-l2']
+          - lookup('env', 'FIPS_MODE') in ['true', 'false']
+          - lookup('env', 'TENANT') | length > 0
+        fail_msg: |
+          Missing/invalid env vars. Set COMPLIANCE_PROFILE (cis-l1|cis-l2),
+          FIPS_MODE (true|false), TENANT (renesas|bosch).
+
+    - name: Update package cache (RHEL)
+      ansible.builtin.dnf:
+        update_cache: true
+      when: ansible_os_family == "RedHat"
+
+    - name: Update package cache (Debian)
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+  roles:
+    - role: compliance
+      vars:
+        # NOTE: role-vars REPLACE the role's defaults/main.yml wholesale —
+        # they do not merge (Ansible's default hash_behaviour=replace). So
+        # every key the role's tasks reference must appear here, otherwise
+        # we get `object of type 'dict' has no attribute 'X'` mid-bake.
+        # Cross-tenant: bosch=Debian needs apparmor_enabled, renesas=RHEL
+        # needs selinux_mode. Both stay here so this single playbook works
+        # for either tenant.
+        compliance:
+          profile: "{{ lookup('env', 'COMPLIANCE_PROFILE') }}"
+          fips_mode: "{{ lookup('env', 'FIPS_MODE') | bool }}"
+          ssh_hardening: true
+          audit:
+            auditd_enabled: true
+            rules_set: "{{ lookup('env', 'COMPLIANCE_PROFILE') }}"
+            forward_to: ""
+          banner: "Authorized access only — {{ lookup('env', 'TENANT') | upper }}"
+          # Mirrored from roles/compliance/defaults/main.yml. Only the keys
+          # the role actually references are listed (history, lockout_*
+          # exist in defaults but no task reads them — yet).
+          password_policy:
+            min_length: 12       # CIS-L1 §5.3.1 says 14; role defaults say 12; keep defaults for now
+            max_age_days: 90
+            min_age_days: 1
+          selinux_mode: enforcing  # consumed by cis-l1 RHEL-only task (renesas)
+          apparmor_enabled: true   # consumed by cis-l1 Debian-only task (bosch)
+
+  post_tasks:
+    - name: Stamp /etc/image-metadata so deployed nodes can prove their lineage
+      ansible.builtin.copy:
+        dest: /etc/image-metadata
+        owner: root
+        group: root
+        mode: "0644"
+        content: |
+          # Packer-baked image metadata — DO NOT EDIT
+          tenant={{ lookup('env', 'TENANT') }}
+          compliance_profile={{ lookup('env', 'COMPLIANCE_PROFILE') }}
+          fips_mode={{ lookup('env', 'FIPS_MODE') }}
+          image_version={{ lookup('env', 'IMAGE_VERSION') | default('dev', true) }}
+          baked_at={{ ansible_date_time.iso8601 }}
+          os_family={{ ansible_os_family }}
+          os_distribution={{ ansible_distribution }}
+          os_version={{ ansible_distribution_version }}
+
+    - name: Clean apt cache (Debian) before image finalization
+      ansible.builtin.apt:
+        autoclean: true
+      when: ansible_os_family == "Debian"
+
+    - name: Clean dnf cache (RHEL) before image finalization
+      ansible.builtin.command: dnf clean all
+      when: ansible_os_family == "RedHat"
+      changed_when: true
+
+    - name: Zero out free space (improves image compressibility)
+      ansible.builtin.shell: |
+        set -e
+        dd if=/dev/zero of=/EMPTY bs=1M || true
+        rm -f /EMPTY
+        sync
+      changed_when: true
+      # Zeroing failure is non-fatal — we just lose some compression.
+      failed_when: false

@@ -1,0 +1,22 @@
+---
+# Renesas / prod / vault / proxmox — leaf-level overrides.
+
+vault:
+  version: "1.17.2"
+  storage: raft
+  ui: true
+  tls:
+    min_version: "tls13"
+  seal:
+    type: transit
+    address: https://kms.renesas.internal
+    mount_path: transit/
+    key_name: vault-autounseal
+
+proxmox_vm:
+  template: rhel-9-cloudinit-template      # TODO
+  cores: 2
+  memory_mb: 4096
+  disk_gb: 40
+  net_bridge: vmbr1
+  vlan_tag: 22                              # TODO

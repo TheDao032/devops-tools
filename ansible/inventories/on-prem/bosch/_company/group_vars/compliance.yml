@@ -1,0 +1,17 @@
+---
+# Bosch — compliance profile.
+
+compliance:
+  profile: cis-l1                  # CIS Benchmark Level 1 — server profile
+  audit:
+    auditd_enabled: true
+    forward_to: 10.43.0.20:514     # TODO: confirm syslog collector
+    rules_set: cis-l1
+  fips_mode: false                 # FIPS not required
+  ssh_hardening: true
+  password_policy:
+    min_length: 12
+    history: 12
+    max_age_days: 90
+    lockout_threshold: 10
+  banner: "BOSCH — Authorized access only"

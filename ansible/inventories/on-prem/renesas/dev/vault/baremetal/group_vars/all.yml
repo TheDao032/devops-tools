@@ -1,0 +1,14 @@
+---
+# Renesas / dev / vault / baremetal — leaf-level overrides.
+
+vault:
+  version: "1.17.2"
+  storage: raft
+  ui: true
+  tls:
+    min_version: "tls12"     # relaxed vs prod (tls13)
+  seal:
+    type: shamir              # dev: manual unseal OK; prod uses transit
+  audit:
+    enabled: true
+    path: /var/log/vault/audit.log

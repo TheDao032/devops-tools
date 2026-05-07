@@ -1,0 +1,18 @@
+---
+# Bosch / dev / k3s / proxmox — leaf-level overrides.
+
+k3s:
+  version: "v1.30.2+k3s1"
+  cluster_cidr: 10.244.0.0/16
+  service_cidr: 10.96.0.0/12
+  cluster_dns: 10.96.0.10
+  disable:
+    - traefik
+    - servicelb
+
+proxmox_vm:
+  template: ubuntu-22.04-cloudinit-template  # TODO
+  cores: 2
+  memory_mb: 4096
+  disk_gb: 40
+  net_bridge: vmbr2

@@ -1,0 +1,18 @@
+# Renesas / dev / psql / baremetal — single-node Citus dev cluster.
+# Coordinator + 2 workers, no replication, no pgbouncer. For schema and
+# query development. Production sizing lives under prod/.
+
+all:
+  children:
+    coordinator:
+      hosts:
+        renesas-psql-dev-coord-1.dev.renesas.internal:
+          ansible_host: 10.42.31.11
+    worker:
+      hosts:
+        renesas-psql-dev-worker-1.dev.renesas.internal:
+          ansible_host: 10.42.31.21
+        renesas-psql-dev-worker-2.dev.renesas.internal:
+          ansible_host: 10.42.31.22
+  vars:
+    citus_cluster_name: renesas-dev

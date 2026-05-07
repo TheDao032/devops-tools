@@ -1,0 +1,32 @@
+# Bosch / prod / k3s / baremetal — physical hosts.
+# TODO(operator): replace placeholders with real hostnames and IPs.
+
+all:
+  children:
+    server:
+      hosts:
+        bosch-k3s-server-1.prod.bosch.internal:
+          ansible_host: 10.43.10.11
+        bosch-k3s-server-2.prod.bosch.internal:
+          ansible_host: 10.43.10.12
+        bosch-k3s-server-3.prod.bosch.internal:
+          ansible_host: 10.43.10.13
+    agent:
+      hosts:
+        bosch-k3s-agent-1.prod.bosch.internal:
+          ansible_host: 10.43.10.21
+        bosch-k3s-agent-2.prod.bosch.internal:
+          ansible_host: 10.43.10.22
+        bosch-k3s-agent-3.prod.bosch.internal:
+          ansible_host: 10.43.10.23
+    load_balancer:
+      hosts:
+        bosch-k3s-lb-1.prod.bosch.internal:
+          ansible_host: 10.43.10.5
+          keepalived_priority: 200
+        bosch-k3s-lb-2.prod.bosch.internal:
+          ansible_host: 10.43.10.6
+          keepalived_priority: 100
+  vars:
+    keepalived_virtual_ip: 10.43.10.100      # TODO: confirm
+    load_balancer_port: 6443

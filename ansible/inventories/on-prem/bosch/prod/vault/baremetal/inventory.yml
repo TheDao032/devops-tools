@@ -1,0 +1,29 @@
+# Bosch / prod / vault / baremetal — physical Vault hosts.
+# 3-node Raft cluster (HA) + transit/auto-unseal via on-prem KMS.
+
+all:
+  children:
+    vault_server:
+      hosts:
+        bosch-vault-1.prod.bosch.internal:
+          ansible_host: 10.43.12.11
+          vault_node_id: vault-1
+        bosch-vault-2.prod.bosch.internal:
+          ansible_host: 10.43.12.12
+          vault_node_id: vault-2
+        bosch-vault-3.prod.bosch.internal:
+          ansible_host: 10.43.12.13
+          vault_node_id: vault-3
+    vault_lb:
+      hosts:
+        bosch-vault-lb-1.prod.bosch.internal:
+          ansible_host: 10.43.12.5
+          keepalived_priority: 200
+        bosch-vault-lb-2.prod.bosch.internal:
+          ansible_host: 10.43.12.6
+          keepalived_priority: 100
+  vars:
+    vault_cluster_name: bosch-prod-vault
+    vault_api_port: 8200
+    vault_cluster_port: 8201
+    keepalived_virtual_ip: 10.43.12.100      # TODO: confirm

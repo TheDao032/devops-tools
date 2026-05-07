@@ -1,0 +1,40 @@
+---
+all:
+  hosts:
+    aws-ubuntu:
+      ansible_host: 54.179.203.78
+    aws-windows:
+      ansible_host: 47.128.251.0
+    ios-runner-1:
+      ansible_host: 10.238.0.19
+    mac-runner-1:
+      ansible_host: 10.238.0.19
+    mac-runner02:
+      ansible_host: 10.238.0.88
+
+  vars:
+    github_user: herond-builds
+    github_email: herond-builds+devops@herond.org
+
+  children:
+    android:
+    windows:
+    ios:
+    macos:
+
+android:
+  hosts:
+    aws-ubuntu:
+
+windows:
+  hosts:
+    aws-windows:
+
+macos:
+  hosts:
+    macos-runner-1:
+    macos-runner-1:
+
+ios:
+  hosts:
+    ios-runner-1:

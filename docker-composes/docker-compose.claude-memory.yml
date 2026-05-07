@@ -1,0 +1,42 @@
+# Claude Code persistent-memory database.
+#
+# This is the rebuildable retrieval layer for the Obsidian vault at
+# /Users/thedao/obsidian-vaults/devops-architect-brain/
+# Markdown is the source of truth; this DB holds embeddings, conv events,
+# entity index, decisions index. Wipe at any time and re-index from the vault.
+#
+# Bring up:
+#   docker compose -f docker-composes/docker-compose.claude-memory.yml up -d
+# Stop:
+#   docker compose -f docker-composes/docker-compose.claude-memory.yml down
+# Wipe (destructive):
+#   docker compose -f docker-composes/docker-compose.claude-memory.yml down -v
+#
+# Connect:
+#   psql postgresql://claude:claude@localhost:5433/claude_memory
+
+services:
+  claude-memory-db:
+    image: pgvector/pgvector:pg16
+    container_name: claude-memory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: claude
+      POSTGRES_PASSWORD: claude
+      POSTGRES_DB: claude_memory
+      # Tune for low-volume personal use; vector search benefits from shared_buffers
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5433:5432"  # 5433 host-side to avoid colliding with system/dev Postgres
+    volumes:
+      - claude-memory-data:/var/lib/postgresql/data
+      - ./claude-memory/init:/docker-entrypoint-initdb.d:ro  # auto-runs *.sql on first boot
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U claude -d claude_memory"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  claude-memory-data:
+    name: claude-memory-data

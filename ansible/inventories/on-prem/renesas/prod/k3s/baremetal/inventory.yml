@@ -1,0 +1,38 @@
+# Renesas / prod / k3s / baremetal — physical hosts.
+# TODO(operator): replace placeholders with real hostnames and IPs.
+#
+# Inventory layered above this:
+#   on-prem/_shared/group_vars/all.yml
+#   on-prem/renesas/_company/group_vars/{all,os,compliance}.yml
+#   THIS FILE (most specific)
+
+all:
+  children:
+    server:
+      hosts:
+        # TODO: real hostnames
+        renesas-k3s-server-1.prod.renesas.internal:
+          ansible_host: 10.42.10.11
+        renesas-k3s-server-2.prod.renesas.internal:
+          ansible_host: 10.42.10.12
+        renesas-k3s-server-3.prod.renesas.internal:
+          ansible_host: 10.42.10.13
+    agent:
+      hosts:
+        renesas-k3s-agent-1.prod.renesas.internal:
+          ansible_host: 10.42.10.21
+        renesas-k3s-agent-2.prod.renesas.internal:
+          ansible_host: 10.42.10.22
+        renesas-k3s-agent-3.prod.renesas.internal:
+          ansible_host: 10.42.10.23
+    load_balancer:
+      hosts:
+        renesas-k3s-lb-1.prod.renesas.internal:
+          ansible_host: 10.42.10.5
+          keepalived_priority: 200
+        renesas-k3s-lb-2.prod.renesas.internal:
+          ansible_host: 10.42.10.6
+          keepalived_priority: 100
+  vars:
+    keepalived_virtual_ip: 10.42.10.100   # TODO: confirm
+    load_balancer_port: 6443

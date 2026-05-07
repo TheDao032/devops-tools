@@ -1,0 +1,31 @@
+---
+# Renesas / prod / psql / baremetal — leaf-level overrides.
+
+postgres:
+  version: "16"
+  data_dir: /var/lib/postgresql/16/main
+  port: 5432
+  max_connections: 500
+  shared_buffers: "8GB"
+  effective_cache_size: "24GB"
+  wal_level: replica
+  ssl: true
+  ssl_cert_file: /etc/postgresql/16/main/server.crt
+  ssl_key_file: /etc/postgresql/16/main/server.key
+
+citus:
+  version: "12.1"
+  shard_count: 32
+  replication_factor: 2
+
+repmgr:
+  version: "5.4"
+  use_replication_slots: true
+  failover: automatic
+  promote_command: "/usr/bin/repmgr standby promote"
+  follow_command: "/usr/bin/repmgr standby follow"
+
+pgbouncer:
+  pool_mode: transaction
+  max_client_conn: 2000
+  default_pool_size: 50

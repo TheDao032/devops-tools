@@ -1,0 +1,21 @@
+---
+# Bosch / dev / psql / proxmox — leaf-level overrides.
+
+postgres:
+  version: "16"
+  port: 5432
+  max_connections: 100
+  shared_buffers: "1GB"
+  ssl: false
+
+citus:
+  version: "12.1"
+  shard_count: 8
+  replication_factor: 1
+
+proxmox_vm:
+  template: ubuntu-22.04-cloudinit-template  # TODO
+  cores: 2
+  memory_mb: 4096
+  disk_gb: 40
+  net_bridge: vmbr2

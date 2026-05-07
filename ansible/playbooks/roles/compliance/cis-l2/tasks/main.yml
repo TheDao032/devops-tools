@@ -1,0 +1,77 @@
+---
+# CIS Benchmark Level 2 — extends Level 1 with stricter controls.
+# Run AFTER cis-l1; the dispatcher in tasks/main.yml ensures order.
+
+- name: "CIS-L2 | disable USB storage kernel module"
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/cis-l2-usb.conf
+    content: |
+      install usb-storage /bin/false
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "CIS-L2 | disable wireless interfaces (no Wi-Fi on servers)"
+  ansible.builtin.copy:
+    dest: /etc/modprobe.d/cis-l2-wireless.conf
+    content: |
+      install bluetooth /bin/false
+      install cfg80211 /bin/false
+      install mac80211 /bin/false
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "CIS-L2 | enable kernel.kptr_restrict (hide kernel pointers)"
+  ansible.posix.sysctl:
+    name: kernel.kptr_restrict
+    value: "2"
+    state: present
+    sysctl_set: true
+  notify: reload sysctl
+
+- name: "CIS-L2 | enable kernel.dmesg_restrict"
+  ansible.posix.sysctl:
+    name: kernel.dmesg_restrict
+    value: "1"
+    state: present
+    sysctl_set: true
+  notify: reload sysctl
+
+- name: "CIS-L2 | enable kernel.unprivileged_bpf_disabled"
+  ansible.posix.sysctl:
+    name: kernel.unprivileged_bpf_disabled
+    value: "1"
+    state: present
+    sysctl_set: true
+  notify: reload sysctl
+
+- name: "CIS-L2 | enable kernel lockdown (integrity)"
+  ansible.builtin.lineinfile:
+    path: /etc/default/grub
+    regexp: '^GRUB_CMDLINE_LINUX='
+    line: 'GRUB_CMDLINE_LINUX="{{ grub_cmdline_with_lockdown }}"'
+    backrefs: false
+  vars:
+    grub_cmdline_with_lockdown: "lockdown=integrity audit=1 audit_backlog_limit=8192"
+  notify: rebuild grub
+  when: compliance.profile == 'cis-l2'
+
+- name: "CIS-L2 | mount /tmp with nosuid,nodev,noexec"
+  ansible.posix.mount:
+    path: /tmp
+    src: tmpfs
+    fstype: tmpfs
+    opts: "defaults,nosuid,nodev,noexec,size=2G"
+    state: mounted
+  ignore_errors: true   # may already be a real partition; operator review needed
+
+- name: "CIS-L2 | tighter pwquality (longer min length, more rounds)"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "^{{ item.key }} ="
+    line: "{{ item.key }} = {{ item.value }}"
+  loop:
+    - { key: minlen,    value: "14" }
+    - { key: minclass,  value: "4" }
+    - { key: retry,     value: "3" }

@@ -1,0 +1,14 @@
+---
+# Bosch / dev / vault / baremetal — leaf-level overrides.
+
+vault:
+  version: "1.17.2"
+  storage: raft
+  ui: true
+  tls:
+    min_version: "tls12"
+  seal:
+    type: shamir
+  audit:
+    enabled: true
+    path: /var/log/vault/audit.log

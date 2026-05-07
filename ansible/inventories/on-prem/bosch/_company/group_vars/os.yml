@@ -1,0 +1,13 @@
+---
+# Bosch — OS standardization.
+# Bosch permits both Ubuntu 22.04 and RHEL 9.
+# TODO(operator): confirm with Bosch IT.
+
+os:
+  default: ubuntu-22.04
+  permitted:
+    - ubuntu-22.04
+    - rhel-9
+  hardening_baseline: cis-l1
+  kernel_lockdown: false
+  selinux_mode: permissive

@@ -1,0 +1,11 @@
+---
+# Bosch / prod / k3s / baremetal — leaf-level overrides.
+
+k3s:
+  version: "v1.30.2+k3s1"
+  cluster_cidr: 10.244.0.0/16
+  service_cidr: 10.96.0.0/12
+  cluster_dns: 10.96.0.10
+  disable:
+    - traefik       # using nginx ingress per Bosch standard
+    - servicelb
