@@ -1,0 +1,30 @@
+---
+- name: restart auditd
+  ansible.builtin.service:
+    # auditd is special — `systemctl restart` is rejected; use service module.
+    name: auditd
+    state: restarted
+  listen: "restart auditd"
+
+- name: reload sshd
+  ansible.builtin.service:
+    name: sshd
+    state: reloaded
+  listen: "reload sshd"
+
+- name: reload sysctl
+  ansible.builtin.command: sysctl --system
+  listen: "reload sysctl"
+  changed_when: true
+
+- name: rebuild grub
+  ansible.builtin.command: grub2-mkconfig -o /boot/grub2/grub.cfg
+  listen: "rebuild grub"
+  when: ansible_os_family == "RedHat"
+  changed_when: true
+
+- name: rebuild grub debian
+  ansible.builtin.command: update-grub
+  listen: "rebuild grub"
+  when: ansible_os_family == "Debian"
+  changed_when: true

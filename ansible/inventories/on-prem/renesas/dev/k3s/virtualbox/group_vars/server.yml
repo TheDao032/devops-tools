@@ -1,0 +1,11 @@
+---
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+ansible_user: vagrant
+
+psql_k3s_port: 5432
+psql_k3s_user: "k3s"
+psql_k3s_pass: "k3s"
+
+k3s_port: 6443
+https_port: 443
+http_port: 80

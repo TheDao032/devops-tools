@@ -1,0 +1,23 @@
+---
+# Cross-company defaults — every on-prem host inherits these.
+# Override per company in on-prem/<tenant>/_company/group_vars/all.yml,
+# then per (env,service,provider) in the leaf inventory's group_vars/.
+#
+# Precedence (low → high):
+#   on-prem/_shared/group_vars/all.yml
+#   on-prem/<tenant>/_company/group_vars/{all,os,compliance}.yml
+#   on-prem/<tenant>/<env>/<service>/<provider>/group_vars/*.yml
+
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_common_args: '-o StrictHostKeyChecking=accept-new -o ServerAliveInterval=60'
+
+# Defaults — companies will override
+network: {}
+proxy: {}
+package_mirrors: {}
+compliance:
+  profile: cis-l1
+  audit:
+    auditd_enabled: true
+  fips_mode: false
+  ssh_hardening: true

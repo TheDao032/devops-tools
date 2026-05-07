@@ -1,0 +1,18 @@
+# Renesas / prod / k3s / proxmox — VMs on company Proxmox cluster.
+# This is a static inventory; switch to community.general.proxmox dynamic
+# inventory once the API token is provisioned (see secrets.vault.yml).
+
+all:
+  children:
+    server:
+      hosts:
+        renesas-k3s-pve-server-[1:3]:
+          ansible_host: "10.42.20.{{ 10 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+    agent:
+      hosts:
+        renesas-k3s-pve-agent-[1:3]:
+          ansible_host: "10.42.20.{{ 20 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+  vars:
+    proxmox_api_host: pve.renesas.internal     # TODO
+    proxmox_node: pve01                         # TODO
+    proxmox_storage: ceph-pool                  # TODO

@@ -1,0 +1,3 @@
+# Empty cloud-init meta-data — required by NoCloud datasource even when blank.
+# Without this file at the seed URL, subiquity falls back to interactive mode.
+instance-id: packer-bake

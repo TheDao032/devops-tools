@@ -1,0 +1,33 @@
+---
+# compliance/tasks/main.yml — dispatcher.
+# Reads compliance.profile and compliance.fips_mode and includes the right
+# profile task files. Profiles compose: cis-l2 includes cis-l1 first.
+
+- name: "Compliance | report selected profile"
+  ansible.builtin.debug:
+    msg: >
+      profile={{ compliance.profile }}
+      fips={{ compliance.fips_mode }}
+      ssh_hardening={{ compliance.ssh_hardening }}
+      audit={{ compliance.audit.auditd_enabled }}
+  tags: [compliance, always]
+
+- name: "Compliance | apply common baseline"
+  ansible.builtin.import_tasks: common.yml
+  when: compliance.profile != 'none' or compliance.fips_mode
+  tags: [compliance, common]
+
+- name: "Compliance | apply CIS Benchmark Level 1"
+  ansible.builtin.include_tasks: "{{ role_path }}/cis-l1/tasks/main.yml"
+  when: compliance.profile in ['cis-l1', 'cis-l2']
+  tags: [compliance, cis, cis-l1]
+
+- name: "Compliance | apply CIS Benchmark Level 2 (extends L1)"
+  ansible.builtin.include_tasks: "{{ role_path }}/cis-l2/tasks/main.yml"
+  when: compliance.profile == 'cis-l2'
+  tags: [compliance, cis, cis-l2]
+
+- name: "Compliance | apply FIPS 140-3 toggles"
+  ansible.builtin.include_tasks: "{{ role_path }}/fips/tasks/main.yml"
+  when: compliance.fips_mode | bool
+  tags: [compliance, fips]

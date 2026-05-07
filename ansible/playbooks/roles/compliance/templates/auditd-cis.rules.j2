@@ -1,0 +1,51 @@
+# Managed by ansible role: compliance — rules_set={{ compliance.audit.rules_set }}
+# CIS-aligned auditd rules. Drops in at /etc/audit/rules.d/99-compliance.rules.
+# Auditctl loads these on reload (handler: restart auditd).
+
+## Capture changes to authentication and authorization data
+-w /etc/passwd -p wa -k identity
+-w /etc/group -p wa -k identity
+-w /etc/shadow -p wa -k identity
+-w /etc/gshadow -p wa -k identity
+-w /etc/sudoers -p wa -k scope
+-w /etc/sudoers.d -p wa -k scope
+
+## Login / logout events
+-w /var/log/lastlog -p wa -k logins
+-w /var/run/faillock/ -p wa -k logins
+
+## SSH config changes
+-w /etc/ssh/sshd_config -p wa -k sshd
+-w /etc/ssh/sshd_config.d -p wa -k sshd
+
+## Cron / at changes
+-w /etc/crontab -p wa -k cron
+-w /etc/cron.allow -p wa -k cron
+-w /etc/at.allow -p wa -k cron
+
+## Time changes (relevant for audit log integrity)
+-a always,exit -F arch=b64 -S adjtimex,settimeofday,clock_settime -k time-change
+
+## Network config changes
+-w /etc/hosts -p wa -k network
+-w /etc/sysconfig/network -p wa -k network
+-w /etc/network/ -p wa -k network
+
+{% if compliance.audit.rules_set == 'cis-l2' %}
+## CIS-L2 additions: privileged-command monitoring
+-a always,exit -F path=/usr/bin/sudo -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged
+-a always,exit -F path=/usr/bin/su   -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged
+-a always,exit -F path=/usr/bin/passwd -F perm=x -F auid>=1000 -F auid!=4294967295 -k privileged
+
+## File-deletion events by users (common during compromise)
+-a always,exit -F arch=b64 -S unlink,unlinkat,rename,renameat -F auid>=1000 -F auid!=4294967295 -k delete
+
+## Module load/unload
+-w /sbin/insmod  -p x -k modules
+-w /sbin/rmmod   -p x -k modules
+-w /sbin/modprobe -p x -k modules
+-a always,exit -F arch=b64 -S init_module,delete_module -k modules
+{% endif %}
+
+## Make rules immutable until next reboot
+-e 2

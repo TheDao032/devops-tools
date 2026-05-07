@@ -1,0 +1,23 @@
+---
+# Renesas / prod / k3s / proxmox — leaf-level overrides.
+# Same k3s contract as baremetal; the provider differs but the cluster shape
+# does not. Anything Proxmox-specific (VM templates, cloud-init) lives here.
+
+k3s:
+  version: "v1.30.2+k3s1"
+  cluster_cidr: 10.244.0.0/16
+  service_cidr: 10.96.0.0/12
+  cluster_dns: 10.96.0.10
+  disable:
+    - traefik
+    - servicelb
+
+# Proxmox VM provisioning hints (consumed by community.general.proxmox role
+# once the dynamic inventory is wired up).
+proxmox_vm:
+  template: rhel-9-cloudinit-template      # TODO: confirm template name
+  cores: 4
+  memory_mb: 8192
+  disk_gb: 80
+  net_bridge: vmbr1
+  vlan_tag: 20                              # TODO: confirm VLAN

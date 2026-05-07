@@ -1,0 +1,15 @@
+# Renesas / dev / vault / baremetal — single-node Vault for dev/test.
+# Raft cluster of one — fine for dev, never for prod. Auto-unseal still
+# enforced (no `vault server -dev` flag) so policies stay realistic.
+
+all:
+  children:
+    vault_server:
+      hosts:
+        renesas-vault-dev-1.dev.renesas.internal:
+          ansible_host: 10.42.32.11
+          vault_node_id: vault-dev-1
+  vars:
+    vault_cluster_name: renesas-dev-vault
+    vault_api_port: 8200
+    vault_cluster_port: 8201

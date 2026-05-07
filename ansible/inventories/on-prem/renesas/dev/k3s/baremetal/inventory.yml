@@ -1,0 +1,18 @@
+# Renesas / dev / k3s / baremetal — small physical dev cluster.
+# Single server, 2 agents, no HA load balancer. For ad-hoc engineer testing
+# against company hardware (not VMs); promote to prod template once stable.
+
+all:
+  children:
+    server:
+      hosts:
+        renesas-k3s-dev-server-1.dev.renesas.internal:
+          ansible_host: 10.42.30.11
+    agent:
+      hosts:
+        renesas-k3s-dev-agent-1.dev.renesas.internal:
+          ansible_host: 10.42.30.21
+        renesas-k3s-dev-agent-2.dev.renesas.internal:
+          ansible_host: 10.42.30.22
+  vars:
+    load_balancer_port: 6443

@@ -1,0 +1,18 @@
+---
+# Renesas / dev / vault / proxmox — leaf-level overrides.
+
+vault:
+  version: "1.17.2"
+  storage: raft
+  ui: true
+  tls:
+    min_version: "tls12"
+  seal:
+    type: shamir
+
+proxmox_vm:
+  template: rhel-9-cloudinit-template
+  cores: 1
+  memory_mb: 2048
+  disk_gb: 20
+  net_bridge: vmbr2

@@ -1,0 +1,90 @@
+#cloud-config
+# Ubuntu 22.04 autoinstall (subiquity) cloud-init seed — TEMPLATE.
+#
+# This file is the SOURCE OF TRUTH. The actual file served by Packer at HTTP
+# is `http/user-data` (gitignored), regenerated from THIS template by
+# `scripts/build.sh` on every build.
+#
+# Substitution token:
+#   @@SSH_PUBKEY@@  — replaced with the contents of `keys/packer_ed25519.pub`
+#                     so the bake-time SSH public key is authorized for the
+#                     `packer` user before Packer's ansible provisioner runs.
+#                     The qemu source's ssh_private_key_file points at the
+#                     matching private key. With both halves in place, the
+#                     ansible provisioner's use_proxy=false direct connection
+#                     authenticates with publickey instead of password.
+#
+# Served by Packer over HTTP during the autoinstall boot phase.
+# See: https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html
+
+autoinstall:
+  version: 1
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+
+  # Bootstrap user — Packer SSHes in as this user. Password matches the var
+  # in bosch.pkrvars.hcl. Compliance role rotates / disables this post-bake.
+  identity:
+    realname: "Packer Builder"
+    username: packer
+    # sha512-crypt hash of the literal string "packer". Generated with:
+    #   openssl passwd -6 -salt packerSALT packer
+    # Plaintext-equivalence is fine here — the box is wiped of this user by
+    # the compliance role's post-tasks before distribution. Without a REAL
+    # hash, Packer's SSH-as-`packer` wait loop spins forever after install.
+    password: "$6$packerSALT$KqBJUBxm5C2xWZklTZGc9kq/TcIOu0vYVn/64cEGt3dHK.lg8UdyWMek8WnyBV.eMPW5MyyhPASkX4ueWDrKp/"
+    hostname: ubuntu-builder
+
+  # Allow Packer to sudo without password during provisioning. Compliance
+  # role tightens sudoers afterwards.
+  user-data:
+    disable_root: false
+    runcmd:
+      - 'echo "packer ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/99-packer'
+      - 'chmod 0440 /etc/sudoers.d/99-packer'
+
+  ssh:
+    install-server: true
+    # `allow-pw: true` is kept as a debug fallback — you can `ssh packer@<host>`
+    # with the literal password "packer" if the keypair gets out of sync.
+    # Packer's ansible provisioner uses the key (see authorized-keys below).
+    allow-pw: true
+    authorized-keys:
+      - "@@SSH_PUBKEY@@"
+
+  # Minimal packages. Compliance role installs auditd, libpam-pwquality, etc.
+  packages:
+    - openssh-server
+    - python3
+    - python3-apt
+    - sudo
+
+  # Disk: use whole disk, default LVM layout. CIS-L1 mount options applied
+  # by the compliance role in post-tasks.
+  storage:
+    layout:
+      name: lvm
+
+  # Network: DHCP. Real deployments configure static IPs via cloud-init at
+  # tenant deploy time.
+  network:
+    network:
+      version: 2
+      ethernets:
+        any:
+          match:
+            name: "en*"
+          dhcp4: true
+
+  # Skip apt mirror selection — use default. CIS-L1 doesn't restrict this.
+  apt:
+    geoip: true
+    preserve_sources_list: false
+
+  late-commands:
+    - 'echo "packer ALL=(ALL) NOPASSWD:ALL" > /target/etc/sudoers.d/99-packer'
+    - 'chmod 0440 /target/etc/sudoers.d/99-packer'
+
+  # Reboot after install so Packer's SSH wait loop can connect.
+  shutdown: reboot

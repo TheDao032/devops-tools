@@ -1,0 +1,5 @@
+---
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+ansible_user: vagrant
+
+server_ip: "{{ hostvars[groups['server'][0]]['ansible_host'] }}"

@@ -1,0 +1,49 @@
+---
+# FIPS 140-3 toggles. Independent of CIS — can stack on top of any CIS profile.
+# RHEL 9: `fips-mode-setup --enable` then reboot. Ubuntu: requires Ubuntu Pro
+# subscription + `pro enable fips-updates`. The role assumes Ubuntu Pro is
+# already attached on hosts where compliance.fips_mode = true.
+
+- name: "FIPS | check current mode (RHEL)"
+  ansible.builtin.command: fips-mode-setup --check
+  register: fips_check
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == "RedHat"
+
+- name: "FIPS | enable on RHEL family"
+  ansible.builtin.command: fips-mode-setup --enable
+  when:
+    - ansible_os_family == "RedHat"
+    - fips_check.stdout is defined
+    - "'FIPS mode is enabled' not in fips_check.stdout"
+  notify: rebuild grub
+  changed_when: true
+
+- name: "FIPS | check Ubuntu Pro fips status"
+  ansible.builtin.command: pro status --format json
+  register: pro_status
+  changed_when: false
+  failed_when: false
+  when: ansible_os_family == "Debian"
+
+- name: "FIPS | warn if Ubuntu host is not on Pro"
+  ansible.builtin.fail:
+    msg: >-
+      Ubuntu host {{ inventory_hostname }} requires an attached Ubuntu Pro
+      subscription before fips_mode can be enabled. Run `pro attach <token>`
+      out-of-band, then re-run this playbook.
+  when:
+    - ansible_os_family == "Debian"
+    - pro_status.rc | default(1) != 0
+
+- name: "FIPS | system-wide crypto policy = FIPS (RHEL)"
+  ansible.builtin.command: update-crypto-policies --set FIPS
+  when: ansible_os_family == "RedHat"
+  changed_when: true
+
+- name: "FIPS | document that a reboot is required"
+  ansible.builtin.debug:
+    msg: >
+      FIPS mode applied. A reboot is required to take effect on
+      {{ inventory_hostname }}. Schedule via your maintenance window.

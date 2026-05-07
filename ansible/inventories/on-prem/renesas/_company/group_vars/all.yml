@@ -1,0 +1,37 @@
+---
+# Renesas company-level defaults.
+# TODO(operator): replace placeholder values with real Renesas on-prem details.
+
+tenant: renesas
+
+network:
+  ip_range: 10.42.0.0/16          # TODO: confirm
+  gateway: 10.42.0.1              # TODO
+  dns:
+    - 10.42.0.10                  # TODO
+    - 10.42.0.11                  # TODO
+  ntp:
+    - ntp.renesas.internal        # TODO
+
+proxy:
+  http:  http://proxy.renesas.internal:3128    # TODO
+  https: http://proxy.renesas.internal:3128
+  no_proxy: ".renesas.internal,10.42.0.0/16,127.0.0.1,localhost"
+
+package_mirrors:
+  apt: http://mirror.renesas.internal/ubuntu     # TODO
+  yum: http://mirror.renesas.internal/rhel       # TODO
+  pip_index: http://pypi.renesas.internal/simple
+  docker_registry: registry.renesas.internal:5000
+
+ssh:
+  bastion_host: bastion.renesas.internal       # TODO
+  user: ansible
+  port: 22
+
+# SSH banner shown on login — required by Renesas access policy
+login_banner: |
+  ============================================================
+  RENESAS ELECTRONICS — Authorized access only.
+  Activity is logged. Disconnect now if unauthorized.
+  ============================================================

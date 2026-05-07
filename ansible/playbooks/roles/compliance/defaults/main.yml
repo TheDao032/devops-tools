@@ -1,0 +1,21 @@
+---
+# compliance role — defaults. Override via group_vars or playbook vars.
+
+compliance:
+  profile: none                # one of: none, cis-l1, cis-l2
+  fips_mode: false
+  ssh_hardening: false
+  audit:
+    auditd_enabled: false
+    forward_to: ""             # empty -> local-only
+    rules_set: cis-l1
+  password_policy:
+    min_length: 12
+    history: 12
+    max_age_days: 90
+    min_age_days: 1
+    lockout_threshold: 10
+    lockout_unlock_time: 900
+  banner: "Authorized access only"
+  selinux_mode: enforcing      # RHEL family
+  apparmor_enabled: true       # Debian/Ubuntu family

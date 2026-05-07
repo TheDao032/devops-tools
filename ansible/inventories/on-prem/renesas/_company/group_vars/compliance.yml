@@ -1,0 +1,18 @@
+---
+# Renesas — compliance profile.
+# Stricter baseline than the cross-company default.
+
+compliance:
+  profile: cis-l2                  # CIS Benchmark Level 2 — server profile
+  audit:
+    auditd_enabled: true
+    forward_to: 10.42.0.20:514     # TODO: confirm syslog collector
+    rules_set: cis-l2              # which rules pack to load
+  fips_mode: true                  # FIPS 140-3 crypto required
+  ssh_hardening: true
+  password_policy:
+    min_length: 14
+    history: 24
+    max_age_days: 60
+    lockout_threshold: 5
+  banner: "RENESAS — Authorized access only"

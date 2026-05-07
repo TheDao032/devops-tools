@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  role_name: compliance
+  author: devops-tools
+  description: CIS Benchmark and FIPS 140-3 host hardening for on-prem fleets
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions: ["9"]
+    - name: Ubuntu
+      versions: ["jammy"]
+  galaxy_tags: [security, hardening, cis, fips, compliance]
+dependencies: []

@@ -1,0 +1,36 @@
+---
+# Bosch company-level defaults.
+# TODO(operator): replace placeholder values with real Bosch on-prem details.
+
+tenant: bosch
+
+network:
+  ip_range: 10.43.0.0/16          # TODO: confirm
+  gateway: 10.43.0.1              # TODO
+  dns:
+    - 10.43.0.10                  # TODO
+    - 10.43.0.11                  # TODO
+  ntp:
+    - ntp.bosch.internal          # TODO
+
+proxy:
+  http:  http://proxy.bosch.internal:8080      # TODO
+  https: http://proxy.bosch.internal:8080
+  no_proxy: ".bosch.internal,10.43.0.0/16,127.0.0.1,localhost"
+
+package_mirrors:
+  apt: http://mirror.bosch.internal/ubuntu     # TODO
+  yum: http://mirror.bosch.internal/rhel       # TODO
+  pip_index: http://pypi.bosch.internal/simple
+  docker_registry: registry.bosch.internal:5000
+
+ssh:
+  bastion_host: bastion.bosch.internal         # TODO
+  user: ansible
+  port: 22
+
+login_banner: |
+  ============================================================
+  BOSCH — Authorized access only.
+  All activity is recorded. Disconnect immediately if unauthorized.
+  ============================================================

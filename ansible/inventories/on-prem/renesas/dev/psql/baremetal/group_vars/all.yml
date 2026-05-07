@@ -1,0 +1,15 @@
+---
+# Renesas / dev / psql / baremetal — leaf-level overrides.
+
+postgres:
+  version: "16"
+  port: 5432
+  max_connections: 100
+  shared_buffers: "1GB"
+  effective_cache_size: "4GB"
+  ssl: false                  # dev only — never relax this in prod
+
+citus:
+  version: "12.1"
+  shard_count: 8
+  replication_factor: 1       # no replication in dev

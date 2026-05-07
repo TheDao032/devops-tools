@@ -1,0 +1,23 @@
+---
+# Renesas / prod / vault / baremetal — leaf-level overrides.
+
+vault:
+  version: "1.17.2"
+  storage: raft
+  raft_path: /opt/vault/data
+  ui: true
+  api_addr_template: "https://{{ ansible_host }}:8200"
+  cluster_addr_template: "https://{{ ansible_host }}:8201"
+  tls:
+    cert_file: /etc/vault.d/tls/vault.crt
+    key_file: /etc/vault.d/tls/vault.key
+    ca_file: /etc/vault.d/tls/ca.crt
+    min_version: "tls13"
+  seal:
+    type: transit                          # auto-unseal via Renesas KMS
+    address: https://kms.renesas.internal  # TODO: confirm
+    mount_path: transit/
+    key_name: vault-autounseal
+  audit:
+    enabled: true
+    path: /var/log/vault/audit.log

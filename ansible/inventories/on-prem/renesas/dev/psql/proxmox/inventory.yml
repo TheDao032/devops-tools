@@ -1,0 +1,16 @@
+# Renesas / dev / psql / proxmox — single-node Citus dev cluster on VMs.
+
+all:
+  children:
+    coordinator:
+      hosts:
+        renesas-psql-dev-pve-coord-1:
+          ansible_host: 10.42.41.11
+    worker:
+      hosts:
+        renesas-psql-dev-pve-worker-[1:2]:
+          ansible_host: "10.42.41.{{ 20 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+  vars:
+    proxmox_api_host: pve.renesas.internal     # TODO
+    proxmox_node: pve02                         # TODO
+    proxmox_storage: local-zfs                  # TODO

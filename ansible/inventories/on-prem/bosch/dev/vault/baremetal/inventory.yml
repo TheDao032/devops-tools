@@ -1,0 +1,13 @@
+# Bosch / dev / vault / baremetal — single-node Vault for dev/test.
+
+all:
+  children:
+    vault_server:
+      hosts:
+        bosch-vault-dev-1.dev.bosch.internal:
+          ansible_host: 10.43.32.11
+          vault_node_id: vault-dev-1
+  vars:
+    vault_cluster_name: bosch-dev-vault
+    vault_api_port: 8200
+    vault_cluster_port: 8201

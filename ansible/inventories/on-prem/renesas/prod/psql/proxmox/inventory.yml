@@ -1,0 +1,21 @@
+# Renesas / prod / psql / proxmox — VMs on company Proxmox cluster.
+# Static inventory; switch to dynamic once API token is provisioned.
+
+all:
+  children:
+    coordinator:
+      hosts:
+        renesas-psql-pve-coord-[1:2]:
+          ansible_host: "10.42.21.{{ 10 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+    worker:
+      hosts:
+        renesas-psql-pve-worker-[1:3]:
+          ansible_host: "10.42.21.{{ 20 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+    pgbouncer:
+      hosts:
+        renesas-psql-pve-pgb-[1:2]:
+          ansible_host: "10.42.21.{{ 4 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+  vars:
+    proxmox_api_host: pve.renesas.internal     # TODO
+    proxmox_node: pve01                         # TODO
+    proxmox_storage: ceph-pool                  # TODO

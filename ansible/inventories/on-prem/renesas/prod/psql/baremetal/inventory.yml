@@ -1,0 +1,43 @@
+# Renesas / prod / psql / baremetal — physical PostgreSQL hosts.
+# Citus coordinator + workers + repmgr standby. Mirror the topology used in
+# `ansible/playbooks/roles/postgresql/` (coordinator, worker, witness).
+#
+# Inventory layered above this:
+#   on-prem/_shared/group_vars/all.yml
+#   on-prem/renesas/_company/group_vars/{all,os,compliance}.yml
+#   THIS FILE (most specific)
+
+all:
+  children:
+    coordinator:
+      hosts:
+        renesas-psql-coord-1.prod.renesas.internal:
+          ansible_host: 10.42.11.11
+          repmgr_role: primary
+          repmgr_node_id: 1
+        renesas-psql-coord-2.prod.renesas.internal:
+          ansible_host: 10.42.11.12
+          repmgr_role: standby
+          repmgr_node_id: 2
+    worker:
+      hosts:
+        renesas-psql-worker-1.prod.renesas.internal:
+          ansible_host: 10.42.11.21
+        renesas-psql-worker-2.prod.renesas.internal:
+          ansible_host: 10.42.11.22
+        renesas-psql-worker-3.prod.renesas.internal:
+          ansible_host: 10.42.11.23
+    witness:
+      hosts:
+        renesas-psql-witness-1.prod.renesas.internal:
+          ansible_host: 10.42.11.30
+    pgbouncer:
+      hosts:
+        renesas-psql-pgb-1.prod.renesas.internal:
+          ansible_host: 10.42.11.5
+        renesas-psql-pgb-2.prod.renesas.internal:
+          ansible_host: 10.42.11.6
+  vars:
+    citus_cluster_name: renesas-prod
+    repmgr_cluster_name: renesas-prod
+    pgbouncer_virtual_ip: 10.42.11.100      # TODO: confirm VIP

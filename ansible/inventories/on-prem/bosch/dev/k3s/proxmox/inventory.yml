@@ -1,0 +1,16 @@
+# Bosch / dev / k3s / proxmox — small VM dev cluster.
+
+all:
+  children:
+    server:
+      hosts:
+        bosch-k3s-dev-pve-server-1:
+          ansible_host: 10.43.40.11
+    agent:
+      hosts:
+        bosch-k3s-dev-pve-agent-[1:2]:
+          ansible_host: "10.43.40.{{ 20 + (inventory_hostname | regex_search('[0-9]+$') | int) }}"
+  vars:
+    proxmox_api_host: pve.bosch.internal       # TODO
+    proxmox_node: pve02                         # TODO: dev node
+    proxmox_storage: local-zfs                  # TODO

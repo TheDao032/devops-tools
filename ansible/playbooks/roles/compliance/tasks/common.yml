@@ -1,0 +1,106 @@
+---
+# compliance/tasks/common.yml — baseline applied to every profile.
+# Idempotent. Triggers handlers; does not restart services inline.
+
+- name: "Common | install baseline hardening packages"
+  ansible.builtin.package:
+    name: "{{ item }}"
+    state: present
+  # Package names diverge between RHEL and Debian families. Keep the mapping
+  # in one place — adding a new package means one entry per family, not a
+  # ternary buried in the loop. Indexed by `ansible_os_family`:
+  #   RedHat  → RHEL, CentOS, Rocky, AlmaLinux
+  #   Debian  → Debian, Ubuntu
+  vars:
+    _baseline_pkgs:
+      RedHat:
+        - audit              # auditd daemon
+        - libpwquality       # pwquality library
+        - pam_pwquality      # PAM module
+        - openssh-server
+      Debian:
+        - auditd             # auditd daemon (note: name differs from RHEL's "audit")
+        - libpam-pwquality   # bundles libpwquality + PAM module on Debian
+        - openssh-server
+  loop: "{{ _baseline_pkgs[ansible_os_family] }}"
+
+- name: "Common | issue.net banner"
+  ansible.builtin.template:
+    src: issue.net.j2
+    dest: /etc/issue.net
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: "Common | enable banner in sshd"
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#?Banner '
+    line: 'Banner /etc/issue.net'
+    state: present
+    validate: 'sshd -t -f %s'
+  notify: reload sshd
+
+- name: "Common | apply password quality policy"
+  ansible.builtin.lineinfile:
+    path: /etc/security/pwquality.conf
+    regexp: "^{{ item.key }} ="
+    line: "{{ item.key }} = {{ item.value }}"
+    create: true
+    mode: '0644'
+  loop:
+    - { key: minlen,     value: "{{ compliance.password_policy.min_length }}" }
+    - { key: dcredit,    value: "-1" }
+    - { key: ucredit,    value: "-1" }
+    - { key: lcredit,    value: "-1" }
+    - { key: ocredit,    value: "-1" }
+    - { key: difok,      value: "8" }
+    - { key: maxrepeat,  value: "3" }
+
+- name: "Common | password aging policy in /etc/login.defs"
+  ansible.builtin.lineinfile:
+    path: /etc/login.defs
+    regexp: "^{{ item.key }} "
+    line: "{{ item.key }}\t{{ item.value }}"
+  loop:
+    - { key: PASS_MAX_DAYS, value: "{{ compliance.password_policy.max_age_days }}" }
+    - { key: PASS_MIN_DAYS, value: "{{ compliance.password_policy.min_age_days }}" }
+    - { key: PASS_WARN_AGE, value: "7" }
+
+- name: "Common | sshd hardening drop-in"
+  ansible.builtin.template:
+    src: sshd_hardening.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-hardening.conf
+    owner: root
+    group: root
+    mode: '0600'
+    validate: 'sshd -t -f %s'
+  when: compliance.ssh_hardening | bool
+  notify: reload sshd
+
+- name: "Common | auditd configured for remote forwarding (when enabled)"
+  ansible.builtin.lineinfile:
+    path: /etc/audit/auditd.conf
+    regexp: '^remote_server'
+    line: "remote_server = {{ compliance.audit.forward_to.split(':')[0] }}"
+  when:
+    - compliance.audit.auditd_enabled | bool
+    - compliance.audit.forward_to | length > 0
+  notify: restart auditd
+
+- name: "Common | render auditd rules"
+  ansible.builtin.template:
+    src: auditd-cis.rules.j2
+    dest: /etc/audit/rules.d/99-compliance.rules
+    owner: root
+    group: root
+    mode: '0640'
+  when: compliance.audit.auditd_enabled | bool
+  notify: restart auditd
+
+- name: "Common | enable auditd service"
+  ansible.builtin.service:
+    name: auditd
+    enabled: true
+    state: started
+  when: compliance.audit.auditd_enabled | bool

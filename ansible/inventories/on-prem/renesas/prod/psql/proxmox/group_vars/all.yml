@@ -1,0 +1,25 @@
+---
+# Renesas / prod / psql / proxmox — leaf-level overrides.
+# DB tuning is the same as baremetal; only provisioning hints differ.
+
+postgres:
+  version: "16"
+  port: 5432
+  max_connections: 500
+  shared_buffers: "8GB"
+  effective_cache_size: "24GB"
+  wal_level: replica
+  ssl: true
+
+citus:
+  version: "12.1"
+  shard_count: 32
+  replication_factor: 2
+
+proxmox_vm:
+  template: rhel-9-cloudinit-template      # TODO
+  cores: 8
+  memory_mb: 32768
+  disk_gb: 500
+  net_bridge: vmbr1
+  vlan_tag: 21                              # TODO

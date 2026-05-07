@@ -1,0 +1,16 @@
+# Bosch / dev / k3s / baremetal — small physical dev cluster.
+
+all:
+  children:
+    server:
+      hosts:
+        bosch-k3s-dev-server-1.dev.bosch.internal:
+          ansible_host: 10.43.30.11
+    agent:
+      hosts:
+        bosch-k3s-dev-agent-1.dev.bosch.internal:
+          ansible_host: 10.43.30.21
+        bosch-k3s-dev-agent-2.dev.bosch.internal:
+          ansible_host: 10.43.30.22
+  vars:
+    load_balancer_port: 6443
