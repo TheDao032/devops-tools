@@ -1,0 +1,30 @@
+---
+# Group: all — vars shared across every host in the scenario.
+
+ansible_user: packer                       # baked-box default user (Packer cloud-init created it)
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+# k3s wiring
+k3s_version: "v1.30.2+k3s1"
+api_port: 6443                             # k3s server kube-apiserver port
+load_balancer_port: 6445                   # HAProxy front for kube-apiserver
+http_port: 80
+https_port: 443
+
+# Topology fact: server-1's IP plays the role of the keepalived VIP for a
+# single-server scenario. (No VRRP failover; the var is reused so the
+# server-register / HAProxy roles work unchanged.)
+keepalived_virtual_ip: "10.43.50.10"
+keepalived_nw_interface: "eth1"            # virtualbox private network interface inside guest
+k3s_server_cidr_range: "10.43.50.0/24"
+
+# Environment label, consumed by server-register.vars.k3s_secrets_path etc.
+env: "local"
+
+# Optional: when set, server-register writes k3s creds to Vault at <env>/k3s/creds.
+# Left unset for the laptop scenario; vagrant-bosch-site.yml gates the block.
+# vault_cluster_addr: ""
+# vault_token: ""
+
+extra_server_args: ""
+extra_agent_args: ""

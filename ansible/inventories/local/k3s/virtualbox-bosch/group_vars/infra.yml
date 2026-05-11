@@ -1,0 +1,12 @@
+---
+# Group: infra — HAProxy host (collapsed onto server-1 in this scenario).
+
+# crt_path is referenced by k3s.haproxy.conf.j2 (line 1: `bind *:443 ssl crt {{ crt_path }}`).
+# self-signed-cert role is expected to populate this file before impl-config runs.
+crt_path: "/etc/haproxy/certs/k3s.pem"
+haproxy_conf_path: "/etc/haproxy"
+haproxy_firewall_services_dir: "/etc/firewalld/services"
+haproxy_firewall_xml:
+  - haproxy-http
+  - haproxy-https
+  - haproxy-https-k3s

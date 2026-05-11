@@ -1,0 +1,73 @@
+---
+# Vagrant-bosch tailored k3s playbook.
+#
+# Topology (matches devops-tools/vagrant/vagrant-files/kubernetes/k3s.virtualbox.Vagrantfile):
+#   etcd-1   (10.43.50.30) — reserved for future external etcd; touched by `dependencies` only
+#   server-1 (10.43.50.10) — k3s server (embedded etcd via --cluster-init) + HAProxy front
+#   agent-1  (10.43.50.20) — k3s agent
+#   agent-2  (10.43.50.21) — k3s agent
+#
+# Differences from the canonical site.yml:
+#   - keepalived play is OMITTED (single server-1, no VRRP failover needed)
+#   - external etcd is NOT installed (k3s uses embedded etcd; etcd-1 is a reserved VM)
+#   - the Vault-storage block in server-register is gated on vault_cluster_addr (added)
+#   - compliance role runs at end with tenant-injected vars (cis-l1, no fips, ssh hardening)
+
+- name: dependencies + kernel config (all hosts)
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s/common/dependencies
+    - role: ../roles/k3s/common/kennel-config
+
+- name: k3s server install (embedded etcd)
+  hosts: server
+  become: true
+  become_user: root
+  serial: 1
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s/server/server-register
+
+- name: HAProxy install on the server VM (single-server, no VRRP / keepalived)
+  hosts: infra
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s/load-balancer/haproxy/common
+    - role: ../roles/k3s/load-balancer/haproxy/self-signed-cert
+    - role: ../roles/k3s/load-balancer/haproxy/impl-config
+
+- name: k3s agent join (via HAProxy front on server-1)
+  hosts: agent
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s/agent/agent-register
+
+- name: tenant compliance hardening (cis-l1, ssh hardening)
+  # Skipped silently when `compliance` is not defined (e.g. ad-hoc invocations
+  # without TENANT set). The Vagrant ansible provisioner injects `compliance`
+  # via tenant.ansible_extra_vars (see vagrant/tenants/bosch/overrides.rb).
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Apply compliance role only when compliance is configured
+      ansible.builtin.include_role:
+        name: ../../roles/compliance
+      when:
+        - compliance is defined
+        - compliance.profile is defined

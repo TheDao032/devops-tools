@@ -1,10 +1,17 @@
-# vmware_fusion.rb
-require_relative '../vm'
-require_relative '../../utils/utils'
+# providers/vmware_fusion/vmware_fusion.rb
+#
+# Base class for VMware Fusion VM definitions. Subclassed by per-OS provider
+# files (ubuntu.rb, rhel.rb) which override `provision_vm`.
+#
+# Constructor argument order matches the call site in
+# infrastructure/vagrant_plan_applier.rb#build_vm (vmware_fusion branch):
+#   box, config, name, hostname, ip, network_mode, ports, provisioning_files,
+#   memory, cpus
+
+require_relative "../vm"
 
 class VMWareFusionVM < VM
-  attr_accessor :memory, :cpu, :disk_size, :box, :provider
-  include Utils
+  attr_accessor :box, :memory, :cpus, :provider_name
 
   def initialize(
     box,
@@ -16,29 +23,31 @@ class VMWareFusionVM < VM
     ports = [],
     provisioning_files = [],
     memory = 1024,
-    cpus = 1,
-    disk_size = 10
+    cpus = 1
   )
     super(config, name, hostname, ip, network_mode, ports, provisioning_files)
-    @box = box
-    @memory = memory
-    @cpus = cpus
-    @disk_size = disk_size
+    @box      = box
+    @memory   = memory
+    @cpus     = cpus
     @provider = "vmware_fusion"
   end
 
-  def provider(node)
-    raise NotImplementedError, "Subclasses must implement the define method"
+  def define(os, ip_nw, machines, os_system_info)
+    @config.vm.define @name do |node|
+      node.vm.box      = @box if @box && !@box.empty?
+      node.vm.hostname = @hostname
+
+      config_network(node, @network_mode)
+      forward_ports(node)
+      provision_files(node)
+      provider(node)
+
+      provision_vm(node, os, ip_nw, machines, os_system_info)
+    end
   end
 
-  # Runs provisioning steps that are required by masters and slaves
-  def provision_vm(node, os, ip_nw, machines, os_system_info)
-    raise NotImplementedError, "Subclasses must implement the define method"
-  end
-
-  def config_network(node)
-    # raise NotImplementedError, "Subclasses must implement the define method"
-    if @network_mode == 'BRIDGE'
+  def config_network(node, network_mode)
+    if network_mode == "BRIDGE"
       public_network(node)
     else
       private_network(node)
@@ -46,28 +55,23 @@ class VMWareFusionVM < VM
   end
 
   def public_network(node)
-    node.vm.network :public_network, type: "dhcp", bridge: get_bridge_adapter(@provider)
+    node.vm.network "public_network", ip: @ip, type: "dhcp"
   end
 
   def private_network(node)
-    node.vm.network :private_network, ip: @ip
-    forward_ports(node)
+    node.vm.network "private_network", ip: @ip
   end
 
-  def define(
-    os,
-    ip_nw,
-    machines,
-    os_system_info
-  )
-    @config.vm.define @name do |node|
-      node.vm.box = @box
-      provider(node)
-
-      node.vm.hostname = @hostname
-      config_network(node)
-      provision_vm(node, os, ip_nw, machines, os_system_info)
-      provision_files(node)
+  def provider(node)
+    node.vm.provider @provider do |v|
+      v.vmx["displayname"] = @name
+      v.vmx["memsize"]     = @memory.to_s
+      v.vmx["numvcpus"]    = @cpus.to_s
+      v.gui                = false
     end
+  end
+
+  def provision_vm(_node, _os, _ip_nw, _machines, _os_system_info)
+    # noop in base
   end
 end

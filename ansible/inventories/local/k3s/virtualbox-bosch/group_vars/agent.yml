@@ -1,0 +1,3 @@
+---
+# Group: agent — k3s worker nodes.
+# Joins via the HAProxy front URL declared in group_vars/all.yml.

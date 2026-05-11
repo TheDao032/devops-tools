@@ -50,6 +50,14 @@
         executable: /bin/bash
 
 - name: k3s secrets vault input
+  # Skip the entire Vault-storage block when no Vault endpoint is configured.
+  # Used by the Vagrant-bosch laptop scenario which doesn't run a Vault.
+  # Real on-prem inventories define both vars in group_vars and proceed normally.
+  when:
+    - vault_cluster_addr is defined
+    - vault_cluster_addr | length > 0
+    - vault_token is defined
+    - vault_token | length > 0
   block:
     # Step 1: Slurp the k3s.yaml file content
     - name: Slurp k3s.yaml file

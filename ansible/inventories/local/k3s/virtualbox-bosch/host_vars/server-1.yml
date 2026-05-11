@@ -1,0 +1,8 @@
+---
+# server-1: k3s server (embedded etcd) + HAProxy front for kube-apiserver.
+state: MASTER
+priority: 200
+interface: "{{ keepalived_nw_interface }}"
+auth_type: AH
+auth_pass: bosch                       # used by keepalived role's tasks; harmless when keepalived play is omitted
+virtual_ipaddress: "{{ keepalived_virtual_ip }}/24"

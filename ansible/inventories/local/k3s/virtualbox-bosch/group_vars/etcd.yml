@@ -1,0 +1,14 @@
+---
+# Group: etcd — reserved VM for future external etcd cluster.
+#
+# In the current 4-VM Vagrant scenario, k3s server-1 uses EMBEDDED etcd
+# via `--cluster-init` (see roles/k3s/server/server-register/files/server-register.sh).
+# The etcd-1 VM is provisioned but only receives the `dependencies` role
+# (apt update, base packages) — no etcd binary is installed yet.
+#
+# When wiring real external etcd later, this file will hold:
+#   etcd_version: "v3.5.x"
+#   etcd_data_dir: "/var/lib/etcd"
+#   etcd_listen_client_urls: "http://0.0.0.0:2379"
+#   etcd_advertise_client_urls: "http://10.43.50.30:2379"
+# and a new role roles/etcd/standalone/ will render the systemd unit.

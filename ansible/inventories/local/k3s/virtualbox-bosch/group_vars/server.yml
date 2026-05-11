@@ -1,0 +1,11 @@
+---
+# Group: server — k3s control-plane nodes.
+
+# server-register's defaults expect api_endpoint pointing at the first server.
+api_endpoint: "{{ hostvars[groups['server'][0]]['ansible_host'] | default(groups['server'][0]) }}"
+
+# psql datastore not used in this scenario (k3s uses embedded etcd via --cluster-init).
+# Left as defaults to satisfy server-register's vars/main.yml interpolations.
+psql_k3s_port: 5432
+psql_k3s_user: "k3s"
+psql_k3s_pass: "k3s"

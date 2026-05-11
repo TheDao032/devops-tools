@@ -1,0 +1,35 @@
+---
+# Static inventory for the Vagrant-bosch k3s scenario.
+# Mirrors the 4-VM topology in
+#   vagrant/vagrant-files/kubernetes/k3s.virtualbox.Vagrantfile
+#
+# In the Vagrant flow, the `ansible` provisioner auto-generates an inventory
+# with these same hosts/groups; this static file is used by manual
+# `ansible-inventory --list` checks and by `ansible-playbook -i ...` invocations
+# from the host outside Vagrant (e.g. re-running just the compliance play).
+
+all:
+  hosts:
+    etcd-1:
+      ansible_host: 10.43.50.30
+    server-1:
+      ansible_host: 10.43.50.10
+    agent-1:
+      ansible_host: 10.43.50.20
+    agent-2:
+      ansible_host: 10.43.50.21
+  children:
+    etcd:
+      hosts:
+        etcd-1:
+    server:
+      hosts:
+        server-1:
+    infra:
+      # HAProxy lives on the same VM as server-1 in this scenario.
+      hosts:
+        server-1:
+    agent:
+      hosts:
+        agent-1:
+        agent-2:

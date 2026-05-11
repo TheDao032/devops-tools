@@ -72,10 +72,14 @@ module VagrantApplication
     end
 
     def build_ports(ports, index)
+      # Block form is LAZY — :host_base is only fetched when :host is absent.
+      # The 2-arg form `fetch(:host, default)` evaluates `default` eagerly,
+      # which fails when callers omit :host_base on purpose (single-VM groups
+      # that want exact host ports).
       ports.map do |port|
         {
           guest: port.fetch(:guest),
-          host: port.fetch(:host, port.fetch(:host_base).to_i + index)
+          host: port.fetch(:host) { port.fetch(:host_base).to_i + index }
         }
       end
     end
@@ -90,6 +94,14 @@ module VagrantApplication
     end
 
     def default_files_for(os_name)
+      # Cosmetic dotfile copies (.tmux.conf, .vimrc). The Vagrant `file`
+      # provisioner uses an SSH-over-net-ssh path that is known to deadlock
+      # intermittently on macOS host + ed25519 key + VirtualBox guest. For
+      # k3s scenarios these files aren't needed (Ansible runs from the
+      # host and writes whatever it needs to).
+      #
+      # Set VAGRANT_INCLUDE_DOTFILES=1 to opt back in.
+      return [] unless ENV["VAGRANT_INCLUDE_DOTFILES"] == "1"
       [
         { source: "./configuration/os/#{os_name}/.tmux.conf", destination: "$HOME/.tmux.conf" },
         { source: "./configuration/os/#{os_name}/.vimrc", destination: "$HOME/.vimrc" }
