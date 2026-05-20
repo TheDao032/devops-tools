@@ -5,9 +5,13 @@ boot already-compliant rather than running compliance hardening at first-boot.
 The same Ansible compliance role used by `deployments/ansible/on-prem/<tenant>/...`
 is invoked at bake time so there is **one source of truth for hardening**.
 
+> 👉 **Start here**: **[`docs/end-to-end-guide.md`](docs/end-to-end-guide.md)** is
+> the single comprehensive reference — from fresh-machine setup through
+> release, troubleshooting, and cleanup. Read it first.
+
 > **arm64 + bosch uses a two-stage build** (stage 1 = OS install, stage 2 =
-> ansible hardening) for fast ansible iteration. Full step-by-step workflow
-> is in **[`docs/BUILD-WORKFLOW.md`](docs/BUILD-WORKFLOW.md)**. The
+> ansible hardening) for fast ansible iteration. Two-stage internals are in
+> **[`docs/BUILD-WORKFLOW.md`](docs/BUILD-WORKFLOW.md)**. The
 > sections below describe the legacy monolith model still used for x86
 > (renesas, bosch-amd64) — same concepts, single-pass.
 
