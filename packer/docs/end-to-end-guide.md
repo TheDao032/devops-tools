@@ -24,6 +24,9 @@ When this doc and the topic docs disagree, **this doc wins** (it was last revise
 ## Table of contents
 
 - [Quick reference card](#quick-reference-card)
+- [Returning after a long break? 60-second resume protocol](#returning-after-a-long-break-60-second-resume-protocol)
+- [Decision tree — "what do I want to do?"](#decision-tree--what-do-i-want-to-do)
+- [Architecture at a glance (ASCII diagram)](#architecture-at-a-glance-ascii-diagram)
 - [Part 0 — Concepts (2-minute mental model)](#part-0--concepts-2-minute-mental-model)
 - [Part I — First-time setup](#part-i--first-time-setup)
   - [I.1 Hardware + OS prerequisites](#i1-hardware--os-prerequisites)
@@ -48,6 +51,10 @@ When this doc and the topic docs disagree, **this doc wins** (it was last revise
   - [IV.3 Release](#iv3-release)
   - [IV.4 Provider-slot semantics — qemu vs libvirt](#iv4-provider-slot-semantics--qemu-vs-libvirt)
 - [Part V — Cleanup](#part-v--cleanup)
+- [Versioning & release policy](#versioning--release-policy)
+- [Security & secret handling](#security--secret-handling)
+- [Adding a new tenant](#adding-a-new-tenant)
+- [Release rollback & deprecation](#release-rollback--deprecation)
 - [Part VI — Troubleshooting & lessons learned](#part-vi--troubleshooting--lessons-learned)
   - [VI.1 Boot-time issues](#vi1-boot-time-issues)
   - [VI.2 Network-time issues](#vi2-network-time-issues)
@@ -60,6 +67,9 @@ When this doc and the topic docs disagree, **this doc wins** (it was last revise
 - [Appendix B — Command cheat sheet](#appendix-b--command-cheat-sheet)
 - [Appendix C — Environment variable reference](#appendix-c--environment-variable-reference)
 - [Appendix D — Further reading & memory pointers](#appendix-d--further-reading--memory-pointers)
+- [Appendix E — First-release checklist (printable)](#appendix-e--first-release-checklist-printable)
+- [Appendix F — Glossary](#appendix-f--glossary)
+- [Appendix G — Time & cost reference](#appendix-g--time--cost-reference)
 
 ---
 
@@ -103,6 +113,178 @@ git add packer/ && git commit -m "release ${NEW_VER}: <reason>"
 git tag -a "bosch-arm64-${NEW_VER}" -m "release notes…"
 git push && git push --tags
 ```
+
+---
+
+## Returning after a long break? 60-second resume protocol
+
+If it's been weeks/months and your brain is empty, do these four things in
+order — total time ~60 seconds — and you'll be operational:
+
+1. **Read this section's Part 0** (below) — 2 min refresher on the layers.
+2. **Check what's current on the registry**:
+   ```bash
+   vagrant cloud box show nthedao2705/ubuntu2204-cisl1-arm64
+   ```
+   The `Current Version` line tells you the last released version.
+3. **Check what's in your local output**:
+   ```bash
+   ls -1 ~/Projects/Infrastrutures/devops-tools/packer/output/bosch/arm64/qemu/
+   ```
+   If the latest version on disk matches the registry's `Current Version`,
+   nothing new needs to ship. If you have an unreleased version locally
+   (no matching registry version), use [Part IV](#part-iv--publish--release).
+4. **Check the latest commit in the repo**:
+   ```bash
+   cd ~/Projects/Infrastrutures/devops-tools && git log --oneline -5
+   git tag -l 'bosch-arm64-*' | sort | tail -3
+   ```
+   The tag matches the released version. The commit message captures what
+   was fixed/changed.
+
+Now you know: (a) what's live on the registry, (b) what you have locally,
+(c) what changed since the last release. Jump to whichever Part below is
+relevant.
+
+---
+
+## Decision tree — "what do I want to do?"
+
+| Goal | Section |
+|---|---|
+| First time on this machine — install everything | [Part I](#part-i--first-time-setup) |
+| Re-bake to apply Ansible-only fixes (no OS change) | [Part II.3](#ii3-bake-stage-2-hardened--every-release) — `STAGE=hardened` |
+| Refresh the base OS (new Ubuntu point release, CVE) | [Part II.2](#ii2-bake-stage-1-base--one-time-monthly-refresh) — `STAGE=base` then `STAGE=hardened` |
+| Test a freshly-baked .box without uploading | [Part III Tier A](#iii1-tier-a--direct-qemu-bypass-vagrant) + [Tier B](#iii2-tier-b--vagrant-integration-consumer-parity) |
+| Upload but NOT release (smoke as consumer first) | [Part IV.2](#iv2-upload-unreleased) without `--release` |
+| Release an already-uploaded version | [Part IV.3](#iv3-release) with `--release` |
+| Verify a released version works for a real consumer | [Part III Tier C](#iii3-tier-c--registry-consumer-simulation-post-release-only) |
+| Add a new tenant (e.g. `acme`) | [Adding a new tenant](#adding-a-new-tenant) |
+| Roll back / deprecate a bad release | [Release rollback & deprecation](#release-rollback--deprecation) |
+| Diagnose `vagrant up` hanging / failing | [Part VI](#part-vi--troubleshooting--lessons-learned) — pick the layer it's failing at |
+| Pick a new version number | [Versioning & release policy](#versioning--release-policy) |
+| Rotate / regenerate the bake-time SSH key | [Security & secret handling](#security--secret-handling) |
+| Clean up disk / cache after a release | [Part V](#part-v--cleanup) |
+
+---
+
+## Architecture at a glance (ASCII diagram)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         WHAT THIS REPO PRODUCES                              │
+│                                                                              │
+│  Ubuntu 22.04 ARM64 server ISO  ──┐                                          │
+│  (~1.5 GB, from cdimage.ubuntu)   │                                          │
+│                                   ▼                                          │
+│                            ┌──────────────┐                                  │
+│                            │  STAGE 1     │  ~15 min, monthly refresh        │
+│                            │  base bake   │  packer/templates/               │
+│                            │              │   ubuntu2204-arm64-base.pkr.hcl  │
+│                            │  • cloud-init│                                  │
+│                            │    autoinstall│                                 │
+│                            │  • bake user │                                  │
+│                            │    'packer'  │                                  │
+│                            │  • SSH key   │                                  │
+│                            └──────┬───────┘                                  │
+│                                   │                                          │
+│                                   ▼                                          │
+│                       base qcow2 (~5 GB) + efivars.fd                       │
+│                       output/base/ubuntu2204-arm64/YYYY-MM-DD/               │
+│                                                                              │
+│                                   │ (reused for many hardened bakes)         │
+│                                   ▼                                          │
+│                            ┌──────────────┐                                  │
+│                            │  STAGE 2     │  ~3 min per release              │
+│                            │ hardened bake│  packer/templates/               │
+│                            │              │   bosch-ubuntu2204-arm64-        │
+│                            │              │   hardened.pkr.hcl               │
+│                            │  • ansible   │                                  │
+│                            │    compliance│  playbooks/packer-bake.yml       │
+│                            │    role      │                                  │
+│                            │  • 3 post-   │  (UEFI fallback +                │
+│                            │    tasks     │   vagrant key +                  │
+│                            │              │   image-metadata stamp)          │
+│                            └──────┬───────┘                                  │
+│                                   │                                          │
+│                                   ▼                                          │
+│       ┌─── shell-local post-processor ───┐                                   │
+│       │  • tar { metadata.json,          │  templates/                       │
+│       │          Vagrantfile,            │   box-vagrantfile.qemu.rb        │
+│       │          box.img,                │   (the embedded                   │
+│       │          efivars.fd }            │    consumer-side Vagrantfile)    │
+│       │  • metadata.json provider:libvirt│                                   │
+│       └────────────────┬─────────────────┘                                   │
+│                        ▼                                                     │
+│             .box bundle (~1.4 GB)                                            │
+│             output/bosch/arm64/qemu/YYYY-MM-DD.N/                            │
+│                                                                              │
+│                        │ (smoke-test locally — Tiers A & B)                  │
+│                        ▼                                                     │
+│             ┌──────────────────────┐                                         │
+│             │  publish.sh          │  scripts/publish.sh                     │
+│             │  • box create        │                                         │
+│             │  • version create    │                                         │
+│             │  • provider create   │   provider=qemu  AND  provider=libvirt │
+│             │  • upload x2         │   (same .box file, two registry slots)  │
+│             │  • release (--force) │                                         │
+│             └──────────┬───────────┘                                         │
+│                        ▼                                                     │
+│             HCP Vagrant Registry                                             │
+│             nthedao2705/ubuntu2204-cisl1-arm64@YYYY-MM-DD.N                  │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+                         ▼
+                  Consumer: macOS Apple Silicon engineer
+
+                  $ vagrant plugin install vagrant-qemu
+                  $ vagrant init nthedao2705/ubuntu2204-cisl1-arm64
+                  $ vagrant up --provider qemu
+                  ==> default: Machine booted and ready!
+```
+
+### Three-layer provider naming (the most confusing part)
+
+```
+                                LAYER 1
+        ┌───────────────────────────────────────────────────┐
+        │  metadata.json inside the .box                    │
+        │    {"provider":"libvirt", ...}    ← box FORMAT    │
+        │                                                   │
+        │  Read by `vagrant box add` to decide              │
+        │  WHERE to cache the box.                          │
+        └───────────────────────────────────────────────────┘
+
+                                LAYER 2
+        ┌───────────────────────────────────────────────────┐
+        │  Registry provider slot on HCP                    │
+        │    provider=qemu     ← uploaded to BOTH slots     │
+        │    provider=libvirt  ← (same .box file)           │
+        │                                                   │
+        │  The vagrant-qemu plugin queries `libvirt`        │
+        │  internally when consumer says --provider qemu.   │
+        │  Uploading to ONLY qemu → registry pull 404s.     │
+        │  Uploading to BOTH → belt-and-braces.             │
+        └───────────────────────────────────────────────────┘
+
+                                LAYER 3
+        ┌───────────────────────────────────────────────────┐
+        │  Embedded Vagrantfile inside the .box             │
+        │    config.vm.provider :qemu do |qe| ... end       │
+        │                                                   │
+        │  Tells consumer-side Vagrant which provider       │
+        │  plugin to activate. THE ONLY place 'qemu'        │
+        │  appears in the bundle.                           │
+        └───────────────────────────────────────────────────┘
+
+           LAYER 1 = libvirt   (box format)
+           LAYER 2 = libvirt + qemu  (registry, both slots)
+           LAYER 3 = qemu      (consumer plugin)
+```
+
+If any single layer is wrong, the consumer flow breaks in a different way.
+See [VI.5.3](#vi53-the-box-youre-attempting-to-add-doesnt-support-the-provider-you-requested)
+and [VI.6.2](#vi62-vagrant-up-from-registry-says-box-doesnt-support-provider-libvirt).
 
 ---
 
@@ -557,6 +739,305 @@ ls -la ~/Projects/Infrastrutures/devops-tools/packer/output/bosch/arm64/qemu/
 find ~/Projects/Infrastrutures/devops-tools/packer/output -name '*.bak*'
 # Decide whether to keep or remove
 ```
+
+---
+
+## Versioning & release policy
+
+### Version format
+
+```
+YYYY-MM-DD.N
+└─────┬──────┘
+      │
+      └── N is a same-day rebuild counter, starting at 1.
+          First release of a day: 2026-05-20.1
+          Second release of a day: 2026-05-20.2
+          Third release of a day: 2026-05-20.3
+```
+
+Why date-based and not semver? Because:
+1. There's no API surface between consumers and the box — semver's "major
+   breaks compatibility" doesn't translate. Consumers just want a date.
+2. Date sorts naturally as ASCII — `2026-05-20.1` < `2026-05-21.1` < `2026-06-01.1`.
+3. Easy to correlate to a known event ("the May 20 release fixed X").
+
+### When to bump a new version vs. re-upload
+
+| Change | Bump version? | Why |
+|---|---|---|
+| Ansible role change | ✅ Yes — `STAGE=hardened` rebuild | Image content changed |
+| Embedded Vagrantfile change (`box-vagrantfile.qemu.rb`) | ✅ Yes — `STAGE=hardened` rebuild | Box content changed |
+| `packer-bake.yml` post-task addition | ✅ Yes — `STAGE=hardened` rebuild | Image content changed |
+| `publish.sh` change (no image change) | ❌ No | Just re-run publish.sh against existing artifacts |
+| Doc-only change | ❌ No | No artifact involved |
+| `BUILD-WORKFLOW.md` / `end-to-end-guide.md` | ❌ No | Doc-only |
+| Base OS refresh (`STAGE=base`) | ✅ Yes — and ideally also `STAGE=hardened` to pick up the new base | Image content changed |
+
+### Once-released, can't-be-edited rule
+
+The HCP Vagrant Registry **does not allow editing a released version's
+artifacts**. Once you `--release`, the bytes on the registry are immutable.
+If you discover a bug in a released version:
+
+- ✅ Cut a new version (`2026-05-20.2`)
+- ❌ Don't try to re-upload over the released version (HCP returns 422)
+- 🟡 Optional: deprecate the bad version in the HCP web UI (see [Release rollback & deprecation](#release-rollback--deprecation))
+
+### Pre-release versions
+
+Use `--release` only after BOTH Tier A and Tier B pass. You can upload as
+many `unreleased` versions as you want — they're invisible to anonymous
+`vagrant box` lookups. Pinning works for authenticated lookups:
+
+```ruby
+config.vm.box_version = "2026-05-20.2"   # Only resolvable by HCP-authed pulls
+```
+
+### Retention policy
+
+| Where | Retention | Why |
+|---|---|---|
+| HCP Vagrant Registry | Keep all releases forever (no automatic cleanup) | Audit trail; can refer back |
+| Local `output/bosch/arm64/qemu/<version>/` | Keep 2 most recent released versions | Cheap insurance against needing to repack |
+| Local `output/base/ubuntu2204-arm64/<date>/` | Keep 1 most recent | Refreshed monthly anyway |
+| Build logs `/tmp/bake-*.log` | Keep until next session | Disposable |
+| Backups `output/.../*.bak2` | Delete after the next release ships clean | They were a safety net during the broken-release iteration |
+
+🟡 Manually deprecate old versions in HCP UI after ~6 months, to nudge
+consumers off ancient releases without breaking their existing setups.
+
+---
+
+## Security & secret handling
+
+### Files that must NEVER be committed
+
+| File | Contains | If leaked |
+|---|---|---|
+| `keys/packer_ed25519` | Bake-time SSH private key | Attacker with this key could SSH into any unreleased / pre-rotation VM during a bake |
+| `~/.zshrc` exports (`HCP_CLIENT_ID`, `HCP_CLIENT_SECRET`) | HCP IAM service principal credentials | Attacker can publish/release/delete any box in the registry |
+| `output/**/*.qcow2` | The raw VM image including its ssh host keys | The host keys are unique per VM but leak the system's hardening profile |
+| `packer/.env` (if you create one) | Likely contains creds | Same as zshrc |
+
+The `.gitignore` covers `keys/`, `output/`, `*.qcow2`, `*.box`, `.env`, but
+verify with `git status` before any commit. **If you accidentally commit a
+secret**: rotate it immediately (regen new keypair or HCP service principal
+key), force-purge from history (`git filter-repo`), and notify whoever
+has the repo.
+
+### Public knowledge (safe to commit)
+
+- **Vagrant insecure RSA pubkey** in `playbooks/packer-bake.yml`. This is
+  HashiCorp's well-known public key; shipped with every Vagrant install.
+- **Vagrant insecure RSA private key** is also public (lives at
+  `~/.vagrant.d/insecure_private_keys/vagrant.key.rsa` in every Vagrant
+  install). It exists ONLY to bootstrap the consumer flow; Vagrant replaces
+  it with a generated keypair on first boot (`insert_key = true` default).
+- **Bake-time public key** `keys/packer_ed25519.pub` — gitignored anyway,
+  but it's safe to share.
+
+### Rotating the HCP service principal
+
+If credentials leak (or every 90 days as good hygiene):
+
+1. HCP portal → org → **Access control (IAM)** → **Service principals**
+2. Pick the service principal → **Service principal keys**
+3. **Generate new key** — save client_id + client_secret immediately
+4. **Revoke old key** in the same panel
+5. Update `~/.zshrc` exports with the new pair
+6. Verify: `./scripts/publish.sh bosch <version> --providers qemu --dry-run` should print `==> auth: HCP service principal`
+
+### Rotating the bake-time SSH keypair
+
+```bash
+cd ~/Projects/Infrastrutures/devops-tools/packer
+
+# Rename the old one (keep it briefly in case you need to SSH into the old image)
+mv keys/packer_ed25519     keys/packer_ed25519.old
+mv keys/packer_ed25519.pub keys/packer_ed25519.old.pub
+
+# Generate new
+ssh-keygen -t ed25519 -f keys/packer_ed25519 -N '' -C "packer-bake@$(hostname -s)"
+chmod 600 keys/packer_ed25519
+
+# Rebuild next time you bake — the new key is auto-rendered into http/user-data
+# by build.sh from http/user-data.tmpl
+```
+
+The new key is automatically picked up by the next bake. The next-released
+.box will have the new key authorized; consumers don't see this key at all
+(Vagrant insecure RSA is what they authenticate with).
+
+After ~1 release: delete `keys/packer_ed25519.old{,.pub}`.
+
+### Audit trail
+
+Every release leaves a paper trail:
+
+| Artifact | Where | What |
+|---|---|---|
+| Git commit + tag | `git log --oneline`, `git tag -l 'bosch-arm64-*'` | What changed in source between releases |
+| Bake log | `/tmp/bake-<version>.log` (temporary) | Ansible task-by-task output |
+| Publish log | `/tmp/publish-<version>.log` (temporary) | Upload progress + API responses |
+| Image metadata | `/etc/image-metadata` INSIDE the VM | Tenant, profile, FIPS, version, baked_at, OS info |
+| Registry version metadata | `vagrant cloud box show <box>` | Created/Updated timestamps per version |
+
+For SOC2/compliance evidence, the most authoritative single source is the
+`/etc/image-metadata` file — it's stamped into the qcow2 by the
+`packer-bake.yml` `post_tasks` and inspectable from any running VM.
+
+---
+
+## Adding a new tenant
+
+If you need to ship a new tenant (e.g. `acme`) using the same arm64
+hardened-Ubuntu recipe, here's the copy-paste-edit recipe:
+
+### Files to create
+
+1. **`variables/acme-arm64.pkrvars.hcl`** — copy from `bosch-arm64.pkrvars.hcl`:
+   ```bash
+   cp variables/bosch-arm64.pkrvars.hcl variables/acme-arm64.pkrvars.hcl
+   ```
+   Edit:
+   - `tenant = "acme"` (was `"bosch"`)
+   - `image_name_prefix = "acme-ubuntu2204-cisl1-arm64"` (was `"bosch-…"`)
+   - `login_banner = "Authorized access only — ACME"` (was `…BOSCH"`)
+   - Adjust `output_base_dir` if needed (default segments by tenant)
+
+2. **`templates/acme-ubuntu2204-arm64-hardened.pkr.hcl`** — copy from `bosch-…`:
+   ```bash
+   cp templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl \
+      templates/acme-ubuntu2204-arm64-hardened.pkr.hcl
+   ```
+   Edit:
+   - source labels (`source "qemu" "bosch-…"` → `source "qemu" "acme-…"`)
+   - `only` filters in post-processors (`bosch-ubuntu2204-arm64` → `acme-…`)
+
+3. **`scripts/build.sh`** — add `acme` to the tenant dispatch
+   (look for the case statement around line 165).
+
+### Decide: same compliance profile or different?
+
+If acme also needs CIS-L1, the existing `playbooks/packer-bake.yml` works
+unchanged — it reads `COMPLIANCE_PROFILE` from env. If acme needs CIS-L2 or
+FIPS, the play already handles those via the same env var:
+
+```bash
+COMPLIANCE_PROFILE=cis-l2 FIPS_MODE=true \
+ARCH=arm64 STAGE=hardened \
+  ./scripts/build.sh acme qemu 2026-05-20.1
+```
+
+### Registry slot
+
+Each tenant needs its own HCP Vagrant Registry box. Either:
+- **Same registry slug**: ship `nthedao2705/acme-ubuntu2204-cisl1-arm64`
+  alongside bosch. `VAGRANT_CLOUD_ORG` unchanged.
+- **Different registry slug**: requires creating a new registry in HCP. More
+  isolation, more setup.
+
+The publish.sh script accepts an env var override:
+```bash
+BOX_NAME="acme-ubuntu2204-cisl1-arm64" \
+  ./scripts/publish.sh acme 2026-05-20.1 --providers qemu --release
+```
+
+### What you do NOT need to change
+
+- The `compliance` Ansible role itself (it's tenant-agnostic)
+- `box-vagrantfile.qemu.rb` (per-box defaults are the same)
+- `packer-bake.yml` (env-driven; reads `TENANT` for the metadata stamp)
+- The smoke harness (`smoke-vagrant.sh` takes the box name as input)
+
+### Smoke + publish
+
+Identical to the bosch flow ([Part III](#part-iii--smoke-test-workflow) +
+[Part IV](#part-iv--publish--release)), just substitute `bosch` → `acme`
+everywhere.
+
+---
+
+## Release rollback & deprecation
+
+### "I just released a broken version" recovery
+
+The HCP Vagrant Registry doesn't support **deleting** a released version, but
+it does support **deprecation** and **revoking the released status**.
+
+Two recovery paths:
+
+**A. Quick fix — ship a new release**
+The fastest, lowest-risk path. Most consumers automatically pull the latest
+version on next `vagrant up`, so they'll get the fix on their next box update.
+
+```bash
+# Bump version (same-day .2)
+export NEW_VER=$(date +%F).2
+
+# Apply your fix to source, then:
+ARCH=arm64 STAGE=hardened ./scripts/build.sh bosch qemu $NEW_VER
+./scripts/publish.sh bosch $NEW_VER --providers qemu --release
+```
+
+Consumers running `vagrant box update` (or fresh `vagrant up`s) pick up
+the new version automatically.
+
+**B. Revoke + deprecate**
+For when consumers absolutely must NOT use the bad version (security issue,
+data loss risk).
+
+```bash
+# 1. Revoke the released state — version goes back to 'unreleased'
+vagrant cloud version revoke nthedao2705/ubuntu2204-cisl1-arm64 2026-05-20.1
+
+# 2. Verify
+vagrant cloud box show nthedao2705/ubuntu2204-cisl1-arm64
+# expect: "Current Version" rolls back to the prior released version
+
+# 3. Optional: Add a deprecation note via the HCP web UI
+#    Portal → Box → Version → Edit description → "DEPRECATED: …"
+```
+
+Revoking does NOT delete the artifact — anyone who already pulled it will
+keep it cached. But it does prevent NEW pulls.
+
+**C. Force-pin consumers**
+If you can't reach all consumers and need to ensure they don't pull
+the bad version, the only mechanism is `vagrant box update` running
+against a known-good version. There's no server-side "block this version"
+short of revoke (B).
+
+### Roll-forward vs. roll-back philosophy
+
+This project prefers **roll-forward** (option A). Reasons:
+- Boxes are content-addressable by version. You can't "edit" a published box.
+- Most consumers re-pull on a regular cadence. A new version reaches them
+  within hours of release.
+- Revoke (B) is a partial measure — already-cached consumers don't notice.
+
+Use B only when the bad version is actively dangerous (FIPS broken, sshd
+listening on the wrong interface, etc.).
+
+### Bookkeeping after a rollback
+
+If you revoke 2026-05-20.1 in favor of 2026-05-20.2:
+
+```bash
+# Tag the new fix release
+git tag -a "bosch-arm64-2026-05-20.2-fix-X" \
+  -m "Supersedes bosch-arm64-2026-05-20.1 (revoked, see release notes)"
+
+# Annotate the old tag in its message — git tag is append-only, so:
+git tag -d bosch-arm64-2026-05-20.1
+git tag -a bosch-arm64-2026-05-20.1 \
+  -m "REVOKED — superseded by bosch-arm64-2026-05-20.2-fix-X. Reason: <X>"
+git push --tags --force-with-lease
+```
+
+🟡 `--force-with-lease` on tags is destructive. If anyone has pulled the
+tag, they'll need to refetch. Coordinate before doing this.
 
 ---
 
@@ -1306,6 +1787,168 @@ git push && git push --tags
 - **HCP IAM service principals**: https://developer.hashicorp.com/hcp/docs/hcp/iam/service-principal
 - **CIS Ubuntu 22.04 Benchmark v2.0**: https://www.cisecurity.org/benchmark/ubuntu_linux
 - **chef/bento (Vagrant box reference repo)**: https://github.com/chef/bento
+
+---
+
+---
+
+## Appendix E — First-release checklist (printable)
+
+For someone shipping their FIRST release of this box. Copy this into a
+scratchpad and check off as you go. Each item links to the relevant section.
+
+### Pre-flight (one-time)
+- [ ] Apple Silicon Mac with ≥30 GB free disk, ≥8 GB RAM — [I.1](#i1-hardware--os-prerequisites)
+- [ ] `brew install packer qemu ansible coreutils jq gnu-tar netcat socat` — [I.2](#i2-install-macos-dependencies)
+- [ ] `brew install --cask vagrant` — [I.2](#i2-install-macos-dependencies)
+- [ ] `vagrant plugin install vagrant-qemu` — [I.3](#i3-install-vagrant-plugins)
+- [ ] `ansible-galaxy collection install ansible.posix community.general` — [I.4](#i4-install-ansible-collections)
+- [ ] HCP service principal created, client_id + client_secret saved — [I.5](#i5-set-up-hcp-vagrant-registry-auth)
+- [ ] `~/.zshrc` exports: `HCP_CLIENT_ID`, `HCP_CLIENT_SECRET`, `VAGRANT_CLOUD_ORG=nthedao2705` (registry slug, not HCP org slug) — [I.5](#i5-set-up-hcp-vagrant-registry-auth)
+- [ ] Repo cloned to `~/Projects/Infrastrutures/devops-tools/` (NOT `~/Documents`) — [I.6](#i6-clone--bootstrap-the-repo)
+- [ ] `keys/packer_ed25519` exists with mode 600 — [I.7](#i7-generate-the-bake-time-ssh-keypair)
+- [ ] Existing base image at `output/base/ubuntu2204-arm64/<date>/` (or plan to do Stage 1) — [II.2](#ii2-bake-stage-1-base--one-time-monthly-refresh)
+
+### Build
+- [ ] Picked `NEW_VER` (date.N format) — [Versioning & release policy](#versioning--release-policy)
+- [ ] `BASE_VERSION` exported and confirmed
+- [ ] `./scripts/build.sh bosch qemu $NEW_VER` ran clean — [II.3](#ii3-bake-stage-2-hardened--every-release)
+- [ ] Bake log shows all 3 fix tasks (UEFI fallback, vagrant key, image-metadata) — [II.3 watch markers](#ii3-bake-stage-2-hardened--every-release)
+- [ ] `output/.../*.box` exists, contains 4 files (`metadata.json`, `Vagrantfile`, `box.img`, `efivars.fd`) — [II.4](#ii4-what-gets-produced-and-where)
+- [ ] metadata.json shows `provider:libvirt` (NOT qemu), `virtual_size` is non-zero — [II.4](#ii4-what-gets-produced-and-where)
+
+### Smoke (must do BEFORE release)
+- [ ] Tier A: `./smoke/.../verify-bake-fixes.sh $NEW_VER` shows 3/3 PASS — [III.1](#iii1-tier-a--direct-qemu-bypass-vagrant)
+- [ ] Tier B: copied `Vagrantfile.stripped` → `Vagrantfile`, `./smoke/.../smoke-vagrant.sh` PASS — [III.2](#iii2-tier-b--vagrant-integration-consumer-parity)
+- [ ] Tier B output included "Vagrant insecure key detected. Vagrant will automatically replace..." — proves Fix #3 — [III.2](#iii2-tier-b--vagrant-integration-consumer-parity)
+
+### Publish
+- [ ] `echo $HCP_CLIENT_ID` returns a value
+- [ ] `./scripts/publish.sh bosch $NEW_VER --providers qemu` (no --release yet) — [IV.2](#iv2-upload-unreleased)
+- [ ] Publish log shows uploads to BOTH qemu and libvirt provider slots
+- [ ] `vagrant cloud box show nthedao2705/ubuntu2204-cisl1-arm64` lists the version
+
+### Release
+- [ ] `./scripts/publish.sh bosch $NEW_VER --release` — [IV.3](#iv3-release)
+- [ ] `Current Version` in `vagrant cloud box show` matches `$NEW_VER`
+
+### Post-release verification
+- [ ] Tier C: fresh consumer simulation with HCP auth env, no local cache, pulls from registry — [III.3](#iii3-tier-c--registry-consumer-simulation-post-release-only)
+- [ ] Tier C output shows `Machine booted and ready!` and `image_version=<NEW_VER>`
+
+### Git bookkeeping
+- [ ] `git status` shows ONLY intended files modified
+- [ ] `git commit` with a release-summary message
+- [ ] `git tag -a bosch-arm64-$NEW_VER -m "release notes"`
+- [ ] `git push && git push --tags`
+
+### Cleanup
+- [ ] `pkill -KILL -f 'qemu-system'`
+- [ ] `vagrant box remove ... --all --force`
+- [ ] `rm -rf smoke/qemu-bosch-arm64/.vagrant /tmp/vagrant-qemu-serial.log`
+- [ ] Decide whether to keep prior version's `output/` artifacts (per [Versioning policy](#versioning--release-policy))
+
+If any box is unchecked, **don't release**. Investigate first via [Part VI](#part-vi--troubleshooting--lessons-learned).
+
+---
+
+## Appendix F — Glossary
+
+Acronyms and project-specific terms used throughout this doc.
+
+| Term | Definition |
+|---|---|
+| **aarch64** | 64-bit ARM architecture. Used interchangeably with `arm64` in this project. |
+| **Ansible role** | A reusable collection of Ansible tasks. The `compliance` role at `ansible/playbooks/roles/compliance/` is the same role used for both bake-time hardening and on-prem deployment. |
+| **Bake** | Building an OS image via Packer. We "bake" hardened images so they boot already-compliant. |
+| **BOOTAA64.EFI** | UEFI's removable-media fallback executable name for ARM64. If NVRAM has no boot entries, UEFI scans for this path on the EFI system partition. Baking it in makes the box NVRAM-independent. |
+| **CIS-L1 / CIS-L2** | Center for Internet Security Benchmark, Level 1 / Level 2. Bosch tenant uses L1; Renesas uses L2. |
+| **cloud-init** | First-boot guest-OS configuration framework. Used at bake time to drive Ubuntu's autoinstall, and at deploy time to apply tenant-specific network config. |
+| **DXE** | Driver eXecution Environment — phase of UEFI boot where firmware drivers run. `Image at … start failed` errors come from this phase. |
+| **edk2-aarch64-code.fd** | EDK2 (TianoCore) UEFI firmware code blob for ARM64. Read-only at runtime. |
+| **edk2-arm-vars.fd** | EDK2 UEFI NVRAM blob — stores `BootXXXX` entries written by the OS installer. |
+| **EFI fallback path** | `/EFI/BOOT/BOOTAA64.EFI` on the EFI system partition. UEFI scans this when NVRAM has no explicit boot entry. |
+| **FIPS** | Federal Information Processing Standards. FIPS 140-3 is the cryptographic-module standard the `compliance` role can enable. |
+| **HCP** | HashiCorp Cloud Platform. The umbrella product that now hosts Vagrant Cloud (renamed to "Vagrant Registry"). |
+| **HCP service principal** | HCP IAM identity for automated systems. Has a `client_id` + `client_secret` (key) used to authenticate `vagrant cloud` commands. |
+| **HVF** | Apple's Hypervisor.framework — the accelerator QEMU uses on Apple Silicon. Replaces KVM/VBox. |
+| **libvirt** | Linux virtualization API. We don't use libvirt itself, but `vagrant-libvirt`'s box format is the one `vagrant-qemu` re-uses. |
+| **monolith template** | The pre-two-stage Packer template that did OS install + ansible in one run. Still used for x86 (renesas, bosch-amd64). |
+| **NVRAM** | Non-Volatile RAM — UEFI's variable storage. Holds boot entries. |
+| **Packer** | HashiCorp tool that builds machine images by automating VM boot, provisioning, and export. |
+| **path.root** | Packer HCL variable. In Packer 1.10 it pointed at the parent of the template; in 1.15 it points at the template's own directory. (See [VI.4.3](#vi43-pathroot-produces-templatestemplatesbox-vagrantfileqemurb-double-prefix).) |
+| **PCI vs MMIO** | Two virtio bus types in QEMU. PCI → guest NIC named `enp0sN`; MMIO → guest NIC named `eth0`. Netplan's `match: name: en*` only matches PCI. |
+| **Provisioner** | A Packer plugin that configures the guest OS during build. We use the `ansible` provisioner. |
+| **Registry slug** | The Vagrant Registry box namespace, e.g. `nthedao2705`. Distinct from the HCP org slug (`nthedao2705-org`). |
+| **Shell-local post-processor** | A Packer post-processor that runs shell commands on the host AFTER the build. We use it to hand-assemble the `.box` bundle. |
+| **shimaa64.efi** | Microsoft-signed shim binary that loads grub on Secure Boot-enabled ARM64 systems. Ubuntu ships it; we copy it to the EFI fallback path. |
+| **SLIRP** | QEMU's user-mode networking implementation. Gateway is always `10.0.2.2`; guest IPs come from `10.0.2.x/24`. |
+| **Subiquity** | Ubuntu's installer (the autoinstall format we use is its YAML schema). |
+| **Tier A / B / C** | Our three smoke-test layers — direct QEMU, vagrant integration, registry consumer. See [Part III](#part-iii--smoke-test-workflow). |
+| **TPM** | Trusted Platform Module. Our QEMU bake doesn't expose a TPM; `Tpm2 … Not Found` lines in serial logs are harmless. |
+| **UEFI** | Unified Extensible Firmware Interface. Replaces legacy BIOS. ARM64 servers boot via UEFI. |
+| **Vagrant insecure private key** | Well-known SSH keypair that HashiCorp ships with every Vagrant install. Public + safe to bake into authorized_keys. |
+| **vagrant-qemu** | Community Vagrant plugin (https://github.com/ppggff/vagrant-qemu). Consumes vagrant-libvirt-format boxes; runs them under QEMU + HVF. |
+| **virtio-net-device** | virtio-mmio NIC. Default in vagrant-qemu 0.3.x. Names guest NIC `eth0`. **Bad** for netplan `match: name: en*`. |
+| **virtio-net-pci** | virtio-pci NIC. Names guest NIC `enp0sN`. **Good** for netplan `match: name: en*`. What we use. |
+
+---
+
+## Appendix G — Time & cost reference
+
+Empirical numbers from the 2026-05-20 release cycle on `nthedao-mac-pro-m4`
+(M4 Pro, 48 GB RAM). Your mileage will vary.
+
+### Time per phase
+
+| Phase | Time | Notes |
+|---|---|---|
+| First-time setup (Part I) | ~30 min | Includes Homebrew installs, HCP portal navigation |
+| Stage 1 base bake (`STAGE=base`) | ~12–15 min | Mostly Ubuntu autoinstall waiting for `apt-get update`s |
+| Stage 2 hardened bake (`STAGE=hardened`) | ~3 min | Ansible role + post-processors |
+| Smoke Tier A (`verify-bake-fixes.sh`) | ~1.5 min | Boots qcow2 with empty NVRAM, runs in-guest checks |
+| Smoke Tier B (`smoke-vagrant.sh`, post-fix) | ~1 min | One-shot `vagrant up` |
+| Publish — upload qemu + libvirt | ~10 min total | 2× ~5 min uploads of 1.4 GB each |
+| Release (flip state) | ~5 sec | API call only |
+| Tier C consumer simulation | ~6 min | Download 1.4 GB from HCP + boot |
+| **Total: re-release cycle from existing base** | ~25–35 min | Stage 2 + smoke + publish + release |
+| **Total: fresh base + release** | ~45–60 min | Stage 1 + Stage 2 + smoke + publish + release |
+
+### Disk usage
+
+| Artifact | Size | Lifetime |
+|---|---|---|
+| Stage 1 base qcow2 | ~5 GB | Quarterly / per CVE |
+| Stage 1 efivars.fd | 64 MB | Same |
+| Stage 2 hardened qcow2 | ~4 GB | Per release |
+| Stage 2 hardened .box | ~1.4 GB | Per release |
+| Stage 2 efivars.fd | 64 MB | Per release |
+| `~/.vagrant.d/boxes/<box>/<ver>/...` (consumer cache) | ~4 GB | Until consumer runs `vagrant box remove` |
+| Backup `.box.bak2` files | ~1.4 GB each | Until you decide they're not needed |
+| Build logs `/tmp/bake-*.log` | ~3 MB each | Auto-cleared on macOS reboot |
+
+**Total local footprint after 3 releases without cleanup**: ~25 GB. Run
+[Part V cleanup](#part-v--cleanup) to reclaim space.
+
+### HCP Vagrant Registry storage
+
+- Free tier covers ~10 GB of box storage at time of writing.
+- Each released `.box` counts (1.4 GB × 2 provider slots = 2.8 GB per release).
+- After ~3 releases without deprecation/cleanup, you'll hit the free-tier cap.
+- Plan to deprecate old versions in the HCP UI quarterly, or upgrade the plan.
+
+### Bandwidth
+
+- Upload: ~1.4 GB × 2 (qemu + libvirt slots) = ~2.8 GB per release. On
+  a 30 Mbps upstream this is ~15 min total. On 100 Mbps ~5 min.
+- Consumer download: 1.4 GB per fresh pull.
+
+### Cost (as of 2026-05)
+
+- HCP Vagrant Registry free tier: 10 GB storage + 10 GB/month egress.
+  Sufficient for ~3 active versions + ~7 monthly consumer pulls.
+- Above free tier: see HCP pricing page.
+- No HashiCorp charges for the Packer or Vagrant CLI tools themselves.
 
 ---
 
