@@ -86,6 +86,60 @@
           os_distribution={{ ansible_distribution }}
           os_version={{ ansible_distribution_version }}
 
+    # ─── Vagrant-box bake-out fixups (aarch64 + Debian/Ubuntu only) ──────────
+    # These tasks make the resulting qcow2 directly bootable under vagrant-qemu
+    # 0.3.12 (and similar plugins that ship an empty NVRAM per VM). They fix
+    # three concrete bugs caught during the 2026-05-20 smoke test of
+    # nthedao2705/ubuntu2204-cisl1-arm64@2026-05-05.1 — see
+    # ~/.claude/agent-memory/devops-architect/feedback_vagrant_qemu_consumer_boot_pitfalls.md
+    # for the full diagnostic ladder.
+
+    - name: "Bake | ensure /boot/efi/EFI/BOOT directory exists (UEFI fallback path)"
+      ansible.builtin.file:
+        path: /boot/efi/EFI/BOOT
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when:
+        - ansible_architecture == "aarch64"
+        - ansible_os_family == "Debian"
+
+    - name: "Bake | install GRUB shim at UEFI fallback path so empty-NVRAM boots work"
+      # Ubuntu's installer only writes /EFI/ubuntu/grubaa64.efi and creates an
+      # NVRAM BootXXXX entry pointing at it. vagrant-qemu 0.3.x copies an empty
+      # bundled edk2-arm-vars.fd per VM and ignores the box's NVRAM — so that
+      # entry is gone on the consumer side. Without /EFI/BOOT/BOOTAA64.EFI
+      # (the UEFI removable-media fallback path), UEFI initializes and silently
+      # stops before GRUB. Copying shim to the fallback path makes the box
+      # NVRAM-independent. Bento and most public aarch64 boxes do this too.
+      ansible.builtin.copy:
+        src: /boot/efi/EFI/ubuntu/shimaa64.efi
+        dest: /boot/efi/EFI/BOOT/BOOTAA64.EFI
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+        force: true
+      when:
+        - ansible_architecture == "aarch64"
+        - ansible_os_family == "Debian"
+
+    - name: "Bake | authorize Vagrant's well-known insecure RSA pubkey for the bake user"
+      # Subiquity's autoinstall `ssh.authorized-keys` list silently drops
+      # entries after the first → only the bake-time ed25519 key landed in
+      # /home/packer/.ssh/authorized_keys. Consumers `vagrant up`-ing the box
+      # from the registry tried Vagrant's bundled insecure keys → Permission
+      # denied. Inject the vagrant insecure RSA pubkey here so the default
+      # `vagrant up` flow works out of the box. It's the published, well-known
+      # key from HashiCorp — `insert_key=true` (Vagrant default) replaces it
+      # with a freshly-generated keypair on first boot anyway.
+      ansible.posix.authorized_key:
+        user: packer
+        state: present
+        key: "ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEA6NF8iallvQVp22WDkTkyrtvp9eWW6A8YVr+kz4TjGYe7gHzIw+niNltGEFHzD8+v1I2YJ6oXevct1YeS0o9HZyN1Q9qgCgzUFtdOKLv6IedplqoPkcmF0aYet2PkEDo3MlTBckFXPITAMzF8dJSIFo9D8HfdOV0IAdx4O7PtixWKn5y2hMNG0zQPyUecp4pzC6kivAIhyfHilFR61RGL+GPXQ2MWZWFYbAGjyiYJnAmCP3NOTd0jMZEnDkbUvxhMmBYSdETk1rRgm+R4LOzFUGaHqHDLKLX+FIPKcF96hrucXzcWyLbIbEgE98OHlnVYCzRdK8jlqm8tehUc9c9WhQ== vagrant insecure public key"
+      when: ansible_os_family == "Debian"
+
     - name: Clean apt cache (Debian) before image finalization
       ansible.builtin.apt:
         autoclean: true

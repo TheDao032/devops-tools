@@ -22,3 +22,7 @@ keys/
 # Rendered cloud-init seed — regenerated from http/user-data.tmpl by
 # scripts/build.sh on every run. The .tmpl is the source of truth.
 http/user-data
+
+# Local smoke-test workspaces — ephemeral Vagrant state for box validation.
+# Each subdir holds a Vagrantfile + .vagrant/ runtime state. Never committed.
+smoke/

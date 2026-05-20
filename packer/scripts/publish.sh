@@ -81,12 +81,22 @@ DRY_RUN="${DRY_RUN:-false}"
 BOX_DESCRIPTION_FILE="${BOX_DESCRIPTION_FILE:-${PACKER_DIR}/docs/box-description.md}"
 VERSION_DESCRIPTION=""
 
+# --providers comma-list filters which provider artifacts to publish in this
+# run. Default (empty) = whatever .box files exist on disk for this version.
+# Supports "virtualbox", "qemu", or both ("virtualbox,qemu" — same as default).
+# Use this to stage providers one at a time, e.g. publish qemu, smoke-test,
+# then publish virtualbox on the SAME version (the script is idempotent on
+# box+version, it'll just add the new provider entry).
+PROVIDERS_FILTER="${PROVIDERS:-}"
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --release)             RELEASE_FLAG=true ;;
     --dry-run)             DRY_RUN=true ;;
     --description-file)    BOX_DESCRIPTION_FILE="$2"; shift ;;
     --version-description) VERSION_DESCRIPTION="$2"; shift ;;
+    --providers)           PROVIDERS_FILTER="$2"; shift ;;
+    --providers=*)         PROVIDERS_FILTER="${1#*=}" ;;
     -h|--help)
       sed -n '2,/^set -euo pipefail/p' "$0" | sed 's/^# \?//; /^set/d'
       exit 0
@@ -99,6 +109,7 @@ done
 usage() {
   cat <<EOF
 Usage: $0 <tenant> [image_version] [--release] [--dry-run] \\
+                                  [--providers virtualbox|qemu|virtualbox,qemu] \\
                                   [--description-file PATH] \\
                                   [--version-description STR]
 
@@ -140,28 +151,58 @@ BOX_TAG="${VAGRANT_CLOUD_ORG}/${BOX_NAME}"
 # ---------- preflight ----------
 
 if ! command -v vagrant >/dev/null 2>&1; then
-  echo "ERROR: 'vagrant' not on PATH. Install Vagrant 2.4.0+ for multi-arch support." >&2
+  echo "ERROR: 'vagrant' not on PATH. Install Vagrant 2.4.3+ (multi-arch + HCP service-principal env-var support)." >&2
   exit 5
 fi
 
 # Confirm vagrant supports the cloud subcommand.
 if ! vagrant cloud --help >/dev/null 2>&1; then
-  echo "ERROR: this Vagrant build doesn't have 'cloud' subcommand. Need 2.4.0+." >&2
+  echo "ERROR: this Vagrant build doesn't have 'cloud' subcommand. Need 2.4.3+." >&2
   exit 5
 fi
 
-# Auth: token via env wins; otherwise rely on `vagrant cloud auth login` cache.
+# Auth: any one of these three paths satisfies the preflight.
+#
+#   1. HCP service principal env vars (modern, post-HCP-migration):
+#        HCP_CLIENT_ID + HCP_CLIENT_SECRET
+#      Vagrant ≥ 2.4.3 auto-exchanges these for an access token on each
+#      `vagrant cloud …` call. See https://developer.hashicorp.com/vagrant/
+#      vagrant-cloud/hcp-vagrant/post-migration-guide
+#
+#   2. Pre-exchanged access token via VAGRANT_CLOUD_TOKEN:
+#        - Modern: VAGRANT_CLOUD_TOKEN="$(hcp auth print-access-token)"
+#        - Composite (mixed migration): "<atlasv1>;<hcp_token>"  (buggy — GH #13529)
+#        - Legacy (unmigrated): "atlasv1.…"
+#
+#   3. Cached login from a prior `vagrant cloud auth login` (legacy interactive).
+#
 # In --dry-run mode we skip this check (no API calls happen anyway).
-if [[ "${DRY_RUN}" != "true" && -z "${VAGRANT_CLOUD_TOKEN:-}" ]]; then
+if [[ "${DRY_RUN}" != "true" ]]; then
   TOKEN_CACHE="${HOME}/.vagrant.d/data/vagrant_login_token"
-  if [[ ! -s "${TOKEN_CACHE}" ]]; then
+  if [[ -n "${HCP_CLIENT_ID:-}" && -n "${HCP_CLIENT_SECRET:-}" ]]; then
+    echo "==> auth: HCP service principal (HCP_CLIENT_ID + HCP_CLIENT_SECRET)"
+  elif [[ -n "${VAGRANT_CLOUD_TOKEN:-}" ]]; then
+    echo "==> auth: VAGRANT_CLOUD_TOKEN (env)"
+  elif [[ -s "${TOKEN_CACHE}" ]]; then
+    echo "==> auth: cached vagrant cloud login (${TOKEN_CACHE})"
+  else
     cat >&2 <<EOF
-ERROR: no Vagrant Cloud auth available.
-   Either:
-     export VAGRANT_CLOUD_TOKEN="atlasv1.…"
-   or run once interactively:
-     vagrant cloud auth login
-   Generate a token at https://app.vagrantup.com/account/security
+ERROR: no Vagrant Cloud / HCP Vagrant auth available.
+
+Pick one of:
+
+  # (modern) HCP service principal — Vagrant ≥ 2.4.3 auto-exchanges these:
+  export HCP_CLIENT_ID="<from HCP IAM service principal key>"
+  export HCP_CLIENT_SECRET="<from HCP IAM service principal key>"
+
+  # OR a pre-exchanged token (still useful for older Vagrant):
+  export VAGRANT_CLOUD_TOKEN="\$(hcp auth print-access-token)"
+
+  # OR an interactive cached login (legacy):
+  vagrant cloud auth login
+
+Create a service principal at:
+  https://portal.cloud.hashicorp.com/ → your org → Access control (IAM) → Service principals
 EOF
     exit 4
   fi
@@ -200,20 +241,53 @@ fi
 VBOX_BOX="${VBOX_DIR_BASE}/${IMAGE_VERSION}/${IMAGE_NAME_PREFIX}-${IMAGE_VERSION}.box"
 QEMU_BOX="${QEMU_DIR_BASE}/${IMAGE_VERSION}/${IMAGE_NAME_PREFIX}-${IMAGE_VERSION}.box"
 
-# Build the provider-list of artifacts that actually exist on disk.
+# Parse --providers filter (comma-separated list). Empty = no filter (all).
+# Validate values up-front so a typo doesn't silently produce a no-op publish.
+#
+# macOS bash is forever 3.2.57 (no associative arrays — would need bash 4+),
+# so we stash the allowed set as a delimited string and grep it.
+PROVIDERS_ALLOWED_STR=""
+if [[ -n "${PROVIDERS_FILTER}" ]]; then
+  IFS=',' read -r -a _pf_split <<< "${PROVIDERS_FILTER}"
+  for p in ${_pf_split[@]+"${_pf_split[@]}"}; do
+    case "$p" in
+      virtualbox|qemu) PROVIDERS_ALLOWED_STR="${PROVIDERS_ALLOWED_STR}|${p}|" ;;
+      "") ;;  # tolerate trailing commas
+      *) echo "ERROR: --providers unknown value '$p' (allowed: virtualbox, qemu)" >&2; exit 2 ;;
+    esac
+  done
+fi
+
+# Predicate: returns 0 if the named provider should be published this run.
+want_provider() {
+  # No filter set → publish whatever exists on disk.
+  [[ -z "${PROVIDERS_ALLOWED_STR}" ]] && return 0
+  [[ "${PROVIDERS_ALLOWED_STR}" == *"|${1}|"* ]]
+}
+
+# Build the provider-list of artifacts that actually exist on disk AND pass
+# the --providers filter.
 declare -a PROVIDERS=()
 declare -a PROVIDER_FILES=()
-if [[ -f "${VBOX_BOX}" ]]; then
+if [[ -f "${VBOX_BOX}" ]] && want_provider virtualbox; then
   PROVIDERS+=("virtualbox")
   PROVIDER_FILES+=("${VBOX_BOX}")
 fi
-if [[ -f "${QEMU_BOX}" ]]; then
+if [[ -f "${QEMU_BOX}" ]] && want_provider qemu; then
   PROVIDERS+=("qemu")
   PROVIDER_FILES+=("${QEMU_BOX}")
 fi
 
 if [[ ${#PROVIDERS[@]} -eq 0 ]]; then
-  cat >&2 <<EOF
+  if [[ -n "${PROVIDERS_ALLOWED_STR}" ]]; then
+    cat >&2 <<EOF
+ERROR: --providers=${PROVIDERS_FILTER} requested but no matching .box files
+       on disk for version ${IMAGE_VERSION}. Looked at:
+   ${VBOX_BOX}
+   ${QEMU_BOX}
+EOF
+  else
+    cat >&2 <<EOF
 ERROR: no .box files for version ${IMAGE_VERSION} at:
    ${VBOX_BOX}
    ${QEMU_BOX}
@@ -221,6 +295,7 @@ ERROR: no .box files for version ${IMAGE_VERSION} at:
 Run a build first:
    ARCH=arm64 STAGE=hardened ./scripts/build.sh ${TENANT} all
 EOF
+  fi
   exit 3
 fi
 
@@ -254,11 +329,51 @@ run() {
 # probe: silently check whether a `vagrant cloud … show` command succeeds.
 # Under DRY_RUN we return non-zero unconditionally so the caller takes the
 # "needs create" branch and the user sees every step that would happen.
+#
+# NOTE: As of Vagrant 2.4.x, only `vagrant cloud box show` exists. The legacy
+# `version show` and `provider show` subcommands were removed (you can confirm
+# via `vagrant cloud version --help` / `provider --help` — neither lists
+# `show` in their subcommand table, and invoking `vagrant cloud version show …`
+# silently prints help and exits 0, which would always false-positive a probe).
+# For version/provider existence checks, use create_idempotent below.
 probe() {
   if [[ "${DRY_RUN}" == "true" ]]; then
     return 1
   fi
   vagrant cloud "$@" >/dev/null 2>&1
+}
+
+# create_idempotent: run a `vagrant cloud … create` command. If it fails with
+# an already-exists / 422 error, treat as success (the desired state is the
+# same either way). Any other failure propagates the original exit code.
+#
+# Replaces the legacy probe-then-create pattern for entities whose `show`
+# subcommand no longer exists (version, provider).
+create_idempotent() {
+  echo "+ $*"
+  if [[ "${DRY_RUN}" == "true" ]]; then
+    return 0
+  fi
+
+  local logf rc
+  logf="$(mktemp -t vagrant-cloud-publish.XXXXXX)"
+  rc=0
+  "$@" > "$logf" 2>&1 || rc=$?
+  cat "$logf"
+
+  if [[ $rc -eq 0 ]]; then
+    rm -f "$logf"
+    return 0
+  fi
+  # Tolerated error patterns — Vagrant Cloud / HCP Vagrant return one of these
+  # when the box/version/provider already exists. Add more as observed.
+  if grep -qiE 'already exists|has already been taken|registry already has|name has already|status code 422' "$logf"; then
+    echo "    (already exists — tolerated)"
+    rm -f "$logf"
+    return 0
+  fi
+  rm -f "$logf"
+  return $rc
 }
 
 # ---------- step 1: ensure box exists ----------
@@ -280,41 +395,69 @@ fi
 # ---------- step 2: ensure version exists ----------
 
 echo "==> [2/4] ensure version ${IMAGE_VERSION}"
-if probe version show "${BOX_TAG}" "${IMAGE_VERSION}"; then
-  echo "    version already exists — skipping create"
-else
-  ver_desc="${VERSION_DESCRIPTION:-Build ${IMAGE_VERSION}}"
-  run vagrant cloud version create "${BOX_TAG}" "${IMAGE_VERSION}" \
-    --description "${ver_desc}"
-fi
+ver_desc="${VERSION_DESCRIPTION:-Build ${IMAGE_VERSION}}"
+create_idempotent vagrant cloud version create "${BOX_TAG}" "${IMAGE_VERSION}" \
+  --description "${ver_desc}"
 
 # ---------- step 3: per-provider create + upload ----------
 
+# Expand `qemu` → `qemu` AND `libvirt` provider slots (same .box file).
+#
+# WHY: when a consumer runs `vagrant up --provider qemu`, the vagrant-qemu
+# plugin internally asks the registry for a `libvirt`-tagged box (it reuses
+# vagrant-libvirt's box format — see ppggff/vagrant-qemu README).
+# If we upload only as provider=qemu, the consumer pull fails with:
+#   "Box ... could not be found. Requested provider: libvirt"
+# Uploading the SAME .box file under both slots keeps both consumer
+# paths working: `vagrant box add --provider qemu` (rare) and the
+# default `vagrant up --provider qemu` (what registry users actually do).
+#
+# Verified live 2026-05-20: nthedao2705/ubuntu2204-cisl1-arm64@2026-05-20.1
+# initially uploaded as qemu only → 404 on consumer pull. Re-uploaded same
+# file as libvirt → `vagrant up` reached "Machine booted and ready!".
+#
+# See memory: feedback_packer_vagrant_pp_no_qemu.md
+EXPANDED_PROVIDERS=()
+EXPANDED_FILES=()
 for i in "${!PROVIDERS[@]}"; do
-  provider="${PROVIDERS[$i]}"
+  prov="${PROVIDERS[$i]}"
   file="${PROVIDER_FILES[$i]}"
+  case "$prov" in
+    qemu)
+      # Upload the same file under both slots.
+      EXPANDED_PROVIDERS+=("qemu");    EXPANDED_FILES+=("$file")
+      EXPANDED_PROVIDERS+=("libvirt"); EXPANDED_FILES+=("$file")
+      ;;
+    *)
+      EXPANDED_PROVIDERS+=("$prov");   EXPANDED_FILES+=("$file")
+      ;;
+  esac
+done
+
+for i in "${!EXPANDED_PROVIDERS[@]}"; do
+  provider="${EXPANDED_PROVIDERS[$i]}"
+  file="${EXPANDED_FILES[$i]}"
 
   echo ""
   echo "==> [3/4] provider=${provider}  arch=${ARCH}  file=${file}"
 
-  # Idempotent provider create. Vagrant Cloud's `provider show` accepts
-  # --architecture in 2.4.0+; if your CLI predates that, the probe will
-  # short-circuit and we'll attempt create unconditionally (which 422s
-  # cleanly without doing damage).
-  if probe provider show "${BOX_TAG}" "${provider}" "${IMAGE_VERSION}" --architecture "${ARCH}"; then
-    echo "    provider entry exists — skipping create"
-  else
-    run vagrant cloud provider create "${BOX_TAG}" "${provider}" "${IMAGE_VERSION}" \
-      --architecture "${ARCH}" \
-      --no-default-architecture
-  fi
+  # Idempotent provider create. `vagrant cloud provider show` does not exist
+  # as of Vagrant 2.4.x — we just attempt create and tolerate the
+  # already-exists/422 response. `--architecture` IS still a valid option on
+  # `provider create` (verified `vagrant cloud provider create --help`).
+  create_idempotent vagrant cloud provider create "${BOX_TAG}" "${provider}" "${IMAGE_VERSION}" \
+    --architecture "${ARCH}" \
+    --no-default-architecture
 
   # Upload always runs; vagrant cloud overwrites existing file slots on the
   # same (provider, architecture, version). If the version is already
   # released, this fails — that's the point: cut a new version instead.
+  #
+  # CLI SIGNATURE CHANGE (Vagrant 2.4.x): `architecture` is now a POSITIONAL
+  # argument (4th), not a `--architecture` flag. The full positional order is:
+  #   vagrant cloud provider upload <org/box> <provider> <version> <arch> <box-file>
   echo "    uploading ${file} ($(du -h "${file}" | cut -f1))…"
-  run vagrant cloud provider upload "${BOX_TAG}" "${provider}" "${IMAGE_VERSION}" "${file}" \
-    --architecture "${ARCH}"
+  run vagrant cloud provider upload "${BOX_TAG}" "${provider}" "${IMAGE_VERSION}" "${ARCH}" "${file}"
 done
 
 # ---------- step 4: release (gated) ----------
@@ -322,7 +465,11 @@ done
 echo ""
 if [[ "${RELEASE_FLAG}" == "true" ]]; then
   echo "==> [4/4] releasing version ${IMAGE_VERSION}"
-  run vagrant cloud version release "${BOX_TAG}" "${IMAGE_VERSION}"
+  # --force bypasses the interactive "release? [y/N]" prompt that otherwise
+  # makes `vagrant cloud version release` unusable from non-TTY contexts
+  # (CI, scripted pipelines, claude-driven workflows). Verified flag exists
+  # via `vagrant cloud version release --help` on Vagrant 2.4.9.
+  run vagrant cloud version release --force "${BOX_TAG}" "${IMAGE_VERSION}"
   cat <<EOF
 
 ==> Released. Consumers can now:

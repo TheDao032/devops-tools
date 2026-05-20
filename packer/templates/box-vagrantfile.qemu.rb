@@ -20,7 +20,14 @@ Vagrant.configure('2') do |config|
     qe.cpu          = 'host'
     qe.smp          = 'cpus=2,sockets=1,cores=2,threads=1'
     qe.memory       = '2048'
-    qe.net_device   = 'virtio-net-device'
+    # `virtio-net-pci` (NOT `virtio-net-device`). On aarch64 virt machines,
+    # `virtio-net-device` uses virtio-mmio → guest NIC is named `eth0` →
+    # netplan's `match: name: en*` ignores it → DHCP never runs → no
+    # external network. `virtio-net-pci` puts the NIC on PCIe → predictable
+    # `enpXsY` name → netplan matches → DHCP → vagrant ssh works.
+    # The bake-time Packer template uses `-device virtio-net` (PCI default
+    # on aarch64), so this also keeps consumer parity with the bake.
+    qe.net_device   = 'virtio-net-pci'
     qe.ssh_port     = 50022
   end
 

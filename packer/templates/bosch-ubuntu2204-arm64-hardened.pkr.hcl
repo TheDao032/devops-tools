@@ -288,16 +288,29 @@ build {
   }
 
   // ----- Vagrant box (qemu source) -----
-  // Packer's stock `vagrant` PP doesn't emit `provider=qemu` boxes. We
-  // hand-assemble the .box (tar.gz of metadata.json + Vagrantfile + box.img)
-  // with shell-local. The Vagrantfile shipped INSIDE the .box is the static
-  // template at templates/box-vagrantfile.qemu.rb — edit that file (not
-  // this PP) to change the per-box defaults engineers receive.
+  // Packer's stock `vagrant` PP doesn't emit qemu-provider boxes. We
+  // hand-assemble the .box (tar.gz of metadata.json + Vagrantfile + box.img
+  // + efivars.fd) with shell-local. The Vagrantfile shipped INSIDE the .box
+  // is the static template at templates/box-vagrantfile.qemu.rb — edit that
+  // file (not this PP) to change the per-box defaults engineers receive.
+  //
+  // metadata.json's "provider" field MUST be "libvirt", not "qemu":
+  // vagrant-qemu reuses vagrant-libvirt's box format (per its README:
+  // "Same as vagrant-libvirt version-1"). Setting "qemu" looks logical
+  // but breaks consumer-side `vagrant up --provider qemu` — the plugin
+  // internally asks Vagrant for a libvirt-tagged box and gets nothing.
+  //
+  // efivars.fd is shipped alongside box.img as belt-and-braces for any
+  // qemu/proxmox consumer that wants a pre-populated NVRAM. The qcow2
+  // ALSO has /EFI/BOOT/BOOTAA64.EFI installed (see packer-bake.yml),
+  // so consumers booting with an empty NVRAM still find a bootloader via
+  // UEFI's removable-media fallback path.
   //
   // Engineer-side usage on Apple Silicon:
   //   vagrant plugin install vagrant-qemu
-  //   vagrant box add bosch-arm64 ./bosch-ubuntu2204-cisl1-arm64-<ver>.box
-  //   vagrant init bosch-arm64 && vagrant up --provider qemu
+  //   vagrant box add nthedao2705/ubuntu2204-cisl1-arm64 ./<box>.box \
+  //     --provider libvirt --architecture arm64
+  //   vagrant init nthedao2705/ubuntu2204-cisl1-arm64 && vagrant up --provider qemu
   //
   // architecture=arm64 is stamped into metadata.json so Vagrant Cloud's
   // multi-arch resolver picks this box only for arm64 consumers.
@@ -308,20 +321,32 @@ build {
       "OUTPUT_DIR=${local.output_dir_qemu}",
       "BOX_NAME=${var.image_name_prefix}-${var.image_version}.box",
       "QCOW2_NAME=${var.image_name_prefix}-${var.image_version}.qcow2",
-      "VAGRANTFILE_TEMPLATE=${path.root}/templates/box-vagrantfile.qemu.rb",
+      // path.root resolves to the directory CONTAINING this .pkr.hcl file
+      // (i.e. `templates/`), so the bare filename is correct here. Do NOT
+      // prepend `templates/` again — that produced `templates/templates/...`
+      // which fails the test in Packer 1.15.x.
+      "VAGRANTFILE_TEMPLATE=${path.root}/box-vagrantfile.qemu.rb",
     ]
     inline = [
       "set -x",
       "test -f \"$VAGRANTFILE_TEMPLATE\" || { echo \"missing $VAGRANTFILE_TEMPLATE\" >&2; exit 1; }",
       "cd \"$OUTPUT_DIR\"",
       "test -f \"$QCOW2_NAME\" || { echo \"missing qcow2 in $OUTPUT_DIR: $QCOW2_NAME\" >&2; exit 1; }",
+      "test -f efivars.fd || { echo \"missing efivars.fd in $OUTPUT_DIR — bake-time NVRAM was not preserved\" >&2; exit 1; }",
+      // Read virtual size in GiB from qemu-img — required by vagrant-libvirt format spec.
+      // qemu-img info reports `virtual size: 40 GiB (...)` → grep extracts the integer.
+      "VSIZE_GB=$(qemu-img info \"$QCOW2_NAME\" | awk '/virtual size:/{print $3; exit}')",
+      "test -n \"$VSIZE_GB\" || { echo 'failed to parse virtual size from qemu-img info' >&2; exit 1; }",
       "stage=$(mktemp -d -t vagrant-qemu-box-XXXXXX)",
       "trap 'rm -rf \"$stage\"' EXIT",
       "cp \"$QCOW2_NAME\" \"$stage/box.img\"",
-      "printf '%s\\n' '{\"provider\":\"qemu\",\"format\":\"qcow2\",\"architecture\":\"arm64\"}' > \"$stage/metadata.json\"",
+      "cp efivars.fd \"$stage/efivars.fd\"",
+      // provider:libvirt (NOT qemu) — vagrant-qemu reuses vagrant-libvirt's box format.
+      "printf '{\"provider\":\"libvirt\",\"format\":\"qcow2\",\"architecture\":\"arm64\",\"virtual_size\":%d}\\n' \"$VSIZE_GB\" > \"$stage/metadata.json\"",
       "cp \"$VAGRANTFILE_TEMPLATE\" \"$stage/Vagrantfile\"",
-      "tar -czf \"$BOX_NAME\" -C \"$stage\" metadata.json Vagrantfile box.img",
+      "tar -czf \"$BOX_NAME\" -C \"$stage\" metadata.json Vagrantfile box.img efivars.fd",
       "ls -lh \"$BOX_NAME\"",
+      "tar -tzf \"$BOX_NAME\"",
     ]
   }
 
