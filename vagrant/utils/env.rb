@@ -1,7 +1,7 @@
 require "rbconfig"
 
 class Config
-  attr_accessor :provider, :network_mode, :num_servers, :num_agents, :ubuntu, :centos, :redhat, :architecture
+  attr_accessor :provider, :network_mode, :num_servers, :num_agents, :ubuntu, :centos, :redhat, :architecture, :resource_profile
 
   def initialize
     @provider = ENV["PROVIDER"] || "default_provider"
@@ -15,6 +15,11 @@ class Config
     @num_servers = ENV["NUM_SERVERS"] || 2
     @num_agents = ENV["NUM_AGENTS"] || 1
     @architecture = normalize_architecture(ENV["ARCH"]) || host_architecture
+    # Resource profile name (:low | :medium | :high) — drives per-role RAM/CPU
+    # via VagrantApplication::ResourceProfile. Defaults to :medium so existing
+    # callers see no behavior change. The catalog itself lives in
+    # vagrant/application/resource_profile.rb (validation happens there).
+    @resource_profile = (ENV["RESOURCE_PROFILE"] || "medium").to_sym
     @ubuntu = {
       noble_numbat_box: {
         arm64: "bento/ubuntu-24.04",
@@ -50,6 +55,7 @@ class Config
     puts "Provider: #{@provider}"
     puts "Network Mode: #{@network_mode}"
     puts "Architecture: #{@architecture}"
+    puts "Resource Profile: #{@resource_profile}"
   end
 
   def ubuntu_box(version = :jammy_box)

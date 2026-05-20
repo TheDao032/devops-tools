@@ -87,6 +87,26 @@ class BoschOverrides
     }
   end
 
+  # Hook for VagrantApplication::ResourceProfile.resolve / .budget.
+  #
+  # Per-role override (for .fixed-style scenarios like k3s.virtualbox):
+  #   Return a partial hash keyed by role; missing keys/fields keep the
+  #   catalog default. Example bumps server RAM under medium because the
+  #   bosch box runs heavier audit/STIG scanners at first boot:
+  #
+  #     case profile_name.to_sym
+  #     when :medium then { server: { ram: 3072 } }
+  #     else nil
+  #     end
+  #
+  # Budget override (for .split-style scenarios):
+  #   Return { ram_gb:, cpu_cores: } (either or both). nil falls through.
+  #
+  # Returning nil leaves the canonical profile contents intact.
+  def resource_profile_overrides(_profile_name)
+    nil
+  end
+
   private
 
   def host_architecture

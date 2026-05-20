@@ -3,14 +3,21 @@
 
 require_relative "../../utils/env"
 require_relative "../../application/resource_allocator"
+require_relative "../../application/resource_profile"
 require_relative "../../application/cluster_plan_builder"
 require_relative "../../infrastructure/vagrant_plan_applier"
 
 vmware_config = VMWareFusionConfig.new
 
+# Profile-driven budget — RESOURCE_PROFILE env (low|medium|high) selects the
+# total ram/cpu pool; the .split() factory below divides it across server/agent
+# roles using scenario-specific ratios. Default :medium matches the previous
+# hardcoded 8 GB / 4 cores.
+budget = VagrantApplication::ResourceProfile.budget(vmware_config.resource_profile)
+
 resource_profiles = VagrantApplication::ResourceAllocator.split(
-  total_ram_gb: 8,
-  total_cpu_cores: 4,
+  total_ram_gb: budget[:ram_gb],
+  total_cpu_cores: budget[:cpu_cores],
   servers: vmware_config.num_servers,
   agents: vmware_config.num_agents,
   server_ram_ratio: 0.25,

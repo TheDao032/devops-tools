@@ -36,4 +36,12 @@ class RenesasOverrides
       }
     }
   end
+
+  # Hook for VagrantApplication::ResourceProfile.resolve / .budget.
+  # See bosch overrides for the contract. Renesas runs on real hardware in
+  # production, so the dev cluster sizing here usually mirrors the catalog;
+  # bump per-role values only for STIG/FIPS scenarios that need headroom.
+  def resource_profile_overrides(_profile_name)
+    nil
+  end
 end

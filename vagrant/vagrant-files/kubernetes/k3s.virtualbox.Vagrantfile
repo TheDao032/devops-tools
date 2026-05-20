@@ -26,6 +26,7 @@
 
 require_relative "../../utils/env"
 require_relative "../../application/resource_allocator"
+require_relative "../../application/resource_profile"
 require_relative "../../application/cluster_plan_builder"
 require_relative "../../infrastructure/vagrant_plan_applier"
 require_relative "../../tenants/loader"
@@ -47,10 +48,23 @@ ssh_priv_key  = tenant.respond_to?(:ssh_private_key_path) ? tenant.ssh_private_k
 ip_nw = (tenant && tenant.default_ip_network) || virtualbox_config.ip_nw
 
 # Resource profiles per machine role.
-resource_profiles = VagrantApplication::ResourceAllocator.fixed(
-  etcd:    { ram: 1024, cpu: 1 },
-  server:  { ram: 2048, cpu: 2 },
-  agent:   { ram: 2048, cpu: 2 }
+#
+# Selection: RESOURCE_PROFILE env (or --resource-profile in the wrapper) →
+# Config#resource_profile → ResourceProfile.resolve. Default is :medium and
+# matches the pre-2026-05-18 hardcoded values, so existing callers see no
+# behavior change.
+#
+# Tenant hook: a tenant override class MAY implement
+# `resource_profile_overrides(profile_name)` to partially override role specs
+# (e.g. bosch bumps server RAM under medium). Returning nil falls through.
+tenant_resource_overrides =
+  if tenant.respond_to?(:resource_profile_overrides)
+    tenant.resource_profile_overrides(virtualbox_config.resource_profile)
+  end
+
+resource_profiles = VagrantApplication::ResourceProfile.resolve(
+  virtualbox_config.resource_profile,
+  tenant_overrides: tenant_resource_overrides
 )
 
 # 4-VM topology — one machine_group entry per role for clarity.

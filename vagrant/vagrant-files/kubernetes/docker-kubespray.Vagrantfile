@@ -3,14 +3,19 @@
 
 require_relative "../../utils/env"
 require_relative "../../application/resource_allocator"
+require_relative "../../application/resource_profile"
 require_relative "../../application/cluster_plan_builder"
 require_relative "../../infrastructure/vagrant_plan_applier"
 
 virtualbox_config = VirtualboxConfig.new
 
+# Profile-driven budget — see k3s.vmware_fusion.Vagrantfile for the rationale.
+# Default :medium matches the previous hardcoded 8 GB / 4 cores.
+budget = VagrantApplication::ResourceProfile.budget(virtualbox_config.resource_profile)
+
 resource_profiles = VagrantApplication::ResourceAllocator.split(
-  total_ram_gb: 8,
-  total_cpu_cores: 4,
+  total_ram_gb: budget[:ram_gb],
+  total_cpu_cores: budget[:cpu_cores],
   servers: 2,
   agents: 2,
   server_ram_ratio: 0.25,
