@@ -3,3 +3,6 @@
 .DS_Store
 
 deployments/ansible/**/*.bash
+
+# Graphify generated artifacts
+graphify-out/
