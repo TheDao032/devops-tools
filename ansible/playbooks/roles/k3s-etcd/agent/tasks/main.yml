@@ -1,0 +1,34 @@
+---
+# tasks file for k3s-etcd/agent — k3s worker joining via the HAProxy VIP
+- name: Copy k3s agent register script
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ k3s_agent_scripts_path }}"
+    mode: '0755'
+  with_items: "{{ k3s_agent_scripts }}"
+
+- name: Check whether k3s is already installed
+  ansible.builtin.command: k3s --version
+  register: k3s_version_output
+  changed_when: false
+  failed_when: false
+
+- name: Wait for the kube-apiserver via the HAProxy VIP
+  ansible.builtin.wait_for:
+    host: "{{ load_balancer_ip }}"
+    port: "{{ load_balancer_port | default(6443) }}"
+    timeout: 180
+
+- name: Install k3s agent (join via HAProxy VIP)
+  when: k3s_version_output.rc != 0
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  ansible.builtin.shell: |
+    {{ k3s_agent_scripts_path }}/agent-register.sh \
+      "https://{{ load_balancer_ip }}:{{ load_balancer_port | default(6443) }}" \
+      "{{ k3s_token }}" \
+      "{{ cluster_ip }}" \
+      "{{ cluster_iface }}" \
+      {{ k3s_agent_extra_args | default('') }}
+  args:
+    executable: /bin/bash

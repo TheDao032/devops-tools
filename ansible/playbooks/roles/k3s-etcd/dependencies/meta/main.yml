@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: dependencies
+  namespace: k3s_etcd
+  author: devops
+  description: Base OS prep (packages, swap, kernel modules, sysctl) for k3s-etcd nodes
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

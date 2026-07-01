@@ -1,0 +1,6 @@
+---
+# defaults file for k3s-etcd/server
+k3s_server_scripts_path: /tmp
+k3s_server_extra_args: ""
+# Stripped by default so the cluster is clean for your own ingress/LB stack.
+k3s_disable_components: "--disable=traefik --disable=servicelb"

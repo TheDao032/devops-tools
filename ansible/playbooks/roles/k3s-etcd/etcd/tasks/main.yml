@@ -1,0 +1,83 @@
+---
+# tasks file for k3s-etcd/etcd — single-node external etcd datastore for k3s
+- name: Check whether etcd binary is already installed
+  ansible.builtin.stat:
+    path: "{{ etcd_bin_dir }}/etcd"
+  register: etcd_binary
+
+- name: Download and install etcd
+  when: not etcd_binary.stat.exists
+  block:
+    - name: Download etcd release tarball
+      ansible.builtin.get_url:
+        url: "{{ etcd_download_url }}"
+        dest: "/tmp/etcd-{{ etcd_version }}.tar.gz"
+        mode: '0644'
+
+    - name: Create temp extract directory
+      ansible.builtin.file:
+        path: "/tmp/etcd-{{ etcd_version }}-extract"
+        state: directory
+        mode: '0755'
+
+    - name: Extract etcd tarball
+      ansible.builtin.unarchive:
+        src: "/tmp/etcd-{{ etcd_version }}.tar.gz"
+        dest: "/tmp/etcd-{{ etcd_version }}-extract"
+        remote_src: true
+        extra_opts: ["--strip-components=1"]
+
+    - name: Install etcd + etcdctl binaries
+      ansible.builtin.copy:
+        src: "/tmp/etcd-{{ etcd_version }}-extract/{{ item }}"
+        dest: "{{ etcd_bin_dir }}/{{ item }}"
+        mode: '0755'
+        remote_src: true
+      with_items:
+        - etcd
+        - etcdctl
+
+- name: Create etcd system user
+  ansible.builtin.user:
+    name: "{{ etcd_user }}"
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+
+- name: Create etcd data directory
+  ansible.builtin.file:
+    path: "{{ etcd_data_dir }}"
+    state: directory
+    owner: "{{ etcd_user }}"
+    group: "{{ etcd_user }}"
+    mode: '0700'
+
+- name: Render etcd systemd unit
+  ansible.builtin.template:
+    src: etcd.service.j2
+    dest: /etc/systemd/system/etcd.service
+    mode: '0644'
+  notify: Restart etcd
+
+- name: Enable and start etcd
+  ansible.builtin.systemd_service:
+    name: etcd
+    enabled: true
+    state: started
+    daemon_reload: true
+
+- name: Flush handlers so etcd restarts before the health check
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for etcd to report healthy
+  ansible.builtin.command: >-
+    {{ etcd_bin_dir }}/etcdctl
+    --endpoints=http://{{ etcd_advertise_ip }}:{{ etcd_client_port }}
+    endpoint health
+  environment:
+    ETCDCTL_API: "3"
+  register: etcd_health
+  until: etcd_health.rc == 0
+  retries: 15
+  delay: 2
+  changed_when: false

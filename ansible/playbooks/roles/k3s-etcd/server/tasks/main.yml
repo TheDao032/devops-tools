@@ -1,0 +1,44 @@
+---
+# tasks file for k3s-etcd/server — k3s control-plane against the external etcd datastore.
+# All servers are co-equal peers (external datastore); no primary/secondary join dance.
+- name: Copy k3s server register script
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "{{ k3s_server_scripts_path }}"
+    mode: '0755'
+  with_items: "{{ k3s_server_scripts }}"
+
+- name: Check whether k3s is already installed
+  ansible.builtin.command: k3s --version
+  register: k3s_version_output
+  changed_when: false
+  failed_when: false
+
+- name: Wait for the external etcd datastore to be reachable
+  ansible.builtin.wait_for:
+    host: "{{ hostvars[groups['etcd'][0]]['cluster_ip'] }}"
+    port: "{{ etcd_client_port | default(2379) }}"
+    timeout: 120
+
+- name: Install k3s server (external etcd datastore)
+  when: k3s_version_output.rc != 0
+  environment:
+    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+  ansible.builtin.shell: |
+    {{ k3s_server_scripts_path }}/server-register.sh \
+      "{{ etcd_endpoint }}" \
+      "{{ k3s_token }}" \
+      "{{ cluster_ip }}" \
+      "{{ load_balancer_ip }}" \
+      "{{ cluster_iface }}" \
+      {{ k3s_disable_components | default('') }} {{ k3s_server_extra_args | default('') }}
+  args:
+    executable: /bin/bash
+
+- name: Wait for this node to register with the API
+  ansible.builtin.command: k3s kubectl get node "{{ inventory_hostname }}"
+  register: node_ready
+  until: node_ready.rc == 0
+  retries: 20
+  delay: 6
+  changed_when: false

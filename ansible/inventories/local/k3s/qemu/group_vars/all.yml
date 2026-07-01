@@ -1,0 +1,27 @@
+---
+# Group: all — connection + cluster wiring shared by every host.
+
+# --- Connection (via the generated ssh.config from `vagrant ssh-config`) ---
+ansible_user: packer                       # the baked box's user (see vagrant-qemu SSH logs)
+ansible_ssh_common_args: >-
+  -F {{ inventory_dir }}/ssh.config
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
+
+# --- k3s / etcd versions + shared secrets ---
+k3s_version: "v1.30.6+k3s1"                # keep in sync with vagrant-files/k3s/config.yaml
+etcd_version: "v3.5.16"
+k3s_token: "k3s-lab-shared-token-change-me"   # LAB ONLY — matches the Vagrant lab token
+
+# --- cluster networking ---
+cluster_iface: "k3scl0"                     # the socket_vmnet NIC inside each guest
+etcd_client_port: 2379
+api_port: 6443                             # kube-apiserver port on each server
+load_balancer_port: 6443                   # HAProxy front-end port
+
+# --- derived endpoints (used by the server/agent roles) ---
+etcd_endpoint: "http://{{ hostvars[groups['etcd'][0]]['cluster_ip'] }}:{{ etcd_client_port }}"
+load_balancer_ip: "{{ hostvars[groups['infra'][0]]['cluster_ip'] }}"
+
+# strip k3s' bundled ingress/servicelb (bring your own)
+k3s_disable_components: "--disable=traefik --disable=servicelb"

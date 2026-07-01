@@ -1,0 +1,11 @@
+---
+# vars file for k3s-etcd/server
+k3s_server_scripts:
+  - server-register.sh
+
+# etcd datastore endpoint, derived from the `etcd` group's first host.
+# Override in inventory group_vars if you prefer an explicit value.
+etcd_endpoint: "http://{{ hostvars[groups['etcd'][0]]['cluster_ip'] }}:{{ etcd_client_port | default(2379) }}"
+
+# HAProxy VIP that agents + kubectl talk to, derived from the `infra` group.
+load_balancer_ip: "{{ hostvars[groups['infra'][0]]['cluster_ip'] }}"

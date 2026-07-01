@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: etcd
+  namespace: k3s_etcd
+  author: devops
+  description: Single-node external etcd datastore for k3s (systemd, binary install)
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

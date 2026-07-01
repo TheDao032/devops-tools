@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: agent
+  namespace: k3s_etcd
+  author: devops
+  description: k3s worker node joining via the HAProxy VIP
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

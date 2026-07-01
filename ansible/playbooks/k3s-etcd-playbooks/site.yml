@@ -1,0 +1,45 @@
+---
+# k3s HA cluster with EXTERNAL etcd datastore + HAProxy (no keepalived).
+# Topology (groups): etcd (datastore) → infra (HAProxy) → server (control-plane) → agent (workers).
+# In the QEMU lab, etcd + infra collapse onto one host (k3s-lb).
+#
+# Run:  ansible-playbook -i inventories/local/k3s/qemu/inventory.yml playbooks/k3s-etcd-playbooks/site.yml
+
+- name: Base dependencies on all nodes
+  hosts: all
+  become: true
+  become_user: root
+  tasks:
+    - name: Ping all nodes
+      ansible.builtin.ping:
+  roles:
+    - role: ../roles/k3s-etcd/dependencies
+
+- name: External etcd datastore
+  hosts: etcd
+  become: true
+  become_user: root
+  roles:
+    - role: ../roles/k3s-etcd/etcd
+
+- name: HAProxy API load-balancer
+  hosts: infra
+  become: true
+  become_user: root
+  roles:
+    - role: ../roles/k3s-etcd/haproxy
+
+- name: k3s control-plane servers (external datastore)
+  hosts: server
+  become: true
+  become_user: root
+  serial: 1                 # first server initialises cluster state in etcd, then the next joins
+  roles:
+    - role: ../roles/k3s-etcd/server
+
+- name: k3s agents (join via HAProxy VIP)
+  hosts: agent
+  become: true
+  become_user: root
+  roles:
+    - role: ../roles/k3s-etcd/agent

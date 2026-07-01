@@ -1,0 +1,7 @@
+---
+# vars file for k3s-etcd/agent
+k3s_agent_scripts:
+  - agent-register.sh
+
+# HAProxy VIP the agent registers against, derived from the `infra` group.
+load_balancer_ip: "{{ hostvars[groups['infra'][0]]['cluster_ip'] }}"

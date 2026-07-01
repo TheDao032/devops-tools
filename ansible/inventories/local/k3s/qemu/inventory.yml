@@ -1,0 +1,39 @@
+---
+# Static inventory for the vagrant-qemu k3s lab
+#   vagrant/vagrant-files/k3s/  (5 VMs on the 192.168.105.0/24 socket_vmnet segment)
+#
+# Connection is via ssh.config generated from the running VMs — run:
+#   ./gen-ssh-config.sh
+# before ansible-playbook. `cluster_ip` is each node's IP on the cluster LAN and is
+# what the roles use for etcd/HAProxy/flannel wiring (NOT the SSH connection).
+#
+# In this lab etcd + HAProxy live on the SAME box (k3s-lb), so it is in both
+# the `etcd` and `infra` groups.
+
+all:
+  hosts:
+    k3s-lb:
+      cluster_ip: 192.168.105.10
+    k3s-server-1:
+      cluster_ip: 192.168.105.11
+    k3s-server-2:
+      cluster_ip: 192.168.105.12
+    k3s-agent-1:
+      cluster_ip: 192.168.105.21
+    k3s-agent-2:
+      cluster_ip: 192.168.105.22
+  children:
+    etcd:
+      hosts:
+        k3s-lb:
+    infra:
+      hosts:
+        k3s-lb:
+    server:
+      hosts:
+        k3s-server-1:
+        k3s-server-2:
+    agent:
+      hosts:
+        k3s-agent-1:
+        k3s-agent-2:

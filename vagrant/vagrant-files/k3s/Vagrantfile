@@ -1,0 +1,145 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+#
+# k3s HA lab on QEMU (vagrant-qemu provider) — 5 VMs:
+#   k3s-lb        .10   external etcd (single-node datastore) + HAProxy (TCP LB :6443)
+#   k3s-server-1  .11   k3s server  (control-plane, datastore=external etcd)
+#   k3s-server-2  .12   k3s server  (control-plane, datastore=external etcd)
+#   k3s-agent-1   .21   k3s agent   (worker)
+#   k3s-agent-2   .22   k3s agent   (worker)
+#
+# vagrant-qemu has NO private_network support, so inter-VM networking is a 2nd NIC
+# on a QEMU socket-multicast L2 segment (see provision/common.sh for in-guest setup).
+
+require 'yaml'
+
+cfg = YAML.load_file(File.join(__dir__, 'config.yaml'))
+
+# ── arch / accelerator resolution (parameterized: "both") ────────────────────
+def norm_arch(a)
+  case a.to_s.downcase
+  when 'arm64', 'aarch64' then 'aarch64'
+  when 'x86_64', 'amd64'  then 'x86_64'
+  else a.to_s
+  end
+end
+
+host_arch  = norm_arch(`uname -m`.strip)
+is_darwin  = (RbConfig::CONFIG['host_os'] =~ /darwin/)
+guest_arch = norm_arch(ENV['K3S_ARCH'] || cfg['arch'] || host_arch)
+
+# native virt when guest==host, else slow emulation (tcg)
+accel = (guest_arch == host_arch) ? (is_darwin ? 'hvf' : 'kvm') : 'tcg'
+
+machine  = (guest_arch == 'aarch64') ? "virt,accel=#{accel},highmem=on" : "q35,accel=#{accel}"
+cpu      = (accel == 'tcg') ? (guest_arch == 'aarch64' ? 'cortex-a72' : 'max') : 'host'
+deb_arch = (guest_arch == 'aarch64') ? 'arm64' : 'amd64'
+qemu_dir = is_darwin ? '/opt/homebrew/share/qemu' : '/usr/share/qemu'
+
+box     = cfg['box'][guest_arch]
+box_ver = (cfg['box_version'] || {})[guest_arch]
+raise "config.yaml: no box defined for arch '#{guest_arch}'" if box.nil? || box.empty?
+
+if accel == 'tcg'
+  warn "[k3s-qemu] WARNING: guest #{guest_arch} != host #{host_arch} → TCG emulation (slow). " \
+       "Run this arch on a matching host for KVM/HVF acceleration."
+end
+
+SUBNET  = cfg['network']['subnet']
+MCAST   = cfg['network']['mcast']
+NET_DEV = 'virtio-net-pci'  # NOT the plugin default 'virtio-net-device' (mmio → NIC named eth0,
+                            # breaks predictable naming + the box's netplan match)
+
+NODES = [
+  { name: 'k3s-lb',       role: 'lb',     octet: 10, res: cfg['nodes']['lb']     },
+  { name: 'k3s-server-1', role: 'server', octet: 11, res: cfg['nodes']['server'] },
+  { name: 'k3s-server-2', role: 'server', octet: 12, res: cfg['nodes']['server'] },
+  { name: 'k3s-agent-1',  role: 'agent',  octet: 21, res: cfg['nodes']['agent']  },
+  { name: 'k3s-agent-2',  role: 'agent',  octet: 22, res: cfg['nodes']['agent']  },
+]
+
+Vagrant.configure('2') do |config|
+  config.vm.box           = box
+  config.vm.box_version   = box_ver unless box_ver.nil? || box_ver.to_s.empty?
+  config.vm.synced_folder '.', '/vagrant', disabled: true   # vagrant-qemu has no virtfs share
+  config.vm.boot_timeout  = 600
+  config.ssh.insert_key   = true
+  # If this box was baked WITHOUT the vagrant insecure key, switch to your bake key:
+  #   config.ssh.private_key_path = ['~/.ssh/packer_ed25519']
+  #   config.ssh.insert_key       = false
+
+  NODES.each do |node|
+    config.vm.define node[:name] do |m|
+      m.vm.hostname = node[:name]
+      node_ip  = "#{SUBNET}.#{node[:octet]}"
+      node_mac = "52:54:00:ab:cd:#{format('%02d', node[:octet])}"  # distinct from QEMU's default 52:54:00:12:34:56
+
+      m.vm.provider 'qemu' do |qe|
+        qe.arch            = guest_arch
+        qe.machine         = machine
+        qe.cpu             = cpu
+        qe.smp             = node[:res]['cpus']
+        qe.memory          = node[:res]['memory']
+        # Deterministic, unique host SSH port per VM. vagrant-qemu defaults ALL VMs
+        # to 50022 and its auto-correct races/fails under parallel `vagrant up`.
+        qe.ssh_port        = 50000 + node[:octet]   # lb=50010, s1/s2=50011/12, a1/a2=50021/22
+        qe.net_device      = NET_DEV
+        qe.qemu_dir        = qemu_dir
+        qe.firmware_format = 'raw' if guest_arch == 'aarch64'
+
+        # 2nd NIC → shared cluster L2 segment. QEMU sockets can't carry broadcast/ARP
+        # between VMs on macOS, so there we route qemu through socket_vmnet (vmnet.framework);
+        # on Linux, socket-multicast works natively.
+        if is_darwin
+          qe.qemu_bin = File.join(__dir__, 'bin', 'qemu-socketvmnet.sh')  # wraps qemu with socket_vmnet_client
+          qe.extra_qemu_args = %W[
+            -netdev socket,id=net1,fd=3
+            -device #{NET_DEV},netdev=net1,mac=#{node_mac}
+          ]
+        else
+          qe.extra_qemu_args = %W[
+            -netdev socket,id=net1,mcast=#{MCAST}
+            -device #{NET_DEV},netdev=net1,mac=#{node_mac}
+          ]
+        end
+      end
+
+      # lab networking plumbing (rename vmnet NIC → k3scl0, static IP, /etc/hosts).
+      # Runs per-VM at boot, BEFORE Ansible (which pins flannel to k3scl0).
+      m.vm.provision 'network', type: 'shell', path: 'provision/common.sh',
+                     args: [SUBNET, node_mac, node_ip, node[:name]]
+
+      # Provision k3s via the Ansible roles (roles/k3s-etcd/*). Runs ONCE, on the
+      # last VM, against ALL hosts — so cross-host group vars (etcd/infra/server
+      # IPs) resolve in a single play. Requires `ansible` on the host.
+      # NOTE: partial `vagrant up <one-vm>` will NOT trigger this; bring up all
+      # VMs (`vagrant up`), or run the playbook manually via inventories/local/k3s/qemu.
+      if node[:name] == NODES.last[:name]
+        m.vm.provision 'k3s', type: 'ansible' do |a|
+          a.playbook           = '../../../ansible/playbooks/k3s-etcd-playbooks/site.yml'
+          a.compatibility_mode = '2.0'
+          a.limit              = 'all'
+          a.groups = {
+            'etcd'   => NODES.select { |n| n[:role] == 'lb' }.map { |n| n[:name] },
+            'infra'  => NODES.select { |n| n[:role] == 'lb' }.map { |n| n[:name] },
+            'server' => NODES.select { |n| n[:role] == 'server' }.map { |n| n[:name] },
+            'agent'  => NODES.select { |n| n[:role] == 'agent' }.map { |n| n[:name] },
+          }
+          # Each node's cluster-LAN IP → consumed by the roles for etcd/HAProxy/flannel.
+          a.host_vars = NODES.map { |n| [n[:name], { 'cluster_ip' => "#{SUBNET}.#{n[:octet]}" }] }.to_h
+          # config.yaml stays the single source of truth for versions/token.
+          a.extra_vars = {
+            'k3s_version'            => cfg['k3s_version'],
+            'etcd_version'           => cfg['etcd_version'],
+            'k3s_token'              => cfg['cluster_token'],
+            'cluster_iface'          => 'k3scl0',
+            'etcd_client_port'       => 2379,
+            'api_port'               => 6443,
+            'load_balancer_port'     => 6443,
+            'k3s_disable_components' => (cfg['disable_traefik'] ? '--disable=traefik --disable=servicelb' : ''),
+          }
+        end
+      end
+    end
+  end
+end

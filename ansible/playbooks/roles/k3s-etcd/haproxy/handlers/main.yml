@@ -1,0 +1,7 @@
+---
+# handlers file for k3s-etcd/haproxy
+- name: Restart haproxy
+  ansible.builtin.systemd_service:
+    name: haproxy
+    state: restarted
+    enabled: true

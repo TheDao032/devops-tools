@@ -1,0 +1,21 @@
+---
+# defaults file for k3s-etcd/etcd
+etcd_version: "v3.5.16"                 # https://github.com/etcd-io/etcd/releases
+etcd_bin_dir: /usr/local/bin
+etcd_user: etcd
+etcd_data_dir: /var/lib/etcd
+etcd_name: etcd-lb
+etcd_client_port: 2379
+etcd_peer_port: 2380
+etcd_initial_cluster_token: k3s-etcd-lab
+
+# IP this etcd advertises on the cluster LAN. `cluster_ip` is set per-host in the
+# inventory; falls back to the default ansible connection address otherwise.
+etcd_advertise_ip: "{{ cluster_ip | default(ansible_default_ipv4.address) }}"
+
+# Map ansible_architecture → etcd release arch suffix
+etcd_arch_map:
+  aarch64: arm64
+  x86_64: amd64
+etcd_arch: "{{ etcd_arch_map[ansible_architecture] | default('amd64') }}"
+etcd_download_url: "https://github.com/etcd-io/etcd/releases/download/{{ etcd_version }}/etcd-{{ etcd_version }}-linux-{{ etcd_arch }}.tar.gz"

@@ -1,0 +1,29 @@
+#---------------------------------------------------------------------
+# Managed by Ansible (k3s-etcd/haproxy). TCP load-balancer for the k3s
+# kube-apiserver across all `server` group hosts. No keepalived — single LB.
+#---------------------------------------------------------------------
+global
+    log /dev/log local0
+    maxconn 4096
+    daemon
+
+defaults
+    log     global
+    mode    tcp
+    option  tcplog
+    option  dontlognull
+    timeout connect 10s
+    timeout client  60m
+    timeout server  60m
+
+frontend k3s_api
+    bind {{ haproxy_api_bind_ip }}:{{ haproxy_api_bind_port }}
+    default_backend k3s_servers
+
+backend k3s_servers
+    option tcp-check
+    balance roundrobin
+    default-server inter 5s fall 3 rise 2
+{% for host in groups['server'] %}
+    server {{ host }} {{ hostvars[host]['cluster_ip'] }}:{{ haproxy_backend_port }} check
+{% endfor %}

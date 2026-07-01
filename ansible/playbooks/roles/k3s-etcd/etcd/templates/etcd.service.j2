@@ -1,0 +1,27 @@
+[Unit]
+Description=etcd (k3s external datastore)
+Documentation=https://etcd.io
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ etcd_user }}
+Type=notify
+# Lab uses plain HTTP (no TLS). For production add --cert-file/--key-file/--peer-* +
+# a client-cert datastore-endpoint on the k3s servers.
+ExecStart={{ etcd_bin_dir }}/etcd \
+  --name {{ etcd_name }} \
+  --data-dir {{ etcd_data_dir }} \
+  --listen-client-urls http://0.0.0.0:{{ etcd_client_port }} \
+  --advertise-client-urls http://{{ etcd_advertise_ip }}:{{ etcd_client_port }} \
+  --listen-peer-urls http://{{ etcd_advertise_ip }}:{{ etcd_peer_port }} \
+  --initial-advertise-peer-urls http://{{ etcd_advertise_ip }}:{{ etcd_peer_port }} \
+  --initial-cluster {{ etcd_name }}=http://{{ etcd_advertise_ip }}:{{ etcd_peer_port }} \
+  --initial-cluster-token {{ etcd_initial_cluster_token }} \
+  --initial-cluster-state new
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

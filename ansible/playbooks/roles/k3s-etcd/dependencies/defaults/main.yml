@@ -1,0 +1,8 @@
+---
+# defaults file for k3s-etcd/dependencies
+base_packages_debian:
+  - curl
+  - ca-certificates
+base_packages_redhat:
+  - curl
+  - ca-certificates

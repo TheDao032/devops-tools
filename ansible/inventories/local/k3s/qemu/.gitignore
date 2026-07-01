@@ -1,0 +1,2 @@
+# Generated per-machine from `vagrant ssh-config` — never commit (host-specific paths + ports)
+ssh.config

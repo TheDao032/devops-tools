@@ -1,0 +1,13 @@
+---
+# defaults file for k3s-etcd/haproxy
+haproxy_packages_debian:
+  - haproxy
+haproxy_packages_redhat:
+  - haproxy
+haproxy_config_path: /etc/haproxy/haproxy.cfg
+
+# Front-end bind. Defaults to this host's cluster IP so the LB listens on the
+# cluster LAN. load_balancer_port / api_port come from inventory group_vars.
+haproxy_api_bind_ip: "{{ cluster_ip | default('0.0.0.0') }}"
+haproxy_api_bind_port: "{{ load_balancer_port | default(6443) }}"
+haproxy_backend_port: "{{ api_port | default(6443) }}"
