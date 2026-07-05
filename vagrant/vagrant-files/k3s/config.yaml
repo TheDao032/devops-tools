@@ -34,7 +34,7 @@ network:
 # Matches roles/k3s convention: keep bundled Traefik (ingress) + servicelb (Klipper LB),
 # replace only CoreDNS (you deploy your own via the terraform k3s-resources addons).
 # NOTE: cluster DNS is down until that addon runs. Set "" to keep all k3s defaults.
-k3s_disable: "--disable=coredns"
+k3s_disable: ""
 
 # Per-role VM resources
 nodes:

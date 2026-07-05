@@ -6,4 +6,4 @@ k3s_server_extra_args: ""
 # (Klipper LB), replace only CoreDNS — you deploy your own via the terraform
 # k3s-resources addons (module "core-dns"). NOTE: the cluster has no cluster-DNS
 # until that addon runs.
-k3s_disable_components: "--disable=coredns"
+k3s_disable_components: ""

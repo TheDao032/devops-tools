@@ -25,4 +25,4 @@ load_balancer_ip: "{{ hostvars[groups['infra'][0]]['cluster_ip'] }}"
 
 # Match roles/k3s: keep bundled Traefik + servicelb, replace only CoreDNS
 # (deployed via the terraform k3s-resources addons).
-k3s_disable_components: "--disable=coredns"
+k3s_disable_components: ""
