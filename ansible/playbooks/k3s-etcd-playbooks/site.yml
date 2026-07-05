@@ -5,6 +5,19 @@
 #
 # Run:  ansible-playbook -i inventories/local/k3s/qemu/inventory.yml playbooks/k3s-etcd-playbooks/site.yml
 
+- name: Wait for every node to be SSH-reachable
+  hosts: all
+  gather_facts: false        # must not gather facts here — that needs SSH and would
+  become: false              # fail on a slow-booting VM before this gate can run
+  tasks:
+    # QEMU VMs boot in parallel and at uneven speeds; a lagging node's sshd may not be
+    # up when Ansible first connects, which otherwise fails the run with unreachable=1.
+    # wait_for_connection retries the connection until it succeeds (or timeout).
+    - name: Wait for SSH connection
+      ansible.builtin.wait_for_connection:
+        delay: 5
+        timeout: 300
+
 - name: Base dependencies on all nodes
   hosts: all
   become: true

@@ -2,6 +2,7 @@
 .env
 .DS_Store
 
+*.log
 deployments/ansible/**/*.bash
 
 # Graphify generated artifacts

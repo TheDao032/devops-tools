@@ -23,5 +23,6 @@ load_balancer_port: 6443                   # HAProxy front-end port
 etcd_endpoint: "http://{{ hostvars[groups['etcd'][0]]['cluster_ip'] }}:{{ etcd_client_port }}"
 load_balancer_ip: "{{ hostvars[groups['infra'][0]]['cluster_ip'] }}"
 
-# strip k3s' bundled ingress/servicelb (bring your own)
-k3s_disable_components: "--disable=traefik --disable=servicelb"
+# Match roles/k3s: keep bundled Traefik + servicelb, replace only CoreDNS
+# (deployed via the terraform k3s-resources addons).
+k3s_disable_components: "--disable=coredns"

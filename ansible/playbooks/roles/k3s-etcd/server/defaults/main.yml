@@ -2,5 +2,8 @@
 # defaults file for k3s-etcd/server
 k3s_server_scripts_path: /tmp
 k3s_server_extra_args: ""
-# Stripped by default so the cluster is clean for your own ingress/LB stack.
-k3s_disable_components: "--disable=traefik --disable=servicelb"
+# Match the existing roles/k3s convention: KEEP bundled Traefik (ingress) + servicelb
+# (Klipper LB), replace only CoreDNS — you deploy your own via the terraform
+# k3s-resources addons (module "core-dns"). NOTE: the cluster has no cluster-DNS
+# until that addon runs.
+k3s_disable_components: "--disable=coredns"

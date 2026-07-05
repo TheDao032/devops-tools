@@ -136,7 +136,7 @@ Vagrant.configure('2') do |config|
             'etcd_client_port'       => 2379,
             'api_port'               => 6443,
             'load_balancer_port'     => 6443,
-            'k3s_disable_components' => (cfg['disable_traefik'] ? '--disable=traefik --disable=servicelb' : ''),
+            'k3s_disable_components' => cfg['k3s_disable'],
           }
         end
       end

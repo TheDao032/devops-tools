@@ -30,8 +30,11 @@ network:
   subnet: "192.168.105"          # nodes: .10 (lb), .11/.12 (servers), .21/.22 (agents)
   mcast:  "230.0.0.1:1234"       # Linux-only: multicast group:port for the virtual LAN
 
-# Strip k3s' bundled ingress/LB so the cluster is clean for your own stack
-disable_traefik: true
+# k3s components to disable at install (passed to the server as --disable=...).
+# Matches roles/k3s convention: keep bundled Traefik (ingress) + servicelb (Klipper LB),
+# replace only CoreDNS (you deploy your own via the terraform k3s-resources addons).
+# NOTE: cluster DNS is down until that addon runs. Set "" to keep all k3s defaults.
+k3s_disable: "--disable=coredns"
 
 # Per-role VM resources
 nodes:
