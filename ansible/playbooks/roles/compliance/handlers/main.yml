@@ -6,11 +6,22 @@
     state: restarted
   listen: "restart auditd"
 
-- name: reload sshd
+- name: reload sshd (RedHat)
   ansible.builtin.service:
     name: sshd
     state: reloaded
   listen: "reload sshd"
+  when: ansible_os_family == "RedHat"
+
+- name: reload sshd (Debian)
+  ansible.builtin.service:
+    # Debian/Ubuntu ship the SSH unit as `ssh.service`, not `sshd.service`.
+    # Hit on 2026-07-08 Ubuntu 24.04 bake — `service: name=sshd` errored with
+    # "Could not find the requested service sshd".
+    name: ssh
+    state: reloaded
+  listen: "reload sshd"
+  when: ansible_os_family == "Debian"
 
 - name: reload sysctl
   ansible.builtin.command: sysctl --system
