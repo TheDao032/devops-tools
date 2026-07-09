@@ -139,6 +139,20 @@ Vagrant.configure('2') do |config|
             'k3s_disable_components' => cfg['k3s_disable'],
           }
         end
+
+        # Auto-unseal Vault on the HOST after the cluster is up (covers the halt->up cycle).
+        # Guarded: only fires when the age keystore + kubeconfig exist; vault-unseal.sh is
+        # itself a graceful no-op if Vault isn't deployed. `init` stays a manual one-time run.
+        m.trigger.after :up do |t|
+          t.name = 'vault-unseal'
+          t.run  = { inline: <<~SH }
+            if [ -f "#{__dir__}/vault-init.age" ] && [ -f "#{__dir__}/kubeconfig" ]; then
+              "#{__dir__}/vault-unseal.sh" || echo "[vault-unseal] non-fatal; run ./vault-unseal.sh by hand"
+            else
+              echo "[vault-unseal] no keystore/kubeconfig yet - skipping (run ./vault-init.sh after Vault is deployed)"
+            fi
+          SH
+        end
       end
     end
   end

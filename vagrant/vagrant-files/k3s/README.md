@@ -31,6 +31,17 @@ against all VMs). Vagrant itself only does VM boot + lab networking
 Both servers use `--datastore-endpoint=http://k3s-lb:2379` (external etcd), so this is
 true external-datastore HA. No keepalived — HAProxy is a single LB (fine for a lab).
 
+## Platform add-ons (Terragrunt)
+
+Cluster add-ons (cert-manager, External Secrets, **HashiCorp Vault** HA-Raft+TLS) are
+deployed onto this lab by the Terragrunt `k3s-resources` unit in
+`devops-terragrunt-environments/on-prem/fitmate/local/`. CoreDNS is left to k3s itself
+(`rancher/mirrored-coredns-coredns:1.11.3`, multi-arch) — the terraform `core-dns` module
+is intentionally disabled.
+
+- **[VAULT-ACTIVATION.md](./VAULT-ACTIVATION.md)** — one-time Vault init/unseal runbook
+  (Vault comes up sealed + uninitialized after `terragrunt run -- apply`).
+
 ## Prerequisites
 
 - `qemu` + `vagrant` + the **vagrant-qemu** plugin (`vagrant plugin install vagrant-qemu`)
