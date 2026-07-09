@@ -1,0 +1,20 @@
+# Ansible Galaxy dependencies for packer-bake.yml.
+#
+# The packer ansible provisioner installs these before running the playbook
+# (see galaxy_file = "playbooks/requirements.yml" in templates/*-amd64.pkr.hcl).
+#
+# Pinned to versions compatible with ansible-core >= 2.19. If you downgrade
+# ansible-core, older collection majors may work — check the collection changelog.
+#
+# Why these specific versions:
+#   ansible.posix >= 2.0.0     — 1.x is incompatible with ansible-core 2.19
+#                                (raises "No module named 'ansible_collections.ansible.posix'"
+#                                during plugin load). Hit on 2026-07-08 first bake.
+#   community.general >= 12.0  — the yaml stdout callback moved out in 12.0;
+#                                ansible.cfg switched to builtin default + result_format=yaml
+#                                to avoid the churn but keeping the collection current anyway.
+collections:
+  - name: ansible.posix
+    version: ">=2.0.0,<3.0.0"
+  - name: community.general
+    version: ">=12.0.0,<14.0.0"

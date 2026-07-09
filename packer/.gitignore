@@ -26,3 +26,7 @@ http/user-data
 # Local smoke-test workspaces — ephemeral Vagrant state for box validation.
 # Each subdir holds a Vagrantfile + .vagrant/ runtime state. Never committed.
 smoke/
+
+# Machine-local packer variables (iso_cache_prefix + host-specific overrides).
+# Each host maintains its own — do not commit.
+variables/local.pkrvars.hcl

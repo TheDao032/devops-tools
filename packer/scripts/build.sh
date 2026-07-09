@@ -1,84 +1,122 @@
 #!/usr/bin/env bash
 # Wrapper for tenant-aware Packer builds.
 #
-# Usage:
-#   ./scripts/build.sh <tenant> <provider> [image_version]
+# ═══ CLI ══════════════════════════════════════════════════════════════════
 #
-# Environment variables:
-#   ARCH             = amd64 (default) | arm64
-#   STAGE            = base | hardened | all (default: all) — arm64 only for now
-#   BASE_VERSION     = version of the base image (arm64 STAGE=base or =all)
-#                       defaults to $(date +%F). Goes into output/base/.../<BASE_VERSION>/
-#   BASE_IMAGE_PATH  = override path to base qcow2 (used by qemu source)
-#                       defaults to output/base/ubuntu2204-arm64/${BASE_VERSION}/
-#                                    ubuntu2204-arm64-base-${BASE_VERSION}.qcow2
-#   BASE_OVA_PATH    = override path to base .ova   (used by virtualbox source)
-#                       defaults to output/base/ubuntu2204-arm64-vbox/${BASE_VERSION}/
-#                                    ubuntu2204-arm64-base-${BASE_VERSION}.ova
-#   RHEL_USERNAME    = required for renesas (subscription-manager)
-#   RHEL_PASSWORD    = required for renesas (subscription-manager)
+# amd64 (default arch — layered pkrvars composition):
+#   ./scripts/build.sh <tenant> <guest> <provider> [image_version]
 #
-# Examples:
-#   ./scripts/build.sh renesas qemu                                # x86 monolith
-#   ARCH=arm64 ./scripts/build.sh bosch qemu                       # arm64 qemu, both stages
-#   ARCH=arm64 ./scripts/build.sh bosch virtualbox                 # arm64 vbox, both stages
-#   ARCH=arm64 ./scripts/build.sh bosch all                        # arm64 BOTH providers
-#   ARCH=arm64 STAGE=base     ./scripts/build.sh bosch qemu        # just bake qemu base
-#   ARCH=arm64 STAGE=hardened ./scripts/build.sh bosch virtualbox  # just harden vbox
+#     tenant   = renesas | bosch
+#     guest    = ubuntu2204 | ubuntu2404 | rhel9
+#     provider = virtualbox | qemu | vmware | all
 #
-#   # Iterate ansible against an existing qcow2 (no re-install):
-#   ARCH=arm64 STAGE=hardened \
-#     BASE_IMAGE_PATH=output/base/ubuntu2204-arm64/2026-05-03/ubuntu2204-arm64-base-2026-05-03.qcow2 \
+# arm64 (two-stage flow — unchanged, uses guest-less CLI):
+#   ARCH=arm64 [STAGE=base|hardened|all] ./scripts/build.sh <tenant> <provider> [image_version]
+#
+#     tenant   = bosch          (renesas arm64 not supported)
+#     provider = virtualbox | qemu | all
+#
+# ═══ pkrvars composition (amd64) ══════════════════════════════════════════
+#
+# Every build stacks four var-files in this order:
+#
+#   variables/common.pkrvars.hcl               — sizing, timeouts, output_base_dir
+#   variables/local.pkrvars.hcl                — MACHINE-LOCAL (iso_cache_prefix, gitignored)
+#   variables/guest/<guest>-amd64.pkrvars.hcl  — iso_filename, iso_checksum, guest_slug
+#   variables/tenants/<tenant>.pkrvars.hcl     — compliance_profile, banner, image_name_prefix
+#
+# Guest → template mapping:
+#   ubuntu*  →  templates/ubuntu-amd64.pkr.hcl   (subiquity autoinstall)
+#   rhel*    →  templates/rhel-amd64.pkr.hcl     (anaconda kickstart)
+#
+# ═══ Environment variables ════════════════════════════════════════════════
+#
+#   ARCH                          = amd64 (default) | arm64
+#   STAGE                         = base | hardened | all (default; arm64 only)
+#   BASE_VERSION                  = base image version   (arm64 STAGE=base or all)
+#   BASE_IMAGE_PATH               = override base qcow2  (arm64 STAGE=hardened)
+#   BASE_OVA_PATH                 = override base .ova   (arm64 STAGE=hardened)
+#   RHEL_USERNAME / RHEL_PASSWORD = required for renesas (subscription-manager)
+#
+# ═══ Examples ═════════════════════════════════════════════════════════════
+#
+#   # amd64
+#   ./scripts/build.sh bosch ubuntu2204 virtualbox
+#   ./scripts/build.sh bosch ubuntu2404 virtualbox 2026-07-08.1
+#   ./scripts/build.sh renesas rhel9 qemu
+#
+#   # arm64 (unchanged)
+#   ARCH=arm64 ./scripts/build.sh bosch qemu
+#   ARCH=arm64 STAGE=hardened ./scripts/build.sh bosch virtualbox
+#   ARCH=arm64 STAGE=hardened BASE_IMAGE_PATH=output/base/ubuntu2204-arm64/2026-05-03/ubuntu2204-arm64-base-2026-05-03.qcow2 \
 #     ./scripts/build.sh bosch qemu
 #
-# Tenants:   renesas | bosch
-# Providers: virtualbox | qemu | vmware | all
-# Arches:    amd64 (default) | arm64
+# ═══ Two-stage build (arm64 + bosch, unchanged) ═══════════════════════════
 #
-# Two-stage build (arm64 + bosch):
 #   stage 1 = "base"     — clean Ubuntu 22.04 ARM64 OS install, no ansible
 #   stage 2 = "hardened" — boots stage 1's image, runs the compliance role
 #   stage   = "all"      — both serially (default)
-#   provider dispatch (Path D):
-#     qemu       → qcow2 only (Proxmox prod fleet deliverable)
-#     virtualbox → ova + .box (Apple Silicon vagrant deliverable)
+#   provider dispatch:
+#     qemu       → qcow2 only            (Proxmox prod fleet)
+#     virtualbox → .ova + .box           (Apple Silicon vagrant)
 #     all        → both, parallel under one packer build
 #
-# x86 (renesas, bosch-amd64) still uses the legacy monolith template — STAGE
-# is ignored there. Migration to two-stage is tracked separately.
+# amd64 arm64 refactor pending — arm64 stays on old CLI for now.
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PACKER_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-TENANT="${1:-}"
-PROVIDER="${2:-}"
-IMAGE_VERSION="${3:-$(date +%F).1}"
 ARCH="${ARCH:-amd64}"
 STAGE="${STAGE:-all}"
 BASE_VERSION="${BASE_VERSION:-$(date +%F)}"
 
+# ═══ CLI parsing — form differs by ARCH ═══════════════════════════════════
+TENANT="${1:-}"
+if [[ "${ARCH}" == "arm64" ]]; then
+  # OLD form: <tenant> <provider> [image_version]
+  GUEST=""                       # unused on arm64 (template is fixed to ubuntu2204-arm64)
+  PROVIDER="${2:-}"
+  IMAGE_VERSION="${3:-$(date +%F).1}"
+else
+  # NEW form (amd64): <tenant> <guest> <provider> [image_version]
+  GUEST="${2:-}"
+  PROVIDER="${3:-}"
+  IMAGE_VERSION="${4:-$(date +%F).1}"
+fi
+
 usage() {
   cat <<EOF
-Usage: $0 <tenant> <provider> [image_version]
+Usage:
+
+  amd64 (default):   $0 <tenant> <guest> <provider> [image_version]
+  arm64:             ARCH=arm64 $0 <tenant> <provider> [image_version]
 
   tenant   = renesas | bosch
+  guest    = ubuntu2204 | ubuntu2404 | rhel9   (amd64 only)
   provider = virtualbox | qemu | vmware | all
   image_version (optional) — defaults to YYYY-MM-DD.1
 
 Env vars consumed:
   ARCH                          = amd64 (default) | arm64
   STAGE                         = base | hardened | all (default; arm64 only)
-  BASE_VERSION                  = base image version (default: \$(date +%F))
-  BASE_IMAGE_PATH               = override base qcow2 path (qemu source, STAGE=hardened)
-  BASE_OVA_PATH                 = override base .ova path  (vbox source,  STAGE=hardened)
+  BASE_VERSION                  = base image version   (default: \$(date +%F))
+  BASE_IMAGE_PATH               = override base qcow2  (arm64 STAGE=hardened)
+  BASE_OVA_PATH                 = override base .ova   (arm64 STAGE=hardened)
   RHEL_USERNAME / RHEL_PASSWORD = required for renesas (subscription-manager)
+
+Examples:
+  $0 bosch ubuntu2204 virtualbox
+  $0 bosch ubuntu2404 virtualbox 2026-07-08.1
+  $0 renesas rhel9 qemu
+  ARCH=arm64 $0 bosch qemu
 EOF
   exit 2
 }
 
 [[ -z "${TENANT}" || -z "${PROVIDER}" ]] && usage
+if [[ "${ARCH}" == "amd64" && -z "${GUEST}" ]]; then usage; fi
 
 case "${TENANT}" in
   renesas|bosch) ;;
@@ -100,47 +138,42 @@ case "${STAGE}" in
   *) echo "ERROR: unknown STAGE '${STAGE}' (expected base, hardened, or all)"; exit 2 ;;
 esac
 
-# Two-stage is arm64-only for now. STAGE is silently ignored on amd64.
+# Two-stage is arm64-only. STAGE is silently ignored on amd64.
 if [[ "${ARCH}" == "amd64" && "${STAGE}" != "all" ]]; then
-  echo "WARN: STAGE=${STAGE} ignored — two-stage build is arm64-only currently. Proceeding with monolith bake."
+  echo "WARN: STAGE=${STAGE} ignored — two-stage build is arm64-only."
 fi
 
-# Tenant + arch → template + var-file + build name + source labels.
-case "${TENANT}-${ARCH}" in
-  renesas-amd64)
-    TEMPLATE="templates/renesas-rhel9-hardened.pkr.hcl"
-    VAR_FILE="variables/renesas.pkrvars.hcl"
-    BUILD_NAME="renesas-rhel9-hardened"
-    SRC_LEAF="renesas-rhel9"
-    ;;
-  renesas-arm64)
-    cat <<EOF >&2
-ERROR: renesas-arm64 is not supported.
-RHEL FIPS 140-3 validation is x86_64-only. Bake renesas images on x86 hosts only.
-See ADR 2026-05-02-multi-arch-image-baking for the rationale and follow-ups.
-EOF
-    exit 4
-    ;;
-  bosch-amd64)
-    TEMPLATE="templates/bosch-ubuntu2204-hardened.pkr.hcl"
-    VAR_FILE="variables/bosch.pkrvars.hcl"
-    BUILD_NAME="bosch-ubuntu2204-hardened"
-    SRC_LEAF="bosch-ubuntu2204"
-    ;;
-  bosch-arm64)
-    # Two-stage with provider dispatch (Path D). Per-provider source labels are
-    # computed below in the arm64 dispatch block.
-    TEMPLATE_BASE="templates/ubuntu2204-arm64-base.pkr.hcl"
-    TEMPLATE_HARDENED="templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl"
-    VAR_FILE_BASE="variables/ubuntu-arm64-base.pkrvars.hcl"
-    VAR_FILE_HARDENED="variables/bosch-arm64.pkrvars.hcl"
-    BUILD_NAME_BASE="ubuntu2204-arm64-base"
-    BUILD_NAME_HARDENED="bosch-ubuntu2204-arm64-hardened"
-    ;;
-esac
-
-# x86 monolith path: -only filter selects provider source.
+# ═══ amd64 dispatch — new pkrvars composition ═════════════════════════════
 if [[ "${ARCH}" == "amd64" ]]; then
+
+  # renesas amd64 is supported; only rhel* guests are valid for it.
+  # bosch amd64 is supported; only ubuntu* guests are valid for it.
+  # (This is a soft convention — tenant + guest pair is not enforced at
+  # script level. The compliance role is what actually differs by tenant;
+  # you *could* bake bosch/rhel9 if you really wanted to.)
+
+  case "${GUEST}" in
+    ubuntu2204|ubuntu2404)
+      TEMPLATE="templates/ubuntu-amd64.pkr.hcl"
+      SRC_LEAF="ubuntu"
+      BUILD_NAME="ubuntu-amd64"
+      ;;
+    rhel9)
+      TEMPLATE="templates/rhel-amd64.pkr.hcl"
+      SRC_LEAF="rhel"
+      BUILD_NAME="rhel-amd64"
+      ;;
+    *)
+      echo "ERROR: unknown guest '${GUEST}' (expected ubuntu2204, ubuntu2404, or rhel9)"
+      usage
+      ;;
+  esac
+
+  GUEST_VAR_FILE="variables/guest/${GUEST}-amd64.pkrvars.hcl"
+  TENANT_VAR_FILE="variables/tenants/${TENANT}.pkrvars.hcl"
+  LOCAL_VAR_FILE="variables/local.pkrvars.hcl"
+
+  # -only filter selects the provider source.
   SRC_VBOX="${BUILD_NAME}.virtualbox-iso.${SRC_LEAF}"
   SRC_QEMU="${BUILD_NAME}.qemu.${SRC_LEAF}"
   SRC_VMW="${BUILD_NAME}.vmware-iso.${SRC_LEAF}"
@@ -149,6 +182,51 @@ if [[ "${ARCH}" == "amd64" ]]; then
     qemu)       ONLY_FILTER="${SRC_QEMU}" ;;
     vmware)     ONLY_FILTER="${SRC_VMW}"  ;;
     all)        ONLY_FILTER="${SRC_VBOX},${SRC_QEMU},${SRC_VMW}" ;;
+  esac
+
+  # Verify referenced var-files exist so we fail early with a useful message.
+  for f in "${TEMPLATE}" "${GUEST_VAR_FILE}" "${TENANT_VAR_FILE}"; do
+    if [[ ! -f "${PACKER_DIR}/${f}" ]]; then
+      echo "ERROR: expected file not found: ${f}" >&2
+      exit 8
+    fi
+  done
+  if [[ ! -f "${PACKER_DIR}/${LOCAL_VAR_FILE}" ]]; then
+    cat <<EOF >&2
+ERROR: ${LOCAL_VAR_FILE} not found.
+
+This file is machine-local (gitignored) and holds your ISO cache path.
+Create it once per machine, e.g.:
+
+    cat > ${PACKER_DIR}/${LOCAL_VAR_FILE} <<'EOF2'
+    iso_cache_prefix = "file://${HOME}/iso-cache"
+    EOF2
+
+Then re-run.
+EOF
+    exit 8
+  fi
+
+# ═══ arm64 dispatch — old CLI, unchanged (see below) ══════════════════════
+else
+  # Legacy tenant-arch mapping for arm64.
+  case "${TENANT}-${ARCH}" in
+    renesas-arm64)
+      cat <<EOF >&2
+ERROR: renesas-arm64 is not supported.
+RHEL FIPS 140-3 validation is x86_64-only. Bake renesas images on x86 hosts only.
+See ADR 2026-05-02-multi-arch-image-baking for the rationale and follow-ups.
+EOF
+      exit 4
+      ;;
+    bosch-arm64)
+      TEMPLATE_BASE="templates/ubuntu2204-arm64-base.pkr.hcl"
+      TEMPLATE_HARDENED="templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl"
+      VAR_FILE_BASE="variables/ubuntu-arm64-base.pkrvars.hcl"
+      VAR_FILE_HARDENED="variables/bosch-arm64.pkrvars.hcl"
+      BUILD_NAME_BASE="ubuntu2204-arm64-base"
+      BUILD_NAME_HARDENED="bosch-ubuntu2204-arm64-hardened"
+      ;;
   esac
 fi
 
@@ -193,6 +271,7 @@ mkdir -p "${PACKER_DIR}/output"
 
 # ----------------------------------------------------------------------------
 # Helper: invoke a packer build with logging + on-error=ask.
+# (Used by the arm64 two-stage flow. amd64 flow inlines packer directly.)
 #
 # Args:
 #   $1 = template path
@@ -304,8 +383,6 @@ if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
 
     # Maintain `latest/` symlinks per provider tree so STAGE=hardened-only
     # invocations can resolve a recent base without explicit BASE_*_PATH.
-    # Each provider gets its own subdir per the stage 1 template's locals
-    # (qemu in ubuntu2204-arm64/, vbox in ubuntu2204-arm64-vbox/).
     if [[ "${PROVIDER}" == "qemu" || "${PROVIDER}" == "all" ]]; then
       QEMU_DIR="${PACKER_DIR}/output/base/ubuntu2204-arm64"
       rm -rf "${QEMU_DIR}/latest"
@@ -324,17 +401,6 @@ if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
 
   # ---- STAGE 2: hardened ----
   if [[ "${STAGE}" == "hardened" || "${STAGE}" == "all" ]]; then
-    # Resolve per-provider base image paths. We compute the path for each
-    # provider that's IN SCOPE for this PROVIDER value; we leave the others
-    # empty so the corresponding template var (which now defaults to "")
-    # stays unset and the unused source isn't second-guessed.
-    # We ALWAYS pass both -var flags (even for single-provider builds) because
-    # packer validate runs against EVERY source in the template — not just the
-    # ones -only would build. The unused source needs a non-empty source_path
-    # / iso_url at validation time or validate fails. We pass a sentinel
-    # placeholder for the unused provider; -only excludes that source at
-    # build time so the placeholder never reaches a runtime file-existence
-    # check. (The runtime file check below only runs for the ACTIVE provider.)
     RESOLVED_BASE_QCOW2="UNUSED-this-build-skipped-qemu-source-via--only"
     RESOLVED_BASE_OVA="UNUSED-this-build-skipped-vbox-source-via--only"
 
@@ -414,28 +480,33 @@ EOF
 fi
 
 # ----------------------------------------------------------------------------
-# Legacy monolith path (x86, or any non-bosch-arm64 combo).
+# amd64 flow — new pkrvars composition path.
+# Var-files layer: common → local → guest → tenant (later files override earlier)
 # ----------------------------------------------------------------------------
 echo "==> packer init  ${TEMPLATE}"
 packer init "${TEMPLATE}"
 
-echo "==> packer validate  tenant=${TENANT} arch=${ARCH} provider=${PROVIDER} version=${IMAGE_VERSION}"
+echo "==> packer validate  tenant=${TENANT} guest=${GUEST} provider=${PROVIDER} version=${IMAGE_VERSION}"
 packer validate \
   -var-file=variables/common.pkrvars.hcl \
-  -var-file="${VAR_FILE}" \
+  -var-file="${LOCAL_VAR_FILE}" \
+  -var-file="${GUEST_VAR_FILE}" \
+  -var-file="${TENANT_VAR_FILE}" \
   -var "image_version=${IMAGE_VERSION}" \
   -var "ssh_private_key_file=${SSH_KEY}" \
   "${TEMPLATE}"
 
 echo "==> packer build  only=${ONLY_FILTER}"
-PACKER_LOG=1 PACKER_LOG_PATH="${PACKER_DIR}/output/${TENANT}-${ARCH}-${PROVIDER}-${IMAGE_VERSION}.log" \
+PACKER_LOG=1 PACKER_LOG_PATH="${PACKER_DIR}/output/${TENANT}-${GUEST}-${PROVIDER}-${IMAGE_VERSION}.log" \
   packer build \
     -on-error=ask \
     -only="${ONLY_FILTER}" \
     -var-file=variables/common.pkrvars.hcl \
-    -var-file="${VAR_FILE}" \
+    -var-file="${LOCAL_VAR_FILE}" \
+    -var-file="${GUEST_VAR_FILE}" \
+    -var-file="${TENANT_VAR_FILE}" \
     -var "image_version=${IMAGE_VERSION}" \
     -var "ssh_private_key_file=${SSH_KEY}" \
     "${TEMPLATE}"
 
-echo "==> done. artifacts in: ${PACKER_DIR}/output/${TENANT}/<provider>/${IMAGE_VERSION}/"
+echo "==> done. artifacts in: ${PACKER_DIR}/output/${TENANT}/${GUEST}/<provider>/${IMAGE_VERSION}/"
