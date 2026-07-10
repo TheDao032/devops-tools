@@ -18,14 +18,36 @@ a plaintext file or a k8s Secret.
 
 ```bash
 ./fetch-kubeconfig.sh     # once per cluster — writes ./kubeconfig (git-ignored)
-./vault-init.sh           # ONCE ever — inits vault-0, encrypts keys → vault-init.age
-./vault-unseal.sh         # after EVERY `vagrant up` — unseals vault-0/1/2 (idempotent)
+./vault-activate.sh       # do-the-right-thing: init if fresh, unseal if already inited
 ```
 
-- `vault-init.sh` is idempotent: it refuses to re-init an already-initialized Vault or
-  overwrite an existing `vault-init.age`.
-- `vault-unseal.sh` skips pods that are already unsealed, so it's safe to re-run and can be
-  wired into the Vagrant `ansible`/shell provisioner for hands-off unseal on boot.
+`vault-activate.sh` is the single entrypoint — it inspects the cluster and picks the
+correct action, so you don't have to remember whether this cluster needs init or just
+unseal:
+
+| Cluster state | What activate does |
+|---|---|
+| Vault not deployed yet (fresh `destroy` + `up`) | graceful no-op — deploy Vault via Terragrunt, then re-run |
+| Vault deployed, `initialized=false` (fresh cluster) | rotates any stale `vault-init.age` aside → `operator init` → unseal |
+| Vault deployed, `initialized=true` (`halt` → `up`) | unseal only |
+
+It is also **wired into `vagrant up`** as an `after :up` trigger, so a plain `halt`→`up`
+re-unseals hands-off. On a `destroy`→`up`, the trigger no-ops (Vault isn't deployed during
+`vagrant up`); after you apply the Terragrunt `k3s-resources` unit, run `./vault-activate.sh`
+once to init the fresh Vault.
+
+**Why re-init after a destroy is safe:** a deployed Vault reporting `initialized=false`
+*proves* any `vault-init.age` on disk is dead — those keys can't belong to a Vault that
+says it was never initialized. `vault-activate.sh` rotates the stale keystore to
+`vault-init.age.stale-<timestamp>` (git-ignored, safe to delete) before re-initing.
+
+The two lower-level scripts still exist for manual/debug use:
+
+- `vault-init.sh` — idempotent one-time init; refuses to re-init an already-initialized
+  Vault or overwrite an existing `vault-init.age` (so it's safe, but on a destroy+up you'd
+  hit "keystore exists but Vault uninitialized" — that's exactly the stale-keystore case
+  `vault-activate.sh` handles for you).
+- `vault-unseal.sh` — unseals `vault-0/1/2`, skipping pods already unsealed.
 - `vault-init.age` + `kubeconfig` are git-ignored. Inspect the keys with
   `age -d -i ~/.config/chezmoi/key.txt vault-init.age | jq .`.
 

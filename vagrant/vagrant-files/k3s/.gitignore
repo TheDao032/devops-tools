@@ -5,3 +5,6 @@ kubeconfig
 # vault-init.age is age-encrypted, but keep lab keys out of git by default.
 vault-init.age
 vault-init.json
+# Stale keystores rotated aside by vault-activate.sh when a fresh (destroy+up) Vault
+# is detected. Dead keys — safe to delete, never commit.
+vault-init.age.stale-*

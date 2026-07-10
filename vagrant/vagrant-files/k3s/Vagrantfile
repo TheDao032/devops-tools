@@ -140,18 +140,19 @@ Vagrant.configure('2') do |config|
           }
         end
 
-        # Auto-unseal Vault on the HOST after the cluster is up (covers the halt->up cycle).
-        # Guarded: only fires when the age keystore + kubeconfig exist; vault-unseal.sh is
-        # itself a graceful no-op if Vault isn't deployed. `init` stays a manual one-time run.
+        # Activate Vault on the HOST after the cluster is up. vault-activate.sh inspects the
+        # cluster and does the right thing for EVERY lifecycle:
+        #   • Vault not deployed yet (fresh destroy+up) → graceful no-op
+        #   • fresh/uninitialized Vault                 → operator init (rotating any stale
+        #                                                 keystore aside) + unseal
+        #   • already-initialized Vault (halt->up)      → unseal only
+        # We call the script via `run: { path: ... }` (NOT an inline heredoc): a multi-line
+        # host-side inline trigger is split on whitespace and Vagrant tries to exec the first
+        # token ("if") as a binary — hence the "executable 'if' not found" error. A path-run
+        # executes the script through its shebang, and the script guards every edge itself.
         m.trigger.after :up do |t|
-          t.name = 'vault-unseal'
-          t.run  = { inline: <<~SH }
-            if [ -f "#{__dir__}/vault-init.age" ] && [ -f "#{__dir__}/kubeconfig" ]; then
-              "#{__dir__}/vault-unseal.sh" || echo "[vault-unseal] non-fatal; run ./vault-unseal.sh by hand"
-            else
-              echo "[vault-unseal] no keystore/kubeconfig yet - skipping (run ./vault-init.sh after Vault is deployed)"
-            fi
-          SH
+          t.name = 'vault-activate'
+          t.run  = { path: File.join(__dir__, 'vault-activate.sh') }
         end
       end
     end

@@ -30,11 +30,14 @@ network:
   subnet: "192.168.105"          # nodes: .10 (lb), .11/.12 (servers), .21/.22 (agents)
   mcast:  "230.0.0.1:1234"       # Linux-only: multicast group:port for the virtual LAN
 
-# k3s components to disable at install (passed to the server as --disable=...).
-# Matches roles/k3s convention: keep bundled Traefik (ingress) + servicelb (Klipper LB),
-# replace only CoreDNS (you deploy your own via the terraform k3s-resources addons).
-# NOTE: cluster DNS is down until that addon runs. Set "" to keep all k3s defaults.
-k3s_disable: ""
+# Extra args appended VERBATIM to `k3s server` (via server-register.sh EXTRA_ARGS).
+# NOT auto-wrapped — the value must be the full flag(s), e.g. "--disable=traefik"
+# (a bare "traefik" would be passed as a stray positional and k3s would fail to start).
+# We disable the BUNDLED Traefik (v2.11, pinned to the k3s release) so we can deploy our
+# OWN Traefik v3 via Helm for full Gateway API + BackendTLSPolicy support.
+# Keep servicelb (Klipper) — self-managed Traefik still needs it for its LoadBalancer IP.
+# CoreDNS stays k3s-managed (not disabled). Set "" to keep all k3s defaults.
+k3s_disable: "--disable=traefik"
 
 # Per-role VM resources
 nodes:
