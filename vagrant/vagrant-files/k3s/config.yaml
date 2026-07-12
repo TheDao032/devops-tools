@@ -33,10 +33,13 @@ network:
 # Extra args appended VERBATIM to `k3s server` (via server-register.sh EXTRA_ARGS).
 # NOT auto-wrapped — the value must be the full flag(s), e.g. "--disable=traefik"
 # (a bare "traefik" would be passed as a stray positional and k3s would fail to start).
-# We disable the BUNDLED Traefik (v2.11, pinned to the k3s release) so we can deploy our
-# OWN Traefik v3 via Helm for full Gateway API + BackendTLSPolicy support.
-# Keep servicelb (Klipper) — self-managed Traefik still needs it for its LoadBalancer IP.
-# CoreDNS stays k3s-managed (not disabled). Set "" to keep all k3s defaults.
+# Disable the BUNDLED Traefik (v2.11, welded to the k3s release) so we self-manage Traefik v3
+# via Helm — one controller for Kubernetes Ingress (Vault), Traefik CRD/IngressRoute
+# (dashboard + Vault's ServersTransport), AND Gateway API (services deployed later; needs v3).
+# We DON'T route Vault via Gateway API (BackendTLSPolicy can't verify its HTTPS backend,
+# traefik/traefik#12127) — Vault stays on an Ingress. Keep servicelb (Klipper) + CoreDNS.
+# The bundled Traefik's CRDs are also a broken bundle (watches traefik.io, ships
+# traefik.containo.us), another reason to self-manage. Set "" to re-enable bundled defaults.
 k3s_disable: "--disable=traefik"
 
 # Per-role VM resources
