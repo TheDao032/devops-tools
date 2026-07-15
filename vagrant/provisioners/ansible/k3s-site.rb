@@ -29,6 +29,7 @@ module K3sAnsibleSite
   # Convention: machines tagged with these roles map into these Ansible groups.
   ROLE_TO_GROUP = {
     "server-haproxy" => %w[server infra],
+    "etcd-infra"     => %w[etcd infra],   # QEMU-style k3s-lb (etcd + HAProxy collapsed onto one node)
     "server"         => %w[server],
     "infra"          => %w[infra],
     "agent"          => %w[agent],

@@ -1,0 +1,3 @@
+---
+# k3s-agent-2: k3s worker node.
+cluster_ip: 10.43.50.22

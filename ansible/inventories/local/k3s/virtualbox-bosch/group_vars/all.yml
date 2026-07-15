@@ -1,30 +1,35 @@
 ---
 # Group: all — vars shared across every host in the scenario.
+#
+# 2026-07-13: Migrated from the 4-VM k3s-playbooks topology to the 5-VM
+# QEMU-style k3s-etcd-playbooks topology (etcd + HAProxy collapsed onto k3s-lb).
+# Vars below mirror `inventories/local/k3s/qemu/group_vars/all.yml`.
 
 ansible_user: packer                       # baked-box default user (Packer cloud-init created it)
 ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 
-# k3s wiring
-k3s_version: "v1.30.2+k3s1"
-api_port: 6443                             # k3s server kube-apiserver port
-load_balancer_port: 6445                   # HAProxy front for kube-apiserver
+# --- k3s / etcd versions + shared secrets (consumed by roles/k3s-etcd/*) ---
+k3s_version: "v1.30.6+k3s1"                # keep in sync with QEMU lab
+etcd_version: "v3.5.16"
+k3s_token: "k3s-lab-shared-token-change-me"   # LAB ONLY — matches QEMU lab
+
+# --- cluster networking ---
+cluster_iface: "enp0s8"                     # virtualbox hostonly NIC inside each guest
+etcd_client_port: 2379
+api_port: 6443                             # kube-apiserver port on each server
+load_balancer_port: 6443                   # HAProxy front-end port (matches Vagrant port forward on k3s-lb)
 http_port: 80
 https_port: 443
 
-# Topology fact: server-1's IP plays the role of the keepalived VIP for a
-# single-server scenario. (No VRRP failover; the var is reused so the
-# server-register / HAProxy roles work unchanged.)
-keepalived_virtual_ip: "10.43.50.10"
-keepalived_nw_interface: "eth1"            # virtualbox private network interface inside guest
-k3s_server_cidr_range: "10.43.50.0/24"
+# --- derived endpoints (used by roles/k3s-etcd/{server,agent,haproxy}) ---
+etcd_endpoint: "http://{{ hostvars[groups['etcd'][0]]['cluster_ip'] }}:{{ etcd_client_port }}"
+load_balancer_ip: "{{ hostvars[groups['infra'][0]]['cluster_ip'] }}"
 
-# Environment label, consumed by server-register.vars.k3s_secrets_path etc.
+# Match QEMU lab: keep bundled Traefik + servicelb, replace only CoreDNS.
+k3s_disable_components: "--disable=coredns"
+
+# Environment label, consumed by any downstream roles that key on env.
 env: "local"
-
-# Optional: when set, server-register writes k3s creds to Vault at <env>/k3s/creds.
-# Left unset for the laptop scenario; vagrant-bosch-site.yml gates the block.
-# vault_cluster_addr: ""
-# vault_token: ""
 
 extra_server_args: ""
 extra_agent_args: ""

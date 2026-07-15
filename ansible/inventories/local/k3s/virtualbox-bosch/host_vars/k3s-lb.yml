@@ -1,0 +1,4 @@
+---
+# k3s-lb: external etcd datastore + HAProxy TCP LB in front of the k3s API.
+# Collapsed onto a single node to mirror the QEMU lab shape (single LB, no keepalived).
+cluster_ip: 10.43.50.10

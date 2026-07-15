@@ -67,52 +67,62 @@ resource_profiles = VagrantApplication::ResourceProfile.resolve(
   tenant_overrides: tenant_resource_overrides
 )
 
-# 4-VM topology — one machine_group entry per role for clarity.
+# 5-VM QEMU-style topology — matches ansible/inventories/local/k3s/qemu shape.
 # IP-suffix layout under <ip_nw>.x:
-#   .10   server-1 (k3s server + HAProxy)
-#   .20   agent-1
-#   .21   agent-2
-#   .30   etcd-1
+#   .10   k3s-lb        (etcd + HAProxy collapsed; role → [etcd, infra] groups)
+#   .11   k3s-server-1  (k3s control-plane, external datastore)
+#   .12   k3s-server-2  (k3s control-plane, external datastore)
+#   .21   k3s-agent-1
+#   .22   k3s-agent-2
 machine_groups = [
   {
     count: 1,
-    name: "etcd-1",
+    name: "k3s-lb",
     os: :ubuntu,
     box: box_name,
-    resource_key: :etcd,
-    ip_start: 29,                     # +1 → 30
+    resource_key: :etcd,              # etcd sizing (512 MB low) covers HAProxy too
+    ip_start: 9,                      # +1 → 10
+    ports: [
+      { guest: 80,   host: 8080 },   # ingress http
+      { guest: 443,  host: 4430 },   # ingress https
+      { guest: 6443, host: 6443 }    # HAProxy front for kube-apiserver
+    ],
     metadata: {
-      role:   "etcd",
+      role:   "etcd-infra",           # → maps to [etcd, infra] via K3sAnsibleSite::ROLE_TO_GROUP
       tenant: ENV["TENANT"] || "default"
     }
   },
   {
     count: 1,
-    name: "server-1",
+    name: "k3s-server-1",
     os: :ubuntu,
     box: box_name,
     resource_key: :server,
-    ip_start: 9,                      # +1 → 10
-    # Use `host:` (exact) rather than `host_base:` (which adds VM index).
-    # Single-VM group → no index math wanted.
-    ports: [
-      { guest: 80,   host: 8080 },   # ingress http
-      { guest: 443,  host: 4430 },   # ingress https
-      { guest: 6443, host: 6443 },   # kube-apiserver (direct, when not going through HAProxy)
-      { guest: 6445, host: 6445 }    # HAProxy front for kube-apiserver
-    ],
+    ip_start: 10,                     # +1 → 11
     metadata: {
-      role:    "server-haproxy",          # k3s server + HAProxy load-balancer
-      tenant:  ENV["TENANT"] || "default"
+      role:   "server",
+      tenant: ENV["TENANT"] || "default"
     }
   },
   {
     count: 1,
-    name: "agent-1",
+    name: "k3s-server-2",
+    os: :ubuntu,
+    box: box_name,
+    resource_key: :server,
+    ip_start: 11,                     # +1 → 12
+    metadata: {
+      role:   "server",
+      tenant: ENV["TENANT"] || "default"
+    }
+  },
+  {
+    count: 1,
+    name: "k3s-agent-1",
     os: :ubuntu,
     box: box_name,
     resource_key: :agent,
-    ip_start: 19,                     # +1 → 20
+    ip_start: 20,                     # +1 → 21
     metadata: {
       role:   "agent",
       tenant: ENV["TENANT"] || "default"
@@ -120,11 +130,11 @@ machine_groups = [
   },
   {
     count: 1,
-    name: "agent-2",
+    name: "k3s-agent-2",
     os: :ubuntu,
     box: box_name,
     resource_key: :agent,
-    ip_start: 20,                     # +1 → 21
+    ip_start: 21,                     # +1 → 22
     metadata: {
       role:   "agent",
       tenant: ENV["TENANT"] || "default"

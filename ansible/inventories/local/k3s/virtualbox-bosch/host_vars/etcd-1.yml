@@ -1,2 +1,0 @@
----
-# etcd-1: reserved VM for future external etcd. Only `dependencies` role runs today.

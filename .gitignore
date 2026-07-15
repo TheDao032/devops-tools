@@ -2,6 +2,11 @@
 .env
 .DS_Store
 
+# direnv — .envrc holds local scenario defaults, .envrc.local holds secrets.
+# Only .envrc.local.example is tracked (the documented template).
+.envrc
+.envrc.local
+
 *.log
 deployments/ansible/**/*.bash
 

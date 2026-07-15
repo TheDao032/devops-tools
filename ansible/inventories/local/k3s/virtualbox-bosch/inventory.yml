@@ -1,35 +1,38 @@
 ---
-# Static inventory for the Vagrant-bosch k3s scenario.
-# Mirrors the 4-VM topology in
+# Static inventory for the Vagrant-bosch k3s-etcd scenario.
+# Mirrors the 5-VM topology in
 #   vagrant/vagrant-files/kubernetes/k3s.virtualbox.Vagrantfile
+# (QEMU-lab-style: etcd + HAProxy collapsed onto `k3s-lb`, two servers, two agents.)
 #
-# In the Vagrant flow, the `ansible` provisioner auto-generates an inventory
-# with these same hosts/groups; this static file is used by manual
-# `ansible-inventory --list` checks and by `ansible-playbook -i ...` invocations
-# from the host outside Vagrant (e.g. re-running just the compliance play).
+# `cluster_ip` per host is what the k3s-etcd roles use for etcd/HAProxy/flannel
+# wiring (NOT the SSH connection). See host_vars/*.yml.
 
 all:
   hosts:
-    etcd-1:
-      ansible_host: 10.43.50.30
-    server-1:
+    k3s-lb:
       ansible_host: 10.43.50.10
-    agent-1:
-      ansible_host: 10.43.50.20
-    agent-2:
+    k3s-server-1:
+      ansible_host: 10.43.50.11
+    k3s-server-2:
+      ansible_host: 10.43.50.12
+    k3s-agent-1:
       ansible_host: 10.43.50.21
+    k3s-agent-2:
+      ansible_host: 10.43.50.22
   children:
     etcd:
+      # k3s-lb runs external etcd for the servers.
       hosts:
-        etcd-1:
+        k3s-lb:
+    infra:
+      # HAProxy TCP LB fronting kube-apiserver — collapsed onto k3s-lb.
+      hosts:
+        k3s-lb:
     server:
       hosts:
-        server-1:
-    infra:
-      # HAProxy lives on the same VM as server-1 in this scenario.
-      hosts:
-        server-1:
+        k3s-server-1:
+        k3s-server-2:
     agent:
       hosts:
-        agent-1:
-        agent-2:
+        k3s-agent-1:
+        k3s-agent-2:

@@ -1,0 +1,3 @@
+---
+# k3s-server-1: k3s control-plane node, external etcd datastore.
+cluster_ip: 10.43.50.11

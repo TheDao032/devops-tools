@@ -1,0 +1,61 @@
+# .envrc.local.example — template for per-machine / secret direnv overrides.
+#
+# This file IS committed and documents every override .envrc understands.
+# Copy it to .envrc.local (which is gitignored) and edit:
+#
+#   cp .envrc.local.example .envrc.local
+#   direnv allow
+#
+# .envrc sources .envrc.local LAST, so anything you set here wins over the
+# scenario defaults in .envrc. Leave a line commented to keep the default.
+
+# ---------------------------------------------------------------------------
+# Resource sizing — per-host, depends on available RAM.
+#   low    ~3.5 GB / 4 vCPU total over 4 VMs   (fits a 15 GB laptop with headroom)
+#   medium ~7   GB / 7 vCPU total              (default in resource_profile.rb)
+#   high   ~14  GB / 14 vCPU total
+# This laptop (HC-C-008UW, 15 GB): use low.
+# ---------------------------------------------------------------------------
+export RESOURCE_PROFILE="low"
+
+# ---------------------------------------------------------------------------
+# Box override. Point at a different Vagrant Cloud tag, or a LOCAL .box file for
+# pre-publish smoke tests (BOX_FILE wins over BOX_NAME in the bosch overrides).
+# ---------------------------------------------------------------------------
+# export BOX_NAME="bosch/cisl1-ubuntu2404"
+# export BOX_FILE="${DEVOPS_TOOLS_ROOT}/packer/output/bosch/ubuntu2404/virtualbox-iso/2026-07-08.7/bosch-cisl1-ubuntu2404-2026-07-08.7.box"
+
+# ---------------------------------------------------------------------------
+# SSH into the baked box. Defaults come from the bosch tenant overrides
+# (user "packer", key packer/keys/packer_ed25519). Only set these if your host
+# doesn't have the in-repo packer keys, or the box uses a different first-boot user.
+# ---------------------------------------------------------------------------
+# export BOX_SSH_USER="packer"
+# export BOX_SSH_KEY="${HOME}/.ssh/packer_ed25519"
+
+# ---------------------------------------------------------------------------
+# Cluster networking override. The bosch tenant defaults IP_NW to 10.43.50.
+# Whatever subnet you choose must be whitelisted in /etc/vbox/networks.conf
+# (see 2026-07-13 journal, issue #2).
+# ---------------------------------------------------------------------------
+# export IP_NW="10.43.50"
+
+# ---------------------------------------------------------------------------
+# RHEL subscription creds — SECRET. Only needed for RHEL guest bakes/boots.
+# Never commit real values; keep them here in .envrc.local only.
+# ---------------------------------------------------------------------------
+# export RHEL_USERNAME="you@example.com"
+# export RHEL_PASSWORD="change-me"
+
+# ---------------------------------------------------------------------------
+# Ansible provisioner verbosity: unset | v | vv | vvv (passed to vagrant's
+# ansible provisioner). Bump when debugging a specific role.
+# ---------------------------------------------------------------------------
+# export ANSIBLE_VERBOSITY="vv"
+
+# ---------------------------------------------------------------------------
+# Playbook / inventory overrides. .envrc already sets these to the k3s-etcd
+# bosch scenario (absolute paths). Override only to run a different flow.
+# ---------------------------------------------------------------------------
+# export PLAYBOOK="${DEVOPS_TOOLS_ROOT}/ansible/playbooks/k3s-etcd-playbooks/site.yml"
+# export INVENTORY="${DEVOPS_TOOLS_ROOT}/ansible/inventories/local/k3s/virtualbox-bosch"
