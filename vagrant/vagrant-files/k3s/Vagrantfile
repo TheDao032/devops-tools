@@ -116,7 +116,7 @@ Vagrant.configure('2') do |config|
       # VMs (`vagrant up`), or run the playbook manually via inventories/local/k3s/qemu.
       if node[:name] == NODES.last[:name]
         m.vm.provision 'k3s', type: 'ansible' do |a|
-          a.playbook           = '../../../ansible/playbooks/k3s-etcd-playbooks/site.yml'
+          a.playbook           = ENV['PLAYBOOK'] || '../../../ansible/playbooks/k3s-etcd-playbooks/site.yml'
           a.compatibility_mode = '2.0'
           a.limit              = 'all'
           a.groups = {
