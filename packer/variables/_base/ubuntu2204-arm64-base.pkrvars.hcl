@@ -1,5 +1,5 @@
 # Ubuntu 22.04 ARM64 — variables for the STAGE 1 base bake.
-# Pairs with: templates/ubuntu2204-arm64-base.pkr.hcl
+# Pairs with: templates/_base/ubuntu2204-arm64-base.pkr.hcl
 #
 # This produces a tenant-AGNOSTIC base image. Tenant-specific values
 # (compliance profile, banner text, image_name_prefix per tenant) live in

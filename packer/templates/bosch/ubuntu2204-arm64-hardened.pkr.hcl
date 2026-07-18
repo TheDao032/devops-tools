@@ -1,7 +1,7 @@
 // Bosch — Ubuntu 22.04 ARM64 hardened image (CIS-L1, no FIPS).
 //
 // STAGE 2 of the two-stage build. This template does NOT install the OS —
-// it boots the qcow2 produced by stage 1 (templates/ubuntu2204-arm64-base.pkr.hcl)
+// it boots the qcow2 produced by stage 1 (templates/_base/ubuntu2204-arm64-base.pkr.hcl)
 // and runs the compliance role against it. Iteration cost: ~3 min per ansible
 // edit, vs ~12-15 min for a full install+ansible cycle.
 //
@@ -10,15 +10,15 @@
 //   STAGE=hardened ARCH=arm64 ./scripts/build.sh bosch virtualbox  # ova + box
 //   STAGE=hardened ARCH=arm64 ./scripts/build.sh bosch all         # both, parallel
 // or directly:
-//   packer init templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl
+//   packer init templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl
 //   packer build \
 //     -var-file=variables/common.pkrvars.hcl \
-//     -var-file=variables/bosch-arm64.pkrvars.hcl \
+//     -var-file=variables/bosch/arm64.pkrvars.hcl \
 //     -var ssh_private_key_file=keys/packer_ed25519 \
 //     -var base_image_path=output/base/ubuntu2204-arm64/<base-ver>/ubuntu2204-arm64-base-<base-ver>.qcow2 \
 //     -var base_image_ova_path=output/base/ubuntu2204-arm64-vbox/<base-ver>/ubuntu2204-arm64-base-<base-ver>.ova \
 //     -only=qemu.bosch-ubuntu2204-arm64 \    # or virtualbox-ovf.bosch-ubuntu2204-arm64
-//     templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl
+//     templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl
 //
 // Output:
 //   qemu:       output/bosch/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.qcow2
@@ -321,11 +321,11 @@ build {
       "OUTPUT_DIR=${local.output_dir_qemu}",
       "BOX_NAME=${var.image_name_prefix}-${var.image_version}.box",
       "QCOW2_NAME=${var.image_name_prefix}-${var.image_version}.qcow2",
-      // path.root resolves to the directory CONTAINING this .pkr.hcl file
-      // (i.e. `templates/`), so the bare filename is correct here. Do NOT
-      // prepend `templates/` again — that produced `templates/templates/...`
-      // which fails the test in Packer 1.15.x.
-      "VAGRANTFILE_TEMPLATE=${path.root}/box-vagrantfile.qemu.rb",
+      // path.root resolves to the directory CONTAINING this .pkr.hcl file —
+      // now `templates/bosch/`. box-vagrantfile.qemu.rb is shared and lives one
+      // level up in `templates/`, so reference it via `../`. Do NOT hardcode a
+      // `templates/…` prefix — that double-prefixes and fails in Packer 1.15.x.
+      "VAGRANTFILE_TEMPLATE=${path.root}/../box-vagrantfile.qemu.rb",
     ]
     inline = [
       "set -x",

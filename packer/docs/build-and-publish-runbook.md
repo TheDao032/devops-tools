@@ -201,7 +201,7 @@ and how to recover when one fails.
 ### 4.1 Bake Stage 1 (base ISO install)
 
 **Purpose:** install Ubuntu 22.04 ARM64 from the live ISO into a clean
-qcow2. Tenant-agnostic. Driven by `templates/ubuntu2204-arm64-base.pkr.hcl`
+qcow2. Tenant-agnostic. Driven by `templates/_base/ubuntu2204-arm64-base.pkr.hcl`
 + cloud-init autoinstall.
 
 **Command:**

@@ -183,8 +183,8 @@ ARCH=arm64 STAGE=base ./scripts/build.sh bosch qemu
 1. **`build.sh` resolves variables.**
    - Reads `ARCH=arm64`, `STAGE=base`, `BASE_VERSION=$(date +%F)` (default,
      overridable).
-   - Picks template `templates/ubuntu2204-arm64-base.pkr.hcl` and var-file
-     `variables/ubuntu-arm64-base.pkrvars.hcl`.
+   - Picks template `templates/_base/ubuntu2204-arm64-base.pkr.hcl` and var-file
+     `variables/_base/ubuntu2204-arm64-base.pkrvars.hcl`.
 
 2. **`build.sh` ensures the SSH keypair exists** under `keys/packer_ed25519`.
    - First run: generates ed25519 keypair, no passphrase.
@@ -421,8 +421,8 @@ ARCH=arm64 ./scripts/build.sh bosch qemu                # both stages, ~15-18 mi
 ### D) "Refresh the base because Ubuntu cut a new point release"
 
 ```bash
-# Update the ISO + checksum in variables/ubuntu-arm64-base.pkrvars.hcl
-$EDITOR variables/ubuntu-arm64-base.pkrvars.hcl
+# Update the ISO + checksum in variables/_base/ubuntu2204-arm64-base.pkrvars.hcl
+$EDITOR variables/_base/ubuntu2204-arm64-base.pkrvars.hcl
 
 # Bake a new base (gets its own date-versioned dir + becomes `latest`)
 ARCH=arm64 STAGE=base ./scripts/build.sh bosch qemu
@@ -641,8 +641,8 @@ Tracked here so we don't lose them:
 
 - `README.md` (this dir) — overview, x86 monolith path, ISO sourcing,
   arch-vs-tenant matrix
-- `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` — stage 2 template
+- `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` — stage 2 template
   with detailed inline comments
-- `templates/ubuntu2204-arm64-base.pkr.hcl` — stage 1 template
+- `templates/_base/ubuntu2204-arm64-base.pkr.hcl` — stage 1 template
 - `scripts/build.sh` — wrapper with all dispatch logic
 - `../ansible/playbooks/roles/compliance/` — the role applied at stage 2

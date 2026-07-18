@@ -2,7 +2,7 @@
 //
 // STAGE 1 of the two-stage build. This template does ONE thing: produce a
 // clean, autoinstalled, ssh-ready Ubuntu 22.04 ARM64 qcow2. Tenant-specific
-// hardening is applied in stage 2 (templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl
+// hardening is applied in stage 2 (templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl
 // and future siblings) by booting THIS image and running ansible against it.
 //
 // Why split:
@@ -17,13 +17,13 @@
 //   STAGE=base ARCH=arm64 ./scripts/build.sh bosch virtualbox  # ova only
 //   STAGE=base ARCH=arm64 ./scripts/build.sh bosch all         # both, parallel
 // or directly:
-//   packer init templates/ubuntu2204-arm64-base.pkr.hcl
+//   packer init templates/_base/ubuntu2204-arm64-base.pkr.hcl
 //   packer build \
 //     -var-file=variables/common.pkrvars.hcl \
-//     -var-file=variables/ubuntu-arm64-base.pkrvars.hcl \
+//     -var-file=variables/_base/ubuntu2204-arm64-base.pkrvars.hcl \
 //     -var ssh_private_key_file=keys/packer_ed25519 \
 //     -only=qemu.ubuntu2204-arm64 \             # or virtualbox-iso.ubuntu2204-arm64
-//     templates/ubuntu2204-arm64-base.pkr.hcl
+//     templates/_base/ubuntu2204-arm64-base.pkr.hcl
 //
 // Output:
 //   qemu:       output/base/ubuntu2204-arm64/<version>/<image_name_prefix>-<version>.qcow2

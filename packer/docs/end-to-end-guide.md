@@ -434,7 +434,7 @@ The `smoke/` directory is **gitignored**. If you're cloning fresh, you'll need t
 
 ### I.7 Generate the bake-time SSH keypair
 
-The Packer template at `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` references `keys/packer_ed25519` (private) and renders `keys/packer_ed25519.pub` into the autoinstall user-data.
+The Packer template at `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` references `keys/packer_ed25519` (private) and renders `keys/packer_ed25519.pub` into the autoinstall user-data.
 
 If `keys/packer_ed25519` doesn't exist:
 ```bash
@@ -456,8 +456,8 @@ The build is split into two Packer runs:
 
 | Stage | Template | Input | Output | Time |
 |---|---|---|---|---|
-| **1 — base** | `templates/ubuntu2204-arm64-base.pkr.hcl` | Ubuntu 22.04 ARM64 server ISO | `output/base/ubuntu2204-arm64/<base-version>/*.qcow2` + `efivars.fd` | ~12–15 min (autoinstall) |
-| **2 — hardened** | `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` | The base qcow2 | `output/bosch/arm64/qemu/<image-version>/*.box` + `.qcow2` + `efivars.fd` | ~3 min (Ansible only) |
+| **1 — base** | `templates/_base/ubuntu2204-arm64-base.pkr.hcl` | Ubuntu 22.04 ARM64 server ISO | `output/base/ubuntu2204-arm64/<base-version>/*.qcow2` + `efivars.fd` | ~12–15 min (autoinstall) |
+| **2 — hardened** | `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` | The base qcow2 | `output/bosch/arm64/qemu/<image-version>/*.box` + `.qcow2` + `efivars.fd` | ~3 min (Ansible only) |
 
 See [`BUILD-WORKFLOW.md`](./BUILD-WORKFLOW.md) for the in-depth model + diagrams.
 
@@ -894,29 +894,48 @@ For SOC2/compliance evidence, the most authoritative single source is the
 If you need to ship a new tenant (e.g. `acme`) using the same arm64
 hardened-Ubuntu recipe, here's the copy-paste-edit recipe:
 
+Templates and per-org vars live in **org folders**: `templates/<org>/` for the
+hardened template, `variables/<org>/arm64.pkrvars.hcl` for its knobs, and
+`templates/_base/` + `variables/_base/` for the tenant-agnostic base image the
+org boots. Keep the org name in the *folder*, not the filename.
+
 ### Files to create
 
-1. **`variables/acme-arm64.pkrvars.hcl`** — copy from `bosch-arm64.pkrvars.hcl`:
+1. **`variables/acme/arm64.pkrvars.hcl`** — copy from bosch's:
    ```bash
-   cp variables/bosch-arm64.pkrvars.hcl variables/acme-arm64.pkrvars.hcl
+   mkdir -p variables/acme
+   cp variables/bosch/arm64.pkrvars.hcl variables/acme/arm64.pkrvars.hcl
    ```
    Edit:
    - `tenant = "acme"` (was `"bosch"`)
    - `image_name_prefix = "acme-ubuntu2204-cisl1-arm64"` (was `"bosch-…"`)
    - `login_banner = "Authorized access only — ACME"` (was `…BOSCH"`)
-   - Adjust `output_base_dir` if needed (default segments by tenant)
+   - `base_image_path` — point at the base slug acme boots (reuse
+     `ubuntu2204-arm64`, or a new base if acme needs a different OS version)
 
-2. **`templates/acme-ubuntu2204-arm64-hardened.pkr.hcl`** — copy from `bosch-…`:
+2. **`templates/acme/ubuntu2204-arm64-hardened.pkr.hcl`** — copy from bosch's:
    ```bash
-   cp templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl \
-      templates/acme-ubuntu2204-arm64-hardened.pkr.hcl
+   mkdir -p templates/acme
+   cp templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl \
+      templates/acme/ubuntu2204-arm64-hardened.pkr.hcl
    ```
    Edit:
    - source labels (`source "qemu" "bosch-…"` → `source "qemu" "acme-…"`)
-   - `only` filters in post-processors (`bosch-ubuntu2204-arm64` → `acme-…`)
+   - `build { name = … }` and `only`/`-only` filters (`bosch-ubuntu2204-arm64`
+     → `acme-ubuntu2204-arm64`)
+   - the `path.root` box-vagrantfile reference already uses `../` (shared file
+     in `templates/`) — leave it
 
-3. **`scripts/build.sh`** — add `acme` to the tenant dispatch
-   (look for the case statement around line 165).
+3. **New base image? Only if acme needs a different OS version.** If acme reuses
+   the same base as bosch (`ubuntu2204-arm64`), skip this. Otherwise clone
+   `templates/_base/ubuntu2204-arm64-base.pkr.hcl` +
+   `variables/_base/ubuntu2204-arm64-base.pkrvars.hcl` to the new slug
+   (see how `nthedao` gets its own `ubuntu2604-arm64` base).
+
+4. **`scripts/build.sh`** — add an `acme-arm64)` case to the arm64 dispatch
+   (alongside `bosch-arm64)` / `nthedao-arm64)`), setting `TEMPLATE_BASE`,
+   `TEMPLATE_HARDENED`, `VAR_FILE_BASE`, `VAR_FILE_HARDENED`, `BASE_SLUG`,
+   `HARDENED_SRC_LABEL`, and the two `BUILD_NAME_*`.
 
 ### Decide: same compliance profile or different?
 
@@ -1212,7 +1231,7 @@ See memory `feedback_packer_validate_runs_all_sources.md`.
 
 **Symptom**: After bake, `tar -tzf bosch-*.box` shows only 3 files (no `efivars.fd`), or `metadata.json` says `"provider":"qemu"`, or `virtual_size:0`.
 
-**Diagnosis**: The shell-local post-processor in `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` is producing a stale bundle. The 2026-05-20 fix dynamically parses qcow2 virtual size from `qemu-img info` and bundles `efivars.fd`.
+**Diagnosis**: The shell-local post-processor in `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` is producing a stale bundle. The 2026-05-20 fix dynamically parses qcow2 virtual size from `qemu-img info` and bundles `efivars.fd`.
 
 **Fix**: confirm your template has these lines:
 ```hcl
@@ -1337,7 +1356,7 @@ Requested provider: libvirt
 ```
 
 **Diagnosis**: Two possible causes:
-1. **metadata.json mismatch**: Your local .box has `metadata.json` with `"provider":"qemu"` but vagrant-qemu plugin asks for `libvirt`. Fix: rewrite metadata.json to use `provider:libvirt`. The current `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` shell-local PP does this correctly.
+1. **metadata.json mismatch**: Your local .box has `metadata.json` with `"provider":"qemu"` but vagrant-qemu plugin asks for `libvirt`. Fix: rewrite metadata.json to use `provider:libvirt`. The current `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` shell-local PP does this correctly.
 2. **Registry slot mismatch**: You uploaded only as `provider=qemu` and a consumer running `vagrant up --provider qemu` tries to pull → registry returns 404 because the consumer's vagrant-qemu plugin queries the `libvirt` slot. Fix: upload to BOTH `qemu` and `libvirt` slots. The current `publish.sh` auto-mirrors qemu → libvirt.
 
 #### VI.5.4 `vagrant box add --provider qemu` when local file has metadata.json provider=libvirt
@@ -1954,7 +1973,7 @@ Empirical numbers from the 2026-05-20 release cycle on `nthedao-mac-pro-m4`
 
 **Document maintainer**: this file should be updated alongside any change to:
 - `playbooks/packer-bake.yml` (especially post-tasks)
-- `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` (shell-local PP)
+- `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` (shell-local PP)
 - `templates/box-vagrantfile.qemu.rb` (embedded Vagrantfile)
 - `scripts/publish.sh` (provider expansion, release flow)
 - `scripts/build.sh` (env-var contract)

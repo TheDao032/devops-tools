@@ -1,5 +1,5 @@
 # Guest: Ubuntu 24.04 LTS (Noble Numbat) — amd64
-# Paired with: templates/ubuntu-amd64.pkr.hcl
+# Paired with: templates/_base/ubuntu-amd64.pkr.hcl
 #
 # To refresh when Ubuntu rolls a new point release:
 #   1. Grab https://releases.ubuntu.com/24.04/SHA256SUMS

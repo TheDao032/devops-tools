@@ -29,7 +29,7 @@ Full diagnostic + sources:
 The four files patched on 2026-05-20:
 - `playbooks/packer-bake.yml` — three new post-tasks (EFI fallback, shim copy, vagrant authorized_key)
 - `templates/box-vagrantfile.qemu.rb` — `qe.net_device` = `virtio-net-pci`
-- `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` — shell-local PP now writes `provider:libvirt` + dynamic `virtual_size` and ships `efivars.fd` in the bundle
+- `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` — shell-local PP now writes `provider:libvirt` + dynamic `virtual_size` and ships `efivars.fd` in the bundle
 - `.gitignore` — `smoke/` excluded
 
 The smoke-test harness lives under `smoke/qemu-bosch-arm64/` (gitignored).
@@ -53,7 +53,7 @@ grep -n -E 'BOOTAA64\.EFI|vagrant insecure' playbooks/packer-bake.yml
 
 # Fix 4: shell-local PP produces correct metadata.json + bundles efivars.fd
 grep -n -E 'provider":"libvirt|virtual_size|efivars\.fd' \
-  templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl
+  templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl
 # expect: at least 3 lines confirming the new PP body
 ```
 
@@ -142,7 +142,7 @@ ARCH=arm64 STAGE=hardened \
 | `PACKER_LOG_PATH directory missing` | Wrapper bug — log path's parent doesn't exist | `mkdir -p output/` and retry |
 | `ansible.posix.authorized_key: collection not found` | Missing Ansible collection | `ansible-galaxy collection install ansible.posix` |
 | `qemu-img info: parse failed` | New shell-local PP's awk couldn't read virtual size | Run `qemu-img info <output>.qcow2` manually. If it reports differently than `virtual size: NN GiB (…)`, file an issue — harden the awk |
-| Bake-host out of memory | Default `build_cpus`/`build_memory` too aggressive | Reduce in `variables/bosch-arm64.pkrvars.hcl` |
+| Bake-host out of memory | Default `build_cpus`/`build_memory` too aggressive | Reduce in `variables/bosch/arm64.pkrvars.hcl` |
 
 ### 1.3 Confirm outputs
 
@@ -328,7 +328,7 @@ cd - && rm -rf "$TMPDIR"
 cd ~/Projects/Infrastrutures/devops-tools
 git add packer/playbooks/packer-bake.yml \
         packer/templates/box-vagrantfile.qemu.rb \
-        packer/templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl \
+        packer/templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl \
         packer/.gitignore \
         packer/docs/rebake-bosch-arm64-runbook.md \
         packer/smoke/qemu-bosch-arm64/Vagrantfile \
@@ -385,7 +385,7 @@ The five scripts in `smoke/qemu-bosch-arm64/` (`smoke-manual.sh`, `smoke-vagrant
 |---|---|---|
 | `playbooks/packer-bake.yml` | +3 post_tasks (EFI fallback dir, shim copy, vagrant authorized_key) | +45 |
 | `templates/box-vagrantfile.qemu.rb` | `qe.net_device` → `virtio-net-pci` + comment block | +5 |
-| `templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl` | shell-local PP: `provider:libvirt`, dynamic `virtual_size`, ship `efivars.fd` | +15 |
+| `templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl` | shell-local PP: `provider:libvirt`, dynamic `virtual_size`, ship `efivars.fd` | +15 |
 | `.gitignore` | `smoke/` excluded | +1 |
 | `docs/rebake-bosch-arm64-runbook.md` | THIS FILE (new) | new |
 | `smoke/qemu-bosch-arm64/Vagrantfile` | Consumer smoke Vagrantfile (with workarounds — pre-bake state) | new |

@@ -6,15 +6,16 @@
 # amd64 (default arch — layered pkrvars composition):
 #   ./scripts/build.sh <tenant> <guest> <provider> [image_version]
 #
-#     tenant   = renesas | bosch
+#     tenant   = renesas | bosch | nthedao (arm64-only)
 #     guest    = ubuntu2204 | ubuntu2404 | rhel9
 #     provider = virtualbox | qemu | vmware | all
 #
 # arm64 (two-stage flow — unchanged, uses guest-less CLI):
 #   ARCH=arm64 [STAGE=base|hardened|all] ./scripts/build.sh <tenant> <provider> [image_version]
 #
-#     tenant   = bosch          (renesas arm64 not supported)
+#     tenant   = bosch (22.04) | nthedao (26.04)   (renesas arm64 not supported)
 #     provider = virtualbox | qemu | all
+#     org folder selects the template: templates/<org>/ + variables/<org>/
 #
 # ═══ pkrvars composition (amd64) ══════════════════════════════════════════
 #
@@ -26,8 +27,8 @@
 #   variables/tenants/<tenant>.pkrvars.hcl     — compliance_profile, banner, image_name_prefix
 #
 # Guest → template mapping:
-#   ubuntu*  →  templates/ubuntu-amd64.pkr.hcl   (subiquity autoinstall)
-#   rhel*    →  templates/rhel-amd64.pkr.hcl     (anaconda kickstart)
+#   ubuntu*  →  templates/_base/ubuntu-amd64.pkr.hcl   (subiquity autoinstall)
+#   rhel*    →  templates/_base/rhel-amd64.pkr.hcl     (anaconda kickstart)
 #
 # ═══ Environment variables ════════════════════════════════════════════════
 #
@@ -51,7 +52,7 @@
 #   ARCH=arm64 STAGE=hardened BASE_IMAGE_PATH=output/base/ubuntu2204-arm64/2026-05-03/ubuntu2204-arm64-base-2026-05-03.qcow2 \
 #     ./scripts/build.sh bosch qemu
 #
-# ═══ Two-stage build (arm64 + bosch, unchanged) ═══════════════════════════
+# ═══ Two-stage build (arm64, org-folder templates) ════════════════════════
 #
 #   stage 1 = "base"     — clean Ubuntu 22.04 ARM64 OS install, no ansible
 #   stage 2 = "hardened" — boots stage 1's image, runs the compliance role
@@ -76,7 +77,7 @@ BASE_VERSION="${BASE_VERSION:-$(date +%F)}"
 TENANT="${1:-}"
 if [[ "${ARCH}" == "arm64" ]]; then
   # OLD form: <tenant> <provider> [image_version]
-  GUEST=""                       # unused on arm64 (template is fixed to ubuntu2204-arm64)
+  GUEST=""                       # unused on arm64 (org folder picks the template: bosch=22.04, nthedao=26.04)
   PROVIDER="${2:-}"
   IMAGE_VERSION="${3:-$(date +%F).1}"
 else
@@ -93,7 +94,7 @@ Usage:
   amd64 (default):   $0 <tenant> <guest> <provider> [image_version]
   arm64:             ARCH=arm64 $0 <tenant> <provider> [image_version]
 
-  tenant   = renesas | bosch
+  tenant   = renesas | bosch | nthedao (arm64-only)
   guest    = ubuntu2204 | ubuntu2404 | rhel9   (amd64 only)
   provider = virtualbox | qemu | vmware | all
   image_version (optional) — defaults to YYYY-MM-DD.1
@@ -120,6 +121,7 @@ if [[ "${ARCH}" == "amd64" && -z "${GUEST}" ]]; then usage; fi
 
 case "${TENANT}" in
   renesas|bosch) ;;
+  nthedao) ;;   # arm64-only personal lab line (26.04); amd64 has no tenants/nthedao.pkrvars.hcl
   *) echo "ERROR: unknown tenant '${TENANT}'"; usage ;;
 esac
 
@@ -154,12 +156,12 @@ if [[ "${ARCH}" == "amd64" ]]; then
 
   case "${GUEST}" in
     ubuntu2204|ubuntu2404)
-      TEMPLATE="templates/ubuntu-amd64.pkr.hcl"
+      TEMPLATE="templates/_base/ubuntu-amd64.pkr.hcl"
       SRC_LEAF="ubuntu"
       BUILD_NAME="ubuntu-amd64"
       ;;
     rhel9)
-      TEMPLATE="templates/rhel-amd64.pkr.hcl"
+      TEMPLATE="templates/_base/rhel-amd64.pkr.hcl"
       SRC_LEAF="rhel"
       BUILD_NAME="rhel-amd64"
       ;;
@@ -220,12 +222,31 @@ EOF
       exit 4
       ;;
     bosch-arm64)
-      TEMPLATE_BASE="templates/ubuntu2204-arm64-base.pkr.hcl"
-      TEMPLATE_HARDENED="templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl"
-      VAR_FILE_BASE="variables/ubuntu-arm64-base.pkrvars.hcl"
-      VAR_FILE_HARDENED="variables/bosch-arm64.pkrvars.hcl"
+      TEMPLATE_BASE="templates/_base/ubuntu2204-arm64-base.pkr.hcl"
+      TEMPLATE_HARDENED="templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl"
+      VAR_FILE_BASE="variables/_base/ubuntu2204-arm64-base.pkrvars.hcl"
+      VAR_FILE_HARDENED="variables/bosch/arm64.pkrvars.hcl"
+      BASE_SLUG="ubuntu2204-arm64"                       # base source label + output/base/<slug> dir + qcow2 name prefix
+      HARDENED_SRC_LABEL="bosch-ubuntu2204-arm64"        # stage-2 source name in the hardened template
       BUILD_NAME_BASE="ubuntu2204-arm64-base"
       BUILD_NAME_HARDENED="bosch-ubuntu2204-arm64-hardened"
+      ;;
+    nthedao-arm64)
+      TEMPLATE_BASE="templates/_base/ubuntu2604-arm64-base.pkr.hcl"
+      TEMPLATE_HARDENED="templates/nthedao/ubuntu2604-arm64-hardened.pkr.hcl"
+      VAR_FILE_BASE="variables/_base/ubuntu2604-arm64-base.pkrvars.hcl"
+      VAR_FILE_HARDENED="variables/nthedao/arm64.pkrvars.hcl"
+      BASE_SLUG="ubuntu2604-arm64"
+      HARDENED_SRC_LABEL="nthedao-ubuntu2604-arm64"
+      BUILD_NAME_BASE="ubuntu2604-arm64-base"
+      BUILD_NAME_HARDENED="nthedao-ubuntu2604-arm64-hardened"
+      ;;
+    *)
+      cat <<EOF >&2
+ERROR: arm64 two-stage builds are only wired for tenants: bosch, nthedao (got '${TENANT}').
+To add an org: create templates/<org>/ + variables/<org>/ and add a case here.
+EOF
+      exit 4
       ;;
   esac
 fi
@@ -329,17 +350,18 @@ run_packer_build() {
 }
 
 # ----------------------------------------------------------------------------
-# Two-stage path (arm64 + bosch) with per-provider dispatch (Path D).
+# Two-stage path (arm64 org-folder templates) with per-provider dispatch (Path D).
+# Reached for any arm64 tenant whose case above set TEMPLATE_HARDENED (bosch, nthedao, …).
 #
 # PROVIDER=qemu       → qcow2 only            (Proxmox prod fleet)
 # PROVIDER=virtualbox → .ova + .box           (Apple Silicon vagrant)
 # PROVIDER=all        → both, parallel        (CI / full-rebuild)
 # ----------------------------------------------------------------------------
-if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
+if [[ "${ARCH}" == "arm64" && -n "${TEMPLATE_HARDENED:-}" ]]; then
   case "${PROVIDER}" in
     qemu|virtualbox|all) ;;
     vmware)
-      echo "ERROR: arm64 bosch + vmware is not wired (vmware-vmx stage-2 source not added)." >&2
+      echo "ERROR: arm64 ${TENANT} + vmware is not wired (vmware-vmx stage-2 source not added)." >&2
       echo "       Use PROVIDER=qemu, virtualbox, or all." >&2
       exit 5
       ;;
@@ -355,12 +377,12 @@ if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
   # template (which is what PROVIDER=all wants).
   case "${PROVIDER}" in
     qemu)
-      STAGE1_ONLY="${BUILD_NAME_BASE}.qemu.ubuntu2204-arm64"
-      STAGE2_ONLY="${BUILD_NAME_HARDENED}.qemu.bosch-ubuntu2204-arm64"
+      STAGE1_ONLY="${BUILD_NAME_BASE}.qemu.${BASE_SLUG}"
+      STAGE2_ONLY="${BUILD_NAME_HARDENED}.qemu.${HARDENED_SRC_LABEL}"
       ;;
     virtualbox)
-      STAGE1_ONLY="${BUILD_NAME_BASE}.virtualbox-iso.ubuntu2204-arm64"
-      STAGE2_ONLY="${BUILD_NAME_HARDENED}.virtualbox-ovf.bosch-ubuntu2204-arm64"
+      STAGE1_ONLY="${BUILD_NAME_BASE}.virtualbox-iso.${BASE_SLUG}"
+      STAGE2_ONLY="${BUILD_NAME_HARDENED}.virtualbox-ovf.${HARDENED_SRC_LABEL}"
       ;;
     all)
       STAGE1_ONLY=""
@@ -372,7 +394,7 @@ if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
   if [[ "${STAGE}" == "base" || "${STAGE}" == "all" ]]; then
     echo ""
     echo "########################################################################"
-    echo "# STAGE 1 — bake Ubuntu 22.04 ARM64 base   version=${BASE_VERSION}   provider=${PROVIDER}"
+    echo "# STAGE 1 — bake ${BASE_SLUG} base   version=${BASE_VERSION}   provider=${PROVIDER}"
     echo "########################################################################"
     # Override IMAGE_VERSION just for the base bake so its output dir reflects
     # the BASE version (decoupled from the hardened-image's version).
@@ -384,18 +406,18 @@ if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
     # Maintain `latest/` symlinks per provider tree so STAGE=hardened-only
     # invocations can resolve a recent base without explicit BASE_*_PATH.
     if [[ "${PROVIDER}" == "qemu" || "${PROVIDER}" == "all" ]]; then
-      QEMU_DIR="${PACKER_DIR}/output/base/ubuntu2204-arm64"
+      QEMU_DIR="${PACKER_DIR}/output/base/${BASE_SLUG}"
       rm -rf "${QEMU_DIR}/latest"
       ln -sfn "../${BASE_VERSION}" "${QEMU_DIR}/latest"
-      ln -sfn "ubuntu2204-arm64-base-${BASE_VERSION}.qcow2" \
-        "${QEMU_DIR}/${BASE_VERSION}/ubuntu2204-arm64-base-latest.qcow2"
+      ln -sfn "${BASE_SLUG}-base-${BASE_VERSION}.qcow2" \
+        "${QEMU_DIR}/${BASE_VERSION}/${BASE_SLUG}-base-latest.qcow2"
     fi
     if [[ "${PROVIDER}" == "virtualbox" || "${PROVIDER}" == "all" ]]; then
-      VBOX_DIR="${PACKER_DIR}/output/base/ubuntu2204-arm64-vbox"
+      VBOX_DIR="${PACKER_DIR}/output/base/${BASE_SLUG}-vbox"
       rm -rf "${VBOX_DIR}/latest"
       ln -sfn "../${BASE_VERSION}" "${VBOX_DIR}/latest"
-      ln -sfn "ubuntu2204-arm64-base-${BASE_VERSION}.ova" \
-        "${VBOX_DIR}/${BASE_VERSION}/ubuntu2204-arm64-base-latest.ova"
+      ln -sfn "${BASE_SLUG}-base-${BASE_VERSION}.ova" \
+        "${VBOX_DIR}/${BASE_VERSION}/${BASE_SLUG}-base-latest.ova"
     fi
   fi
 
@@ -408,7 +430,7 @@ if [[ "${ARCH}" == "arm64" && "${TENANT}" == "bosch" ]]; then
       if [[ -n "${BASE_IMAGE_PATH:-}" ]]; then
         RESOLVED_BASE_QCOW2="${BASE_IMAGE_PATH}"
       else
-        RESOLVED_BASE_QCOW2="output/base/ubuntu2204-arm64/${BASE_VERSION}/ubuntu2204-arm64-base-${BASE_VERSION}.qcow2"
+        RESOLVED_BASE_QCOW2="output/base/${BASE_SLUG}/${BASE_VERSION}/${BASE_SLUG}-base-${BASE_VERSION}.qcow2"
       fi
       if [[ ! -f "${PACKER_DIR}/${RESOLVED_BASE_QCOW2}" && ! -f "${RESOLVED_BASE_QCOW2}" ]]; then
         cat <<EOF >&2
@@ -428,7 +450,7 @@ EOF
       if [[ -n "${BASE_OVA_PATH:-}" ]]; then
         RESOLVED_BASE_OVA="${BASE_OVA_PATH}"
       else
-        RESOLVED_BASE_OVA="output/base/ubuntu2204-arm64-vbox/${BASE_VERSION}/ubuntu2204-arm64-base-${BASE_VERSION}.ova"
+        RESOLVED_BASE_OVA="output/base/${BASE_SLUG}-vbox/${BASE_VERSION}/${BASE_SLUG}-base-${BASE_VERSION}.ova"
       fi
       if [[ ! -f "${PACKER_DIR}/${RESOLVED_BASE_OVA}" && ! -f "${RESOLVED_BASE_OVA}" ]]; then
         cat <<EOF >&2
@@ -450,7 +472,7 @@ EOF
 
     echo ""
     echo "########################################################################"
-    echo "# STAGE 2 — harden bosch-ubuntu2204-arm64   version=${IMAGE_VERSION}   provider=${PROVIDER}"
+    echo "# STAGE 2 — harden ${HARDENED_SRC_LABEL}   version=${IMAGE_VERSION}   provider=${PROVIDER}"
     if [[ "${PROVIDER}" == "qemu" || "${PROVIDER}" == "all" ]]; then
       echo "#         base qcow2 = ${RESOLVED_BASE_QCOW2}"
     fi

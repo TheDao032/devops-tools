@@ -41,7 +41,7 @@ variable "disk_size_mb" { type = number }
 // default), so this value is currently unused at bake time. Left in place so the
 // wrapper script's arm64 + amd64 paths can share one -var contract.
 // TODO: wire this into the source blocks to promote amd64 to key auth like arm64
-// (see templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl lines 164, 209 for shape).
+// (see templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl lines 164, 209 for shape).
 variable "ssh_private_key_file" {
   type    = string
   default = ""

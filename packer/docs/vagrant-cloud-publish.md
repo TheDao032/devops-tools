@@ -1,7 +1,7 @@
 # Publishing the bosch hardened arm64 box to Vagrant Cloud
 
 This document covers shipping the Path D deliverables (`*.box` files produced by
-`packer/templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl`) to the public
+`packer/templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl`) to the public
 HashiCorp Vagrant Cloud registry (`app.vagrantup.com`) for both the
 `virtualbox` and `qemu` providers, on the `arm64` architecture, for engineers
 running Apple Silicon.
@@ -54,7 +54,7 @@ box.tar.gz/
 ```
 
 Add a `shell-local` post-processor to the qemu chain in
-`templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl`:
+`templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl`:
 
 ```hcl
 post-processor "shell-local" {

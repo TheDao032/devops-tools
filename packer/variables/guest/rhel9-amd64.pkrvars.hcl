@@ -1,5 +1,5 @@
 # Guest: RHEL 9 — amd64
-# Paired with: templates/rhel-amd64.pkr.hcl
+# Paired with: templates/_base/rhel-amd64.pkr.hcl
 #
 # NOTE: RHEL ISOs are gated behind Red Hat subscription. This filename assumes
 # the ISO has been downloaded to the machine-local iso_cache_prefix. Point

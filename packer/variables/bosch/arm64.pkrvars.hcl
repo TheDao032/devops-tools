@@ -1,12 +1,12 @@
 # Bosch ARM64 — STAGE 2 hardening variables.
-# Pairs with: templates/bosch-ubuntu2204-arm64-hardened.pkr.hcl
+# Pairs with: templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl
 #
 # Compliance: CIS-L1 (no FIPS).
 # Use case: local dev sandboxes on Apple Silicon Macs, future ARM64 server
 # deployment. ARM64 is binary-incompatible with x86_64 hardware — never
 # deploy this artifact to Intel/AMD servers.
 #
-# Stage 1's ISO/checksum live in variables/ubuntu-arm64-base.pkrvars.hcl now;
+# Stage 1's ISO/checksum live in variables/_base/ubuntu2204-arm64-base.pkrvars.hcl now;
 # this file no longer carries them. Stage 2 only cares about WHERE the base
 # qcow2 lives (base_image_path) and the tenant-specific hardening knobs.
 

@@ -1,5 +1,5 @@
 # Guest: Ubuntu 22.04.5 LTS (Jammy Jellyfish) — amd64
-# Paired with: templates/ubuntu-amd64.pkr.hcl
+# Paired with: templates/_base/ubuntu-amd64.pkr.hcl
 #
 # iso_url is composed at template-eval time as:
 #   "${var.iso_cache_prefix}/${var.iso_filename}"
