@@ -17,8 +17,8 @@ box_version:
   x86_64:  ""
 
 # Component versions
-k3s_version:  "v1.30.6+k3s1"     # https://github.com/k3s-io/k3s/releases
-etcd_version: "v3.5.16"          # https://github.com/etcd-io/etcd/releases
+k3s_version:  "v1.36.2+k3s1"     # stable channel = k8s 1.36.2 (https://github.com/k3s-io/k3s/releases)
+etcd_version: "v3.6.7"           # matches k3s 1.36's bundled etcd (3.6 series)
 
 # Shared cluster join token (LAB ONLY — rotate for anything real)
 cluster_token: "k3s-lab-shared-token-change-me"
