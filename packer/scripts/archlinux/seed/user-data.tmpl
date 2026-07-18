@@ -1,0 +1,31 @@
+#cloud-config
+# NoCloud seed for the THROWAWAY Ubuntu cloud-image builder used by the ALARM
+# STAGE-1 bootstrap. This configures the *builder*, not the baked Arch image.
+#
+# TEMPLATE: @@SSH_PUBKEY@@ is replaced with keys/packer_ed25519.pub by
+# scripts/archlinux/bootstrap-base.sh before the seed ISO is built. The matching
+# private key lets the host script SSH into the builder and run install-alarm.sh.
+#
+# The builder only needs: a key-authed sudo user + sshd up. Everything else
+# (partitioning tools, the ALARM install) is driven over SSH afterwards.
+
+users:
+  - name: packer
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    # Also allow root login by key for convenience — install-alarm.sh runs as root.
+    ssh_authorized_keys:
+      - "@@SSH_PUBKEY@@"
+
+# Authorize the same key for root so `ssh root@builder` works without sudo hops.
+ssh_authorized_keys:
+  - "@@SSH_PUBKEY@@"
+
+disable_root: false
+ssh_pwauth: false
+
+# Speed up first boot: we don't need the builder to reach out for updates during
+# cloud-init (install-alarm.sh runs its own apt-get update when it needs tools).
+package_update: false
+package_upgrade: false

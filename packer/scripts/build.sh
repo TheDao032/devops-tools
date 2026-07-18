@@ -13,9 +13,12 @@
 # arm64 (two-stage flow — unchanged, uses guest-less CLI):
 #   ARCH=arm64 [STAGE=base|hardened|all] ./scripts/build.sh <tenant> <provider> [image_version]
 #
-#     tenant   = bosch (22.04) | nthedao (26.04)   (renesas arm64 not supported)
+#     tenant   = bosch (22.04) | nthedao (26.04) | archlinux (ALARM rolling)
+#                (renesas arm64 not supported)
 #     provider = virtualbox | qemu | all
 #     org folder selects the template: templates/<org>/ + variables/<org>/
+#     archlinux stage 1 is a tarball bootstrap script (no ISO); see
+#     scripts/archlinux/ + docs/archlinux-arm64-runbook.md.
 #
 # ═══ pkrvars composition (amd64) ══════════════════════════════════════════
 #
@@ -94,7 +97,7 @@ Usage:
   amd64 (default):   $0 <tenant> <guest> <provider> [image_version]
   arm64:             ARCH=arm64 $0 <tenant> <provider> [image_version]
 
-  tenant   = renesas | bosch | nthedao (arm64-only)
+  tenant   = renesas | bosch | nthedao | archlinux   (nthedao/archlinux arm64-only)
   guest    = ubuntu2204 | ubuntu2404 | rhel9   (amd64 only)
   provider = virtualbox | qemu | vmware | all
   image_version (optional) — defaults to YYYY-MM-DD.1
@@ -121,7 +124,8 @@ if [[ "${ARCH}" == "amd64" && -z "${GUEST}" ]]; then usage; fi
 
 case "${TENANT}" in
   renesas|bosch) ;;
-  nthedao) ;;   # arm64-only personal lab line (26.04); amd64 has no tenants/nthedao.pkrvars.hcl
+  nthedao) ;;     # arm64-only personal lab line (26.04); amd64 has no tenants/nthedao.pkrvars.hcl
+  archlinux) ;;   # arm64-only Arch Linux ARM line; stage 1 = tarball bootstrap script, not packer
   *) echo "ERROR: unknown tenant '${TENANT}'"; usage ;;
 esac
 
@@ -240,6 +244,21 @@ EOF
       HARDENED_SRC_LABEL="nthedao-ubuntu2604-arm64"
       BUILD_NAME_BASE="ubuntu2604-arm64-base"
       BUILD_NAME_HARDENED="nthedao-ubuntu2604-arm64-hardened"
+      ;;
+    archlinux-arm64)
+      # Arch aarch64 has no installer ISO, so STAGE 1 is a tarball bootstrap SCRIPT
+      # (not a packer template). BOOTSTRAP_SCRIPT signals the STAGE=base branch to
+      # run it instead of run_packer_build; the script produces the same base
+      # qcow2 (+ .ova) paths the stage-2 resolver below expects. STAGE 2 is packer.
+      BOOTSTRAP_SCRIPT="scripts/archlinux/bootstrap-base.sh"
+      TEMPLATE_BASE=""                                            # n/a — bootstrap is a script
+      VAR_FILE_BASE=""                                            # n/a — config in scripts/archlinux/base.env
+      TEMPLATE_HARDENED="templates/nthedao/archlinux-arm64.pkr.hcl"
+      VAR_FILE_HARDENED="variables/nthedao/archlinux-arm64.pkrvars.hcl"
+      BASE_SLUG="archlinux-arm64"
+      HARDENED_SRC_LABEL="archlinux-arm64"
+      BUILD_NAME_BASE="archlinux-arm64-base"
+      BUILD_NAME_HARDENED="archlinux-arm64"
       ;;
     *)
       cat <<EOF >&2
@@ -396,28 +415,37 @@ if [[ "${ARCH}" == "arm64" && -n "${TEMPLATE_HARDENED:-}" ]]; then
     echo "########################################################################"
     echo "# STAGE 1 — bake ${BASE_SLUG} base   version=${BASE_VERSION}   provider=${PROVIDER}"
     echo "########################################################################"
-    # Override IMAGE_VERSION just for the base bake so its output dir reflects
-    # the BASE version (decoupled from the hardened-image's version).
-    SAVED_IMAGE_VERSION="${IMAGE_VERSION}"
-    IMAGE_VERSION="${BASE_VERSION}"
-    run_packer_build "${TEMPLATE_BASE}" "${VAR_FILE_BASE}" "base-${PROVIDER}" "${STAGE1_ONLY}"
-    IMAGE_VERSION="${SAVED_IMAGE_VERSION}"
+    if [[ -n "${BOOTSTRAP_SCRIPT:-}" ]]; then
+      # Arch line: stage 1 is the ALARM tarball bootstrap SCRIPT (no installer ISO
+      # to drive with packer). It writes the base qcow2 (+ .ova when PROVIDER
+      # includes virtualbox) to the same output/base/<slug>{,-vbox}/ paths the
+      # stage-2 resolver expects, AND maintains its own latest/ symlinks.
+      BASE_VERSION="${BASE_VERSION}" PROVIDER="${PROVIDER}" \
+        "${PACKER_DIR}/${BOOTSTRAP_SCRIPT}" "${BASE_VERSION}"
+    else
+      # Override IMAGE_VERSION just for the base bake so its output dir reflects
+      # the BASE version (decoupled from the hardened-image's version).
+      SAVED_IMAGE_VERSION="${IMAGE_VERSION}"
+      IMAGE_VERSION="${BASE_VERSION}"
+      run_packer_build "${TEMPLATE_BASE}" "${VAR_FILE_BASE}" "base-${PROVIDER}" "${STAGE1_ONLY}"
+      IMAGE_VERSION="${SAVED_IMAGE_VERSION}"
 
-    # Maintain `latest/` symlinks per provider tree so STAGE=hardened-only
-    # invocations can resolve a recent base without explicit BASE_*_PATH.
-    if [[ "${PROVIDER}" == "qemu" || "${PROVIDER}" == "all" ]]; then
-      QEMU_DIR="${PACKER_DIR}/output/base/${BASE_SLUG}"
-      rm -rf "${QEMU_DIR}/latest"
-      ln -sfn "../${BASE_VERSION}" "${QEMU_DIR}/latest"
-      ln -sfn "${BASE_SLUG}-base-${BASE_VERSION}.qcow2" \
-        "${QEMU_DIR}/${BASE_VERSION}/${BASE_SLUG}-base-latest.qcow2"
-    fi
-    if [[ "${PROVIDER}" == "virtualbox" || "${PROVIDER}" == "all" ]]; then
-      VBOX_DIR="${PACKER_DIR}/output/base/${BASE_SLUG}-vbox"
-      rm -rf "${VBOX_DIR}/latest"
-      ln -sfn "../${BASE_VERSION}" "${VBOX_DIR}/latest"
-      ln -sfn "${BASE_SLUG}-base-${BASE_VERSION}.ova" \
-        "${VBOX_DIR}/${BASE_VERSION}/${BASE_SLUG}-base-latest.ova"
+      # Maintain `latest/` symlinks per provider tree so STAGE=hardened-only
+      # invocations can resolve a recent base without explicit BASE_*_PATH.
+      if [[ "${PROVIDER}" == "qemu" || "${PROVIDER}" == "all" ]]; then
+        QEMU_DIR="${PACKER_DIR}/output/base/${BASE_SLUG}"
+        rm -rf "${QEMU_DIR}/latest"
+        ln -sfn "../${BASE_VERSION}" "${QEMU_DIR}/latest"
+        ln -sfn "${BASE_SLUG}-base-${BASE_VERSION}.qcow2" \
+          "${QEMU_DIR}/${BASE_VERSION}/${BASE_SLUG}-base-latest.qcow2"
+      fi
+      if [[ "${PROVIDER}" == "virtualbox" || "${PROVIDER}" == "all" ]]; then
+        VBOX_DIR="${PACKER_DIR}/output/base/${BASE_SLUG}-vbox"
+        rm -rf "${VBOX_DIR}/latest"
+        ln -sfn "../${BASE_VERSION}" "${VBOX_DIR}/latest"
+        ln -sfn "${BASE_SLUG}-base-${BASE_VERSION}.ova" \
+          "${VBOX_DIR}/${BASE_VERSION}/${BASE_SLUG}-base-latest.ova"
+      fi
     fi
   fi
 

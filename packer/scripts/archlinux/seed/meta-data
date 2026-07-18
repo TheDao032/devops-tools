@@ -1,0 +1,5 @@
+# NoCloud meta-data for the throwaway ALARM builder. Required by the NoCloud
+# datasource even when otherwise empty — without it cloud-init won't apply
+# user-data. instance-id must be stable so cloud-init runs once per fresh boot.
+instance-id: alarm-builder
+local-hostname: alarm-builder
