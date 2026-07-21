@@ -20,8 +20,8 @@
 // (STAGE=base runs the bootstrap script; STAGE=all does base then this.)
 //
 // Output:
-//   qemu:       output/nthedao/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.{qcow2,box}
-//   virtualbox: output/nthedao/arm64/virtualbox/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
+//   qemu:       output/nthedao/arm64/qemu/<image_name_prefix>/<image_version>/<image_name_prefix>-<image_version>.{qcow2,box}
+//   virtualbox: output/nthedao/arm64/virtualbox/<image_name_prefix>/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
 //
 // SSH key contract: STAGE 1 baked keys/packer_ed25519.pub into ~packer/.ssh/
 // authorized_keys. This stage authenticates with the matching private key.
@@ -91,8 +91,11 @@ variable "base_image_ova_path" {
 // ---------- locals ----------
 
 locals {
-  output_dir_qemu       = "${var.output_base_dir}/${var.tenant}/arm64/qemu/${var.image_version}"
-  output_dir_virtualbox = "${var.output_base_dir}/${var.tenant}/arm64/virtualbox/${var.image_version}"
+  // Keyed by image_name_prefix so an org with >1 box (nthedao ships both
+  // ubuntu2404 and archlinux) doesn't collide on a shared version dir — packer
+  // refuses a pre-existing output_directory, and manifest.json would clash.
+  output_dir_qemu       = "${var.output_base_dir}/${var.tenant}/arm64/qemu/${var.image_name_prefix}/${var.image_version}"
+  output_dir_virtualbox = "${var.output_base_dir}/${var.tenant}/arm64/virtualbox/${var.image_name_prefix}/${var.image_version}"
 
   // Shared provisioning steps (run identically against both sources).
   //   - Full upgrade (rolling release → current at box time).
@@ -153,6 +156,11 @@ source "qemu" "archlinux-arm64" {
     ["-boot", "strict=off"],
     ["-machine", "type=virt,accel=hvf,highmem=on"],
     ["-device", "virtio-net,netdev=user.0"],
+    // virtio-rng: feed host entropy to the guest. Headless aarch64 VMs have no
+    // trusted HW RNG, so sshd host-key gen + KEX block on entropy and packer's
+    // SSH stalls "timed out during banner exchange". ALARM hit this hard (no
+    // haveged, keys generated on first boot); the stage-1 builder already uses it.
+    ["-device", "virtio-rng-pci"],
     ["-device", "qemu-xhci"],
     ["-device", "usb-kbd"],
     ["-device", "usb-tablet"],

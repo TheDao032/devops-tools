@@ -513,17 +513,20 @@ EOF
   fi
 
   echo ""
+  # image_name_prefix keys the output dir (an org can ship >1 box), so read it
+  # from the hardened var-file to point the completion hint at the real path.
+  HARDENED_PREFIX="$(sed -n 's/^image_name_prefix[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' "${VAR_FILE_HARDENED}")"
   case "${PROVIDER}" in
     qemu)
-      echo "==> done. qcow2 + box in: ${PACKER_DIR}/output/${TENANT}/arm64/qemu/${IMAGE_VERSION}/"
+      echo "==> done. qcow2 + box in: ${PACKER_DIR}/output/${TENANT}/arm64/qemu/${HARDENED_PREFIX}/${IMAGE_VERSION}/"
       ;;
     virtualbox)
-      echo "==> done. ova + box in: ${PACKER_DIR}/output/${TENANT}/arm64/virtualbox/${IMAGE_VERSION}/"
+      echo "==> done. ova + box in: ${PACKER_DIR}/output/${TENANT}/arm64/virtualbox/${HARDENED_PREFIX}/${IMAGE_VERSION}/"
       ;;
     all)
       echo "==> done. artifacts:"
-      echo "      qemu       (qcow2 + box): ${PACKER_DIR}/output/${TENANT}/arm64/qemu/${IMAGE_VERSION}/"
-      echo "      virtualbox (ova   + box): ${PACKER_DIR}/output/${TENANT}/arm64/virtualbox/${IMAGE_VERSION}/"
+      echo "      qemu       (qcow2 + box): ${PACKER_DIR}/output/${TENANT}/arm64/qemu/${HARDENED_PREFIX}/${IMAGE_VERSION}/"
+      echo "      virtualbox (ova   + box): ${PACKER_DIR}/output/${TENANT}/arm64/virtualbox/${HARDENED_PREFIX}/${IMAGE_VERSION}/"
       ;;
   esac
   exit 0

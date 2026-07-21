@@ -36,9 +36,11 @@
 #
 # Optional env:
 #   VAGRANT_CLOUD_ORG     Vagrant Cloud org/user the box lives under.
-#                         Default: <tenant>. The full box tag is <ORG>/<BOX_NAME>.
+#                         Default: per-tenant (bosch=bosch, nthedao=nthedao2705).
+#                         The full box tag is <ORG>/<BOX_NAME>.
 #   BOX_NAME              Box name (the part after the slash in the tag).
-#                         Default: ubuntu2204-cisl1-arm64
+#                         Default: per-tenant (bosch=ubuntu2204-cisl1-arm64,
+#                         nthedao=ubuntu2404-cisl1-arm64)
 #   IMAGE_NAME_PREFIX     Local artifact filename prefix.
 #                         Default: <tenant>-<BOX_NAME>
 #   ARCH                  Box architecture string. Default: arm64.
@@ -113,7 +115,7 @@ Usage: $0 <tenant> [image_version] [--release] [--dry-run] \\
                                   [--description-file PATH] \\
                                   [--version-description STR]
 
-  tenant         = bosch (only tenant currently wired for arm64 vagrant boxes)
+  tenant         = bosch | nthedao (arm64 vagrant boxes)
   image_version  = optional; auto-detected from latest local artifact if omitted
 
 See: packer/docs/vagrant-cloud-publish.md
@@ -123,8 +125,21 @@ EOF
 
 [[ -z "${TENANT}" ]] && usage
 
+# Per-tenant registry defaults. These seed VAGRANT_CLOUD_ORG / BOX_NAME / the
+# box description below; each is still overridable by the matching env var.
+# NOTE: the registry ORG is the Vagrant Cloud slug, which is NOT always the
+# tenant name (e.g. nthedao publishes under the personal account "nthedao2705").
 case "${TENANT}" in
-  bosch) ;;
+  bosch)
+    DEFAULT_ORG="bosch"
+    DEFAULT_BOX_NAME="ubuntu2204-cisl1-arm64"
+    OS_LABEL="Ubuntu 22.04"
+    ;;
+  nthedao)
+    DEFAULT_ORG="nthedao2705"
+    DEFAULT_BOX_NAME="ubuntu2404-cisl1-arm64"
+    OS_LABEL="Ubuntu 24.04 LTS"
+    ;;
   renesas)
     echo "ERROR: renesas publish path not wired (renesas is x86-only and ships qcow2-only)." >&2
     exit 2
@@ -143,8 +158,8 @@ esac
 
 # ---------- defaults derived from tenant ----------
 
-VAGRANT_CLOUD_ORG="${VAGRANT_CLOUD_ORG:-${TENANT}}"
-BOX_NAME="${BOX_NAME:-ubuntu2204-cisl1-arm64}"
+VAGRANT_CLOUD_ORG="${VAGRANT_CLOUD_ORG:-${DEFAULT_ORG}}"
+BOX_NAME="${BOX_NAME:-${DEFAULT_BOX_NAME}}"
 IMAGE_NAME_PREFIX="${IMAGE_NAME_PREFIX:-${TENANT}-${BOX_NAME}}"
 BOX_TAG="${VAGRANT_CLOUD_ORG}/${BOX_NAME}"
 
@@ -212,8 +227,10 @@ cd "${PACKER_DIR}"
 
 # ---------- resolve version ----------
 
-VBOX_DIR_BASE="output/${TENANT}/${ARCH}/virtualbox"
-QEMU_DIR_BASE="output/${TENANT}/${ARCH}/qemu"
+# Output dirs are keyed by image_name_prefix (a tenant can ship >1 box, e.g.
+# nthedao = ubuntu2404 + archlinux). Matches local.output_dir_* in the templates.
+VBOX_DIR_BASE="output/${TENANT}/${ARCH}/virtualbox/${IMAGE_NAME_PREFIX}"
+QEMU_DIR_BASE="output/${TENANT}/${ARCH}/qemu/${IMAGE_NAME_PREFIX}"
 
 if [[ -z "${IMAGE_VERSION}" ]]; then
   # Pick the most recent version directory that contains at least one .box.
@@ -387,7 +404,7 @@ else
     desc_args+=(--description-from-file "${BOX_DESCRIPTION_FILE}")
   fi
   run vagrant cloud box create "${BOX_TAG}" \
-    --short-description "Ubuntu 22.04 ${ARCH}, CIS Level 1 hardened, ${TENANT} tenant" \
+    --short-description "${OS_LABEL} ${ARCH}, CIS Level 1 hardened (${TENANT})" \
     --private \
     ${desc_args[@]+"${desc_args[@]}"}
 fi

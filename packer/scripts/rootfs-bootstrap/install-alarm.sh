@@ -129,8 +129,13 @@ FSTAB
 # no qemu-user emulation. We drive it via a heredoc script executed in the chroot.
 log "configuring inside chroot (keyring, pacman -Syu, kernel, GRUB, users, network)"
 
-# Give pacman-key enough entropy. The builder qemu exposes virtio-rng (see host
-# script) so /dev/random is well-seeded; haveged is a belt-and-braces fallback.
+# Entropy: the builder qemu exposes virtio-rng (see host script) so /dev/random
+# is well-seeded during THIS chroot (pacman-key needs it). haveged is installed
+# + enabled below so the BAKED image self-seeds at runtime too — without it,
+# headless aarch64 consumers (Packer stage 2, the vagrant-qemu k3s lab) stall on
+# sshd "timed out during banner exchange" waiting on entropy for KEX / host-key
+# gen. The stage-2/consumer qemu args can't be relied on (the k3s lab overrides
+# extra_qemu_args), so the fix must live in the image.
 cat > "$MNT/root/chroot-setup.sh" <<CHROOT
 set -euo pipefail
 
@@ -149,6 +154,9 @@ pacman -Syu --noconfirm
 #   grub efibootmgr dosfstools — EFI bootloader install
 #   openssh sudo         — remote access + privilege for the packer user
 #   qemu-guest-agent     — clean shutdown / host integration under qemu
+#   haveged              — userspace entropy daemon; headless aarch64 VMs have no
+#                          trusted HW RNG, so sshd KEX/host-key gen block on
+#                          entropy without it (see comment above)
 #   cloud-init           — optional; enables NoCloud/config-drive on consumers (kept minimal)
 #   which vim            — quality-of-life for debugging first boots
 pacman -S --noconfirm --needed \\
@@ -156,6 +164,7 @@ pacman -S --noconfirm --needed \\
   grub efibootmgr dosfstools \\
   openssh sudo \\
   qemu-guest-agent \\
+  haveged \\
   cloud-init \\
   which vim
 
@@ -199,7 +208,7 @@ systemctl enable systemd-networkd systemd-resolved
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 # ----- services -----
-systemctl enable sshd qemu-guest-agent
+systemctl enable sshd qemu-guest-agent haveged
 # cloud-init left INSTALLED but its services enabled so a NoCloud seed works on
 # consumers; harmless when no seed is present (it no-ops).
 systemctl enable cloud-init cloud-init-local cloud-config cloud-final 2>/dev/null || true

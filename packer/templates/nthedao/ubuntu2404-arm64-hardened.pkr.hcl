@@ -27,8 +27,8 @@
 //     templates/nthedao/ubuntu2404-arm64-hardened.pkr.hcl
 //
 // Output:
-//   qemu:       output/nthedao/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.qcow2
-//   virtualbox: output/nthedao/arm64/virtualbox/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
+//   qemu:       output/nthedao/arm64/qemu/<image_name_prefix>/<image_version>/<image_name_prefix>-<image_version>.qcow2
+//   virtualbox: output/nthedao/arm64/virtualbox/<image_name_prefix>/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
 //
 // SSH key contract:
 //   Stage 1 baked the public half of keys/packer_ed25519 into the base image's
@@ -108,8 +108,11 @@ variable "base_image_ova_path" {
 // ---------- locals ----------
 
 locals {
-  output_dir_qemu       = "${var.output_base_dir}/${var.tenant}/arm64/qemu/${var.image_version}"
-  output_dir_virtualbox = "${var.output_base_dir}/${var.tenant}/arm64/virtualbox/${var.image_version}"
+  // Keyed by image_name_prefix so an org with >1 box (e.g. nthedao ships both
+  // ubuntu2404 and archlinux) doesn't collide on a shared version dir — packer
+  // refuses a pre-existing output_directory, and manifest.json would clash.
+  output_dir_qemu       = "${var.output_base_dir}/${var.tenant}/arm64/qemu/${var.image_name_prefix}/${var.image_version}"
+  output_dir_virtualbox = "${var.output_base_dir}/${var.tenant}/arm64/virtualbox/${var.image_name_prefix}/${var.image_version}"
 }
 
 // ---------- source ----------
@@ -154,6 +157,9 @@ source "qemu" "nthedao-ubuntu2404-arm64" {
     ["-boot", "strict=off"],
     ["-machine", "type=virt,accel=hvf,highmem=on"],
     ["-device", "virtio-net,netdev=user.0"],
+    // virtio-rng: host entropy for the guest — headless aarch64 sshd host-key
+    // gen + KEX stall without it ("timed out during banner exchange").
+    ["-device", "virtio-rng-pci"],
     ["-device", "qemu-xhci"],
     ["-device", "usb-kbd"],
     ["-device", "usb-tablet"],

@@ -167,6 +167,9 @@ source "qemu" "ubuntu2404-arm64" {
     ["-serial", "file:${var.output_base_dir}/serial-ubuntu2404-base-${var.image_version}.log"],
     ["-machine", "type=virt,accel=hvf,highmem=on"],
     ["-device", "virtio-net,netdev=user.0"],
+    // virtio-rng: host entropy for the guest — headless aarch64 sshd host-key
+    // gen + KEX stall without it ("timed out during banner exchange").
+    ["-device", "virtio-rng-pci"],
     ["-device", "qemu-xhci"],
     ["-device", "usb-kbd"],
     ["-device", "usb-tablet"],

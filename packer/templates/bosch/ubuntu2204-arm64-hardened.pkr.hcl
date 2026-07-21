@@ -21,8 +21,8 @@
 //     templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl
 //
 // Output:
-//   qemu:       output/bosch/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.qcow2
-//   virtualbox: output/bosch/arm64/virtualbox/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
+//   qemu:       output/bosch/arm64/qemu/<image_name_prefix>/<image_version>/<image_name_prefix>-<image_version>.qcow2
+//   virtualbox: output/bosch/arm64/virtualbox/<image_name_prefix>/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
 //
 // SSH key contract:
 //   Stage 1 baked the public half of keys/packer_ed25519 into the base image's
@@ -134,8 +134,11 @@ locals {
   // Per-provider output dirs. Provider already lives in the path layout at
   // stage 2 (was always `<tenant>/<arch>/<provider>/<ver>/`), so this is just
   // adding a sibling for virtualbox alongside the existing qemu path.
-  output_dir_qemu       = "${var.output_base_dir}/${var.tenant}/arm64/qemu/${var.image_version}"
-  output_dir_virtualbox = "${var.output_base_dir}/${var.tenant}/arm64/virtualbox/${var.image_version}"
+  // Keyed by image_name_prefix so an org with >1 box doesn't collide on a
+  // shared version dir — packer refuses a pre-existing output_directory, and
+  // manifest.json would clash. (bosch has one box today; kept uniform.)
+  output_dir_qemu       = "${var.output_base_dir}/${var.tenant}/arm64/qemu/${var.image_name_prefix}/${var.image_version}"
+  output_dir_virtualbox = "${var.output_base_dir}/${var.tenant}/arm64/virtualbox/${var.image_name_prefix}/${var.image_version}"
 }
 
 // ---------- source ----------
@@ -182,6 +185,9 @@ source "qemu" "bosch-ubuntu2204-arm64" {
     ["-boot", "strict=off"],
     ["-machine", "type=virt,accel=hvf,highmem=on"],
     ["-device", "virtio-net,netdev=user.0"],
+    // virtio-rng: host entropy for the guest — headless aarch64 sshd host-key
+    // gen + KEX stall without it ("timed out during banner exchange").
+    ["-device", "virtio-rng-pci"],
     ["-device", "qemu-xhci"],
     ["-device", "usb-kbd"],
     ["-device", "usb-tablet"],
