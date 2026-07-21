@@ -74,12 +74,17 @@ autoinstall:
       ethernets:
         any:
           match:
-            name: "en*"
+            # "e*" (not "en*") also matches eth0 — on qemu virt/aarch64 the
+            # virtio NIC can enumerate as eth0 (mmio) instead of enp*/ens* (pci),
+            # which "en*" would miss → no install-phase network → curtin stalls.
+            name: "e*"
           dhcp4: true
 
   # Skip apt mirror selection — use default. CIS-L1 doesn't restrict this.
   apt:
-    geoip: true
+    # geoip does an external HTTP lookup to pick a mirror; if outbound is flaky
+    # early in the install it can hang. Off = use the ISO's default mirror.
+    geoip: false
     preserve_sources_list: false
 
   late-commands:

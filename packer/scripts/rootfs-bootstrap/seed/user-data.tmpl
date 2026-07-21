@@ -3,7 +3,7 @@
 # STAGE-1 bootstrap. This configures the *builder*, not the baked Arch image.
 #
 # TEMPLATE: @@SSH_PUBKEY@@ is replaced with keys/packer_ed25519.pub by
-# scripts/archlinux/bootstrap-base.sh before the seed ISO is built. The matching
+# scripts/rootfs-bootstrap/bootstrap-base.sh before the seed ISO is built. The matching
 # private key lets the host script SSH into the builder and run install-alarm.sh.
 #
 # The builder only needs: a key-authed sudo user + sshd up. Everything else

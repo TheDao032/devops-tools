@@ -13,12 +13,12 @@
 # arm64 (two-stage flow — unchanged, uses guest-less CLI):
 #   ARCH=arm64 [STAGE=base|hardened|all] ./scripts/build.sh <tenant> <provider> [image_version]
 #
-#     tenant   = bosch (22.04) | nthedao (26.04) | archlinux (ALARM rolling)
+#     tenant   = bosch (22.04) | nthedao (24.04) | archlinux (ALARM rolling)
 #                (renesas arm64 not supported)
 #     provider = virtualbox | qemu | all
 #     org folder selects the template: templates/<org>/ + variables/<org>/
 #     archlinux stage 1 is a tarball bootstrap script (no ISO); see
-#     scripts/archlinux/ + docs/archlinux-arm64-runbook.md.
+#     scripts/rootfs-bootstrap/ + docs/archlinux-arm64-runbook.md.
 #
 # ═══ pkrvars composition (amd64) ══════════════════════════════════════════
 #
@@ -80,7 +80,7 @@ BASE_VERSION="${BASE_VERSION:-$(date +%F)}"
 TENANT="${1:-}"
 if [[ "${ARCH}" == "arm64" ]]; then
   # OLD form: <tenant> <provider> [image_version]
-  GUEST=""                       # unused on arm64 (org folder picks the template: bosch=22.04, nthedao=26.04)
+  GUEST=""                       # unused on arm64 (org folder picks the template: bosch=22.04, nthedao=24.04)
   PROVIDER="${2:-}"
   IMAGE_VERSION="${3:-$(date +%F).1}"
 else
@@ -124,7 +124,7 @@ if [[ "${ARCH}" == "amd64" && -z "${GUEST}" ]]; then usage; fi
 
 case "${TENANT}" in
   renesas|bosch) ;;
-  nthedao) ;;     # arm64-only personal lab line (26.04); amd64 has no tenants/nthedao.pkrvars.hcl
+  nthedao) ;;     # arm64-only personal lab line (24.04); amd64 has no tenants/nthedao.pkrvars.hcl
   archlinux) ;;   # arm64-only Arch Linux ARM line; stage 1 = tarball bootstrap script, not packer
   *) echo "ERROR: unknown tenant '${TENANT}'"; usage ;;
 esac
@@ -236,23 +236,23 @@ EOF
       BUILD_NAME_HARDENED="bosch-ubuntu2204-arm64-hardened"
       ;;
     nthedao-arm64)
-      TEMPLATE_BASE="templates/_base/ubuntu2604-arm64-base.pkr.hcl"
-      TEMPLATE_HARDENED="templates/nthedao/ubuntu2604-arm64-hardened.pkr.hcl"
-      VAR_FILE_BASE="variables/_base/ubuntu2604-arm64-base.pkrvars.hcl"
+      TEMPLATE_BASE="templates/_base/ubuntu2404-arm64-base.pkr.hcl"
+      TEMPLATE_HARDENED="templates/nthedao/ubuntu2404-arm64-hardened.pkr.hcl"
+      VAR_FILE_BASE="variables/_base/ubuntu2404-arm64-base.pkrvars.hcl"
       VAR_FILE_HARDENED="variables/nthedao/arm64.pkrvars.hcl"
-      BASE_SLUG="ubuntu2604-arm64"
-      HARDENED_SRC_LABEL="nthedao-ubuntu2604-arm64"
-      BUILD_NAME_BASE="ubuntu2604-arm64-base"
-      BUILD_NAME_HARDENED="nthedao-ubuntu2604-arm64-hardened"
+      BASE_SLUG="ubuntu2404-arm64"
+      HARDENED_SRC_LABEL="nthedao-ubuntu2404-arm64"
+      BUILD_NAME_BASE="ubuntu2404-arm64-base"
+      BUILD_NAME_HARDENED="nthedao-ubuntu2404-arm64-hardened"
       ;;
     archlinux-arm64)
       # Arch aarch64 has no installer ISO, so STAGE 1 is a tarball bootstrap SCRIPT
       # (not a packer template). BOOTSTRAP_SCRIPT signals the STAGE=base branch to
       # run it instead of run_packer_build; the script produces the same base
       # qcow2 (+ .ova) paths the stage-2 resolver below expects. STAGE 2 is packer.
-      BOOTSTRAP_SCRIPT="scripts/archlinux/bootstrap-base.sh"
+      BOOTSTRAP_SCRIPT="scripts/rootfs-bootstrap/bootstrap-base.sh"
       TEMPLATE_BASE=""                                            # n/a — bootstrap is a script
-      VAR_FILE_BASE=""                                            # n/a — config in scripts/archlinux/base.env
+      VAR_FILE_BASE=""                                            # n/a — config in scripts/rootfs-bootstrap/base.env
       TEMPLATE_HARDENED="templates/nthedao/archlinux-arm64.pkr.hcl"
       VAR_FILE_HARDENED="variables/nthedao/archlinux-arm64.pkrvars.hcl"
       BASE_SLUG="archlinux-arm64"

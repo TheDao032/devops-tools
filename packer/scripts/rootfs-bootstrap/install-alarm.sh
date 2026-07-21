@@ -2,7 +2,7 @@
 # install-alarm.sh — the heart of the Arch Linux ARM (ALARM) aarch64 STAGE-1 bake.
 #
 # Runs *inside the throwaway builder VM* (an Ubuntu arm64 cloud image), NOT on the
-# macOS host. scripts/archlinux/bootstrap-base.sh scp's this file into the builder
+# macOS host. scripts/rootfs-bootstrap/bootstrap-base.sh scp's this file into the builder
 # and executes it over SSH. See that script for how the builder is launched and why
 # a builder VM is needed at all (macOS has no ext4/loop tooling; the ALARM tarball
 # has to be laid onto a real Linux block device and chrooted into to install a

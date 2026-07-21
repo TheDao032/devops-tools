@@ -1,39 +1,43 @@
-// Ubuntu 26.04 ARM64 — golden base image (no tenant, no compliance, no ansible).
+// Ubuntu 24.04 ARM64 — golden base image (no tenant, no compliance, no ansible).
 //
 // STAGE 1 of the two-stage build. This template does ONE thing: produce a
-// clean, autoinstalled, ssh-ready Ubuntu 26.04 ARM64 qcow2. Tenant-specific
-// hardening is applied in stage 2 (templates/nthedao/ubuntu2604-arm64-hardened.pkr.hcl
+// clean, autoinstalled, ssh-ready Ubuntu 24.04 ARM64 qcow2. Tenant-specific
+// hardening is applied in stage 2 (templates/nthedao/ubuntu2404-arm64-hardened.pkr.hcl
 // and future siblings) by booting THIS image and running ansible against it.
 //
 // Lineage: cloned from templates/_base/ubuntu2204-arm64-base.pkr.hcl (the bosch
-// 22.04 line). This file is the nthedao personal-lab base at 26.04 "Resolute
-// Raccoon". bosch stays on 22.04 for its CIS-L1 client deliverable; keep the two
+// 22.04 line). This file is the nthedao personal-lab base at 24.04 "Noble
+// Numbat". bosch stays on 22.04 for its CIS-L1 client deliverable; keep the two
 // bases separate so a version bump on one never disturbs the other.
 //
-// ⚠️ UNVERIFIED BOOT SEQUENCE — see the boot_command locals below. The GRUB
-//    menu layout, the number of <down>s to the autoinstall entry, and the
-//    autoinstall kernel arg CAN differ between 22.04 and 26.04 subiquity ISOs.
-//    These were carried over verbatim from the working 22.04 template and have
-//    NOT been baked against a real 26.04 ARM64 ISO yet. First bake: run with
-//    headless=false and watch GRUB; adjust <down> count / boot key if it stalls
-//    at "Typing the boot command...".
+// This line originally targeted 26.04, but the 26.04.0 arm64 ISO's kernel
+// (7.0.0-14-generic) has a fatal OverlayFS bug (ovl_iterate_merged oops kills
+// curtin's rsync mid-extract) — confirmed 2026-07-21 via serial capture.
+// Dropped to 24.04 LTS (stable 6.x kernel). Revisit 26.04 at its .1 release.
+//
+// BOOT SEQUENCE — the qemu boot_command below is VERIFIED WORKING: the same
+// GRUB `e`-edit sequence drove subiquity autoinstall successfully on the 26.04
+// bake attempt, and 24.04's GRUB menu is the same generation as 22.04/26.04.
+// The virtualbox boot_command is still UNVERIFIED (only qemu has been exercised).
+// A serial console is captured to output/ (see qemuargs) so any future stall is
+// readable rather than a mystery.
 //
 // Build:
 //   STAGE=base ARCH=arm64 ./scripts/build.sh nthedao qemu        # qcow2 only
 //   STAGE=base ARCH=arm64 ./scripts/build.sh nthedao virtualbox  # ova only
 //   STAGE=base ARCH=arm64 ./scripts/build.sh nthedao all         # both, parallel
 // or directly:
-//   packer init templates/_base/ubuntu2604-arm64-base.pkr.hcl
+//   packer init templates/_base/ubuntu2404-arm64-base.pkr.hcl
 //   packer build \
 //     -var-file=variables/common.pkrvars.hcl \
-//     -var-file=variables/_base/ubuntu2604-arm64-base.pkrvars.hcl \
+//     -var-file=variables/_base/ubuntu2404-arm64-base.pkrvars.hcl \
 //     -var ssh_private_key_file=keys/packer_ed25519 \
-//     -only=qemu.ubuntu2604-arm64 \             # or virtualbox-iso.ubuntu2604-arm64
-//     templates/_base/ubuntu2604-arm64-base.pkr.hcl
+//     -only=qemu.ubuntu2404-arm64 \             # or virtualbox-iso.ubuntu2404-arm64
+//     templates/_base/ubuntu2404-arm64-base.pkr.hcl
 //
 // Output:
-//   qemu:       output/base/ubuntu2604-arm64/<version>/<image_name_prefix>-<version>.qcow2
-//   virtualbox: output/base/ubuntu2604-arm64-vbox/<version>/<image_name_prefix>-<version>.ova
+//   qemu:       output/base/ubuntu2404-arm64/<version>/<image_name_prefix>-<version>.qcow2
+//   virtualbox: output/base/ubuntu2404-arm64-vbox/<version>/<image_name_prefix>-<version>.ova
 //
 // Coupling to the bake-time SSH key:
 //   This template injects the public half of keys/packer_ed25519 via cloud-init
@@ -83,14 +87,14 @@ variable "ssh_private_key_file" {
 // ---------- locals ----------
 
 locals {
-  output_dir_qemu       = "${var.output_base_dir}/base/ubuntu2604-arm64/${var.image_version}"
-  output_dir_virtualbox = "${var.output_base_dir}/base/ubuntu2604-arm64-vbox/${var.image_version}"
+  output_dir_qemu       = "${var.output_base_dir}/base/ubuntu2404-arm64/${var.image_version}"
+  output_dir_virtualbox = "${var.output_base_dir}/base/ubuntu2404-arm64-vbox/${var.image_version}"
 
-  // ⚠️ Boot command (qemu) — INHERITED FROM 22.04, UNVERIFIED ON 26.04.
+  // ⚠️ Boot command (qemu) — INHERITED FROM 22.04, UNVERIFIED ON 24.04.
   // The 22.04 sequence: GRUB `e` edit-entry, three <down>s to the autoinstall
   // kernel line, <end>, append `autoinstall ds=nocloud;s=<http>`, Ctrl-X to
   // boot. qemu uses the fixed 10.0.2.2 SLIRP gateway (NOT {{ .HTTPIP }}).
-  // If 26.04's GRUB menu differs (entry order / count), adjust the <down>s.
+  // If 24.04's GRUB menu differs (entry order / count), adjust the <down>s.
   boot_command_qemu = [
     "<wait>e<wait2>",
     "<down><wait><down><wait><down><wait><end><wait>",
@@ -98,11 +102,11 @@ locals {
     "<leftCtrlOn>x<leftCtrlOff>",
   ]
 
-  // ⚠️ Boot command (virtualbox) — INHERITED FROM 22.04, UNVERIFIED ON 26.04.
+  // ⚠️ Boot command (virtualbox) — INHERITED FROM 22.04, UNVERIFIED ON 24.04.
   // Same GRUB `e` edit pattern but the autoinstall URL uses Packer's
   // {{ .HTTPIP }} (VBox NAT does not expose the qemu-style 10.0.2.2 gateway),
   // and boots with <f10> (USB HID keyboard on armv8virtual; Ctrl-X is
-  // timing-fragile early in USB attach). Verify against a 26.04 ARM64 bake.
+  // timing-fragile early in USB attach). Verify against a 24.04 ARM64 bake.
   boot_command_virtualbox = [
     "<wait>e<wait2>",
     "<down><wait><down><wait><down><wait><end><wait>",
@@ -113,16 +117,16 @@ locals {
 
 // ---------- sources ----------
 //
-// Two parallel sources off the same Ubuntu 26.04 ARM64 ISO:
-//   - qemu source       → output/base/ubuntu2604-arm64/<ver>/<file>.qcow2
-//   - virtualbox-iso    → output/base/ubuntu2604-arm64-vbox/<ver>/<file>.ova
+// Two parallel sources off the same Ubuntu 24.04 ARM64 ISO:
+//   - qemu source       → output/base/ubuntu2404-arm64/<ver>/<file>.qcow2
+//   - virtualbox-iso    → output/base/ubuntu2404-arm64-vbox/<ver>/<file>.ova
 // They share http_directory (cloud-init user-data/meta-data), iso_url/checksum,
 // and the SSH creds baked into user-data. They differ only in hypervisor knobs.
 //
-// Build invocation tip: pass `-only=qemu.ubuntu2604-arm64` (or
-// `-only=virtualbox-iso.ubuntu2604-arm64`) to bake just one provider.
+// Build invocation tip: pass `-only=qemu.ubuntu2404-arm64` (or
+// `-only=virtualbox-iso.ubuntu2404-arm64`) to bake just one provider.
 
-source "qemu" "ubuntu2604-arm64" {
+source "qemu" "ubuntu2404-arm64" {
   iso_url              = var.iso_url
   iso_checksum         = var.iso_checksum
   cpus                 = var.build_cpus
@@ -146,7 +150,7 @@ source "qemu" "ubuntu2604-arm64" {
   boot_command         = local.boot_command_qemu
   output_directory     = local.output_dir_qemu
   vm_name              = "${var.image_name_prefix}-${var.image_version}.qcow2"
-  // Flip to `true` once the 26.04 base bake is reliable. While debugging the
+  // Flip to `true` once the 24.04 base bake is reliable. While debugging the
   // (unverified) boot_command, `false` + cocoa display lets you watch GRUB.
   headless         = true
   net_device       = "virtio-net"
@@ -157,6 +161,10 @@ source "qemu" "ubuntu2604-arm64" {
 
   qemuargs = [
     ["-boot", "strict=off"],
+    // DIAGNOSTIC: capture the guest serial console to a host file so a hung
+    // autoinstall/curtin can be read post-hoc (the graphical console is on
+    // ramfb/virtio-gpu below; this is the readable text stream). Safe to keep.
+    ["-serial", "file:${var.output_base_dir}/serial-ubuntu2404-base-${var.image_version}.log"],
     ["-machine", "type=virt,accel=hvf,highmem=on"],
     ["-device", "virtio-net,netdev=user.0"],
     ["-device", "qemu-xhci"],
@@ -167,13 +175,13 @@ source "qemu" "ubuntu2604-arm64" {
   ]
 }
 
-source "virtualbox-iso" "ubuntu2604-arm64" {
+source "virtualbox-iso" "ubuntu2404-arm64" {
   iso_url      = var.iso_url
   iso_checksum = var.iso_checksum
 
   // ARM64 essentials. firmware=efi is REQUIRED (arm64 won't boot legacy BIOS).
   // guest_os_type: "Ubuntu_arm64" is the generic VBox 7.1.6+ arm64 Ubuntu type;
-  // there is no 26.04-specific type string — the generic one is correct.
+  // there is no 24.04-specific type string — the generic one is correct.
   firmware      = "efi"
   guest_os_type = "Ubuntu_arm64"
 
@@ -222,10 +230,10 @@ source "virtualbox-iso" "ubuntu2604-arm64" {
 // ---------- build ----------
 
 build {
-  name = "ubuntu2604-arm64-base"
+  name = "ubuntu2404-arm64-base"
   sources = [
-    "source.qemu.ubuntu2604-arm64",
-    "source.virtualbox-iso.ubuntu2604-arm64",
+    "source.qemu.ubuntu2404-arm64",
+    "source.virtualbox-iso.ubuntu2404-arm64",
   ]
 
   // NO ansible/tenant provisioning here — that's stage 2's job. This shell
@@ -235,7 +243,7 @@ build {
     inline = [
       "set -e",
       "echo '${var.ssh_username}' | sudo -S tee /etc/base-image-metadata > /dev/null <<EOF",
-      "# Packer-baked Ubuntu 26.04 ARM64 base — stage 1 of two-stage build",
+      "# Packer-baked Ubuntu 24.04 ARM64 base — stage 1 of two-stage build",
       "base_version=${var.image_version}",
       "base_baked_at=$(date -u +%FT%TZ)",
       "EOF",
@@ -244,26 +252,26 @@ build {
   }
 
   post-processor "manifest" {
-    only       = ["qemu.ubuntu2604-arm64"]
+    only       = ["qemu.ubuntu2404-arm64"]
     output     = "${local.output_dir_qemu}/manifest.json"
     strip_path = true
     custom_data = {
       stage         = "base"
       arch          = "arm64"
-      os            = "ubuntu-26.04"
+      os            = "ubuntu-24.04"
       provider      = "qemu"
       image_version = var.image_version
     }
   }
 
   post-processor "manifest" {
-    only       = ["virtualbox-iso.ubuntu2604-arm64"]
+    only       = ["virtualbox-iso.ubuntu2404-arm64"]
     output     = "${local.output_dir_virtualbox}/manifest.json"
     strip_path = true
     custom_data = {
       stage         = "base"
       arch          = "arm64"
-      os            = "ubuntu-26.04"
+      os            = "ubuntu-24.04"
       provider      = "virtualbox"
       image_version = var.image_version
     }

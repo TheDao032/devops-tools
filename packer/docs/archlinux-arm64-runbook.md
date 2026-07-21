@@ -21,10 +21,10 @@ Instead the two stages are:
 
 | Stage | Ubuntu lines | Arch line |
 |---|---|---|
-| **1 — base** | Packer boots installer ISO, subiquity autoinstall → qcow2/ova | **`scripts/archlinux/bootstrap-base.sh`** (shell): boots a throwaway Ubuntu cloud-image builder, lays the ALARM tarball onto a blank disk, chroots in, installs kernel + GRUB(EFI) → qcow2/ova |
+| **1 — base** | Packer boots installer ISO, subiquity autoinstall → qcow2/ova | **`scripts/rootfs-bootstrap/bootstrap-base.sh`** (shell): boots a throwaway Ubuntu cloud-image builder, lays the ALARM tarball onto a blank disk, chroots in, installs kernel + GRUB(EFI) → qcow2/ova |
 | **2 — box** | Packer boots base, runs the CIS ansible role, packages box | **`templates/nthedao/archlinux-arm64.pkr.hcl`** (Packer): boots base, `pacman -Syu` + essentials, packages box |
 
-Stage 1 config lives in **`scripts/archlinux/base.env`** (shell), NOT a `.pkrvars.hcl`,
+Stage 1 config lives in **`scripts/rootfs-bootstrap/base.env`** (shell), NOT a `.pkrvars.hcl`,
 because it isn't a Packer build. Stage 2 config is
 **`variables/nthedao/archlinux-arm64.pkrvars.hcl`**.
 
@@ -60,15 +60,15 @@ ARCH=arm64 STAGE=all ./scripts/build.sh archlinux all
 
 Stage 1 can also be run directly (handy while iterating on the installer):
 ```bash
-BASE_VERSION=2026-07-18 PROVIDER=qemu ./scripts/archlinux/bootstrap-base.sh
+BASE_VERSION=2026-07-18 PROVIDER=qemu ./scripts/rootfs-bootstrap/bootstrap-base.sh
 ```
 
 ### Outputs
 ```
 output/base/archlinux-arm64/<ver>/archlinux-arm64-base-<ver>.qcow2     # stage-1 qemu base
 output/base/archlinux-arm64-vbox/<ver>/archlinux-arm64-base-<ver>.ova  # stage-1 vbox base (experimental)
-output/archlinux/arm64/qemu/<ver>/archlinux-arm64-<ver>.{qcow2,box}    # stage-2 qemu box
-output/archlinux/arm64/virtualbox/<ver>/archlinux-arm64-<ver>.{ova,box}
+output/nthedao/arm64/qemu/<ver>/archlinux-arm64-<ver>.{qcow2,box}    # stage-2 qemu box
+output/nthedao/arm64/virtualbox/<ver>/archlinux-arm64-<ver>.{ova,box}
 ```
 
 ---
@@ -102,7 +102,7 @@ so the builder's `/dev/vdb` → final image's `/dev/vda` rename is a non-issue.
   refreshed `archlinuxarm-keyring` (the tarball's can be stale) — the `pacman -Syu`
   ordering handles the common case; if key errors persist, re-run stage 1 (the
   builder is throwaway). Watch `serial.log` in the temp workdir on a hang.
-- **VirtualBox is EXPERIMENTAL.** `scripts/archlinux/qcow2-to-ova.sh` builds the
+- **VirtualBox is EXPERIMENTAL.** `scripts/rootfs-bootstrap/qcow2-to-ova.sh` builds the
   base `.ova` via `VBoxManage` arm64 flags (`--platform-architecture arm`,
   `armv8virtual`), which vary by VBox point release. If it errors, check
   `VBoxManage --version` (need 7.1+) and adjust flags. The qemu/libvirt path does
@@ -122,7 +122,7 @@ After a successful qemu build:
 ```bash
 vagrant plugin install vagrant-qemu   # once
 vagrant box add nthedao2705/archlinux-arm64 \
-  ./output/archlinux/arm64/qemu/<ver>/archlinux-arm64-<ver>.box \
+  ./output/nthedao/arm64/qemu/<ver>/archlinux-arm64-<ver>.box \
   --provider libvirt --architecture arm64
 ```
 Then point `vagrant/vagrant-files/k3s/config.yaml`'s `box:` at

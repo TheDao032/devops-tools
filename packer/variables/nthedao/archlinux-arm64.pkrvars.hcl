@@ -1,7 +1,7 @@
 # archlinux (nthedao personal line) — STAGE 2 variables.
 # Pairs with: templates/nthedao/archlinux-arm64.pkr.hcl
 #
-# STAGE 1 (the ALARM tarball bootstrap) is configured in scripts/archlinux/base.env,
+# STAGE 1 (the ALARM tarball bootstrap) is configured in scripts/rootfs-bootstrap/base.env,
 # NOT here — stage 1 is a shell bootstrap, not a Packer build (Arch aarch64 has no
 # installer ISO). This file only drives the stage-2 Packer box build.
 #
@@ -10,8 +10,10 @@
 # nthedao2705/archlinux-arm64 and (optionally) be consumed by
 # vagrant/vagrant-files/k3s/config.yaml.
 
-# Output tree slug: output/archlinux/arm64/<provider>/<version>/...
-tenant = "archlinux"
+# tenant = ORG bucket in the output tree (output/<tenant>/arm64/...), NOT the distro.
+# This is a nthedao personal-lab box; the distro lives in image_name_prefix below.
+# Output tree slug: output/nthedao/arm64/<provider>/<version>/archlinux-arm64-<ver>...
+tenant = "nthedao"
 
 # Bootstrap user baked by stage 1 (has NOPASSWD sudo + the packer key). Packer
 # SSHes in as this user; the box ships with it as the vagrant login.

@@ -1,14 +1,14 @@
-// nthedao — Ubuntu 26.04 ARM64 hardened image (CIS-L1, no FIPS).
+// nthedao — Ubuntu 24.04 ARM64 hardened image (CIS-L1, no FIPS).
 //
 // STAGE 2 of the two-stage build. This template does NOT install the OS — it
-// boots the qcow2 produced by stage 1 (templates/_base/ubuntu2604-arm64-base.pkr.hcl)
+// boots the qcow2 produced by stage 1 (templates/_base/ubuntu2404-arm64-base.pkr.hcl)
 // and runs the compliance role against it. Iteration cost: ~3 min per ansible
 // edit, vs ~12-15 min for a full install+ansible cycle.
 //
 // Lineage: cloned from templates/bosch/ubuntu2204-arm64-hardened.pkr.hcl. This
 // is the personal-lab line: it replaces the old republished
 // nthedao2705/ubuntu2204-cisl1-arm64 box (which was the bosch 22.04 image under
-// the personal account) with a purpose-built 26.04 image. The k3s-etcd QEMU lab
+// the personal account) with a purpose-built 24.04 image. The k3s-etcd QEMU lab
 // (vagrant/vagrant-files/k3s/config.yaml) consumes the published .box.
 //
 // Build:
@@ -16,15 +16,15 @@
 //   STAGE=hardened ARCH=arm64 ./scripts/build.sh nthedao virtualbox  # ova + box
 //   STAGE=hardened ARCH=arm64 ./scripts/build.sh nthedao all         # both, parallel
 // or directly:
-//   packer init templates/nthedao/ubuntu2604-arm64-hardened.pkr.hcl
+//   packer init templates/nthedao/ubuntu2404-arm64-hardened.pkr.hcl
 //   packer build \
 //     -var-file=variables/common.pkrvars.hcl \
 //     -var-file=variables/nthedao/arm64.pkrvars.hcl \
 //     -var ssh_private_key_file=keys/packer_ed25519 \
-//     -var base_image_path=output/base/ubuntu2604-arm64/<base-ver>/ubuntu2604-arm64-base-<base-ver>.qcow2 \
-//     -var base_image_ova_path=output/base/ubuntu2604-arm64-vbox/<base-ver>/ubuntu2604-arm64-base-<base-ver>.ova \
-//     -only=qemu.nthedao-ubuntu2604-arm64 \    # or virtualbox-ovf.nthedao-ubuntu2604-arm64
-//     templates/nthedao/ubuntu2604-arm64-hardened.pkr.hcl
+//     -var base_image_path=output/base/ubuntu2404-arm64/<base-ver>/ubuntu2404-arm64-base-<base-ver>.qcow2 \
+//     -var base_image_ova_path=output/base/ubuntu2404-arm64-vbox/<base-ver>/ubuntu2404-arm64-base-<base-ver>.ova \
+//     -only=qemu.nthedao-ubuntu2404-arm64 \    # or virtualbox-ovf.nthedao-ubuntu2404-arm64
+//     templates/nthedao/ubuntu2404-arm64-hardened.pkr.hcl
 //
 // Output:
 //   qemu:       output/nthedao/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.qcow2
@@ -114,7 +114,7 @@ locals {
 
 // ---------- source ----------
 
-source "qemu" "nthedao-ubuntu2604-arm64" {
+source "qemu" "nthedao-ubuntu2404-arm64" {
   // disk_image = true → iso_url is a bootable disk, not an installer ISO.
   // No autoinstall/http_directory/boot_command — packer boots the qcow2 and
   // waits for SSH.
@@ -165,7 +165,7 @@ source "qemu" "nthedao-ubuntu2604-arm64" {
 // virtualbox-ovf consumes stage 1's pre-baked .ova (no reinstall). Packer
 // imports the OVA, runs the same provisioners as the qemu source, then
 // re-exports as .ova for the vagrant post-processor to wrap into a .box.
-source "virtualbox-ovf" "nthedao-ubuntu2604-arm64" {
+source "virtualbox-ovf" "nthedao-ubuntu2404-arm64" {
   source_path = var.base_image_ova_path
   // checksum = "none": source_path is our own pipeline output, not a remote
   // download where a checksum would guard against corrupted transfer.
@@ -190,13 +190,13 @@ source "virtualbox-ovf" "nthedao-ubuntu2604-arm64" {
 // ---------- build ----------
 
 build {
-  name = "nthedao-ubuntu2604-arm64-hardened"
+  name = "nthedao-ubuntu2404-arm64-hardened"
   // Both sources share the same provisioners (python bootstrap + ansible
   // compliance role). Filter at invocation time with `-only` to bake just one
   // provider; the build.sh wrapper does this based on the PROVIDER env var.
   sources = [
-    "source.qemu.nthedao-ubuntu2604-arm64",
-    "source.virtualbox-ovf.nthedao-ubuntu2604-arm64",
+    "source.qemu.nthedao-ubuntu2404-arm64",
+    "source.virtualbox-ovf.nthedao-ubuntu2404-arm64",
   ]
 
   // Bootstrap python — defensive. The base SHOULD already have python3 /
@@ -234,10 +234,10 @@ build {
   // ----- Vagrant box (virtualbox source) -----
   // Wraps the .ova into a provider-locked .box. `only` restricts to the
   // virtualbox-ovf source. keep_input_artifact preserves the .ova alongside.
-  //   vagrant box add nthedao-arm64 ./nthedao-ubuntu2604-cisl1-arm64-<ver>.box
+  //   vagrant box add nthedao-arm64 ./nthedao-ubuntu2404-cisl1-arm64-<ver>.box
   //   vagrant init nthedao-arm64 && vagrant up --provider virtualbox
   post-processor "vagrant" {
-    only                = ["virtualbox-ovf.nthedao-ubuntu2604-arm64"]
+    only                = ["virtualbox-ovf.nthedao-ubuntu2404-arm64"]
     output              = "${local.output_dir_virtualbox}/${var.image_name_prefix}-${var.image_version}.box"
     keep_input_artifact = true
     compression_level   = 6
@@ -251,11 +251,11 @@ build {
   //
   // Engineer-side usage on Apple Silicon:
   //   vagrant plugin install vagrant-qemu
-  //   vagrant box add nthedao2705/ubuntu2604-cisl1-arm64 ./<box>.box \
+  //   vagrant box add nthedao2705/ubuntu2404-cisl1-arm64 ./<box>.box \
   //     --provider libvirt --architecture arm64
-  //   vagrant init nthedao2705/ubuntu2604-cisl1-arm64 && vagrant up --provider qemu
+  //   vagrant init nthedao2705/ubuntu2404-cisl1-arm64 && vagrant up --provider qemu
   post-processor "shell-local" {
-    only           = ["qemu.nthedao-ubuntu2604-arm64"]
+    only           = ["qemu.nthedao-ubuntu2404-arm64"]
     inline_shebang = "/bin/bash -euo pipefail"
     environment_vars = [
       "OUTPUT_DIR=${local.output_dir_qemu}",
@@ -263,7 +263,11 @@ build {
       "QCOW2_NAME=${var.image_name_prefix}-${var.image_version}.qcow2",
       // path.root is this file's dir (templates/nthedao/). box-vagrantfile.qemu.rb
       // is shared and lives one level up in templates/, so reference it via ../.
-      "VAGRANTFILE_TEMPLATE=${path.root}/../box-vagrantfile.qemu.rb",
+      // abspath(): the shell-local script `cd`s into $OUTPUT_DIR before using
+      // this, so a relative path (path.root is relative when packer is invoked
+      // with a relative template path) would break the later `cp`. Absolute
+      // survives the cd.
+      "VAGRANTFILE_TEMPLATE=${abspath("${path.root}/../box-vagrantfile.qemu.rb")}",
     ]
     inline = [
       "set -x",
@@ -287,7 +291,7 @@ build {
 
   // ----- Manifest (one per source) -----
   post-processor "manifest" {
-    only       = ["qemu.nthedao-ubuntu2604-arm64"]
+    only       = ["qemu.nthedao-ubuntu2404-arm64"]
     output     = "${local.output_dir_qemu}/manifest.json"
     strip_path = true
     custom_data = {
@@ -303,7 +307,7 @@ build {
   }
 
   post-processor "manifest" {
-    only       = ["virtualbox-ovf.nthedao-ubuntu2604-arm64"]
+    only       = ["virtualbox-ovf.nthedao-ubuntu2404-arm64"]
     output     = "${local.output_dir_virtualbox}/manifest.json"
     strip_path = true
     custom_data = {

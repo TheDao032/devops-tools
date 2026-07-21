@@ -13,15 +13,15 @@
 #   IS Packer — see templates/nthedao/archlinux-arm64.pkr.hcl.
 #
 #   builder = Ubuntu arm64 CLOUD IMAGE (a ready qcow2, boots in seconds, no install)
-#   installer logic = scripts/archlinux/install-alarm.sh (runs inside the builder)
+#   installer logic = scripts/rootfs-bootstrap/install-alarm.sh (runs inside the builder)
 #
 # USAGE:
-#   ./scripts/archlinux/bootstrap-base.sh [version]      # version defaults to today
-#   BASE_VERSION=2026-07-18 PROVIDER=all ./scripts/archlinux/bootstrap-base.sh
+#   ./scripts/rootfs-bootstrap/bootstrap-base.sh [version]      # version defaults to today
+#   BASE_VERSION=2026-07-18 PROVIDER=all ./scripts/rootfs-bootstrap/bootstrap-base.sh
 #   (normally invoked by scripts/build.sh for STAGE=base on the archlinux line)
 #
-# ENV: see scripts/archlinux/base.env for every knob. PROVIDER=virtualbox|all also
-#      emits a VirtualBox .ova base via scripts/archlinux/qcow2-to-ova.sh.
+# ENV: see scripts/rootfs-bootstrap/base.env for every knob. PROVIDER=virtualbox|all also
+#      emits a VirtualBox .ova base via scripts/rootfs-bootstrap/qcow2-to-ova.sh.
 
 set -euo pipefail
 
@@ -63,10 +63,14 @@ if [[ ! -f "${SSH_KEY}" ]]; then
 fi
 SSH_PUB="$(cat "${SSH_KEY}.pub")"
 
+# NB: the port flag differs between the two tools — ssh uses -p, scp uses -P
+# (to scp, -p means "preserve mtimes/modes" and takes NO arg). Keep the port
+# OUT of the shared opts and add it per-function with the correct case, else
+# scp reads the port number as a source filename ("stat local 2222").
 SSH_OPTS=(-i "${SSH_KEY}" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null
-          -o ConnectTimeout=5 -o LogLevel=ERROR -p "${SSH_HOSTFWD_PORT}")
-ssh_builder() { ssh "${SSH_OPTS[@]}" "root@127.0.0.1" "$@"; }
-scp_builder() { scp "${SSH_OPTS[@]}" "$@"; }  # caller supplies src + root@127.0.0.1:dst
+          -o ConnectTimeout=5 -o LogLevel=ERROR)
+ssh_builder() { ssh "${SSH_OPTS[@]}" -p "${SSH_HOSTFWD_PORT}" "root@127.0.0.1" "$@"; }
+scp_builder() { scp "${SSH_OPTS[@]}" -P "${SSH_HOSTFWD_PORT}" "$@"; }  # caller supplies src + root@127.0.0.1:dst
 
 mkdir -p "${CACHE_DIR}" "${OUT_DIR}"
 

@@ -1,7 +1,7 @@
 // archlinux (nthedao personal line) — Arch Linux ARM (ALARM) aarch64 box.
 //
 // STAGE 2 of the two-stage build. Does NOT install the OS — it boots the qcow2 /
-// .ova produced by STAGE 1 (scripts/archlinux/bootstrap-base.sh, which lays down
+// .ova produced by STAGE 1 (scripts/rootfs-bootstrap/bootstrap-base.sh, which lays down
 // the ALARM aarch64 rootfs since Arch has no aarch64 installer ISO) and:
 //   1. `pacman -Syu` to pull the rolling release fully current at box time,
 //   2. installs a small set of box-friendly packages + trims the pacman cache,
@@ -20,8 +20,8 @@
 // (STAGE=base runs the bootstrap script; STAGE=all does base then this.)
 //
 // Output:
-//   qemu:       output/archlinux/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.{qcow2,box}
-//   virtualbox: output/archlinux/arm64/virtualbox/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
+//   qemu:       output/nthedao/arm64/qemu/<image_version>/<image_name_prefix>-<image_version>.{qcow2,box}
+//   virtualbox: output/nthedao/arm64/virtualbox/<image_version>/<image_name_prefix>-<image_version>.{ova,box}
 //
 // SSH key contract: STAGE 1 baked keys/packer_ed25519.pub into ~packer/.ssh/
 // authorized_keys. This stage authenticates with the matching private key.
@@ -215,7 +215,9 @@ build {
       "BOX_NAME=${var.image_name_prefix}-${var.image_version}.box",
       "QCOW2_NAME=${var.image_name_prefix}-${var.image_version}.qcow2",
       // box-vagrantfile.qemu.rb is shared, one level up in templates/.
-      "VAGRANTFILE_TEMPLATE=${path.root}/../box-vagrantfile.qemu.rb",
+      // abspath(): the shell-local script `cd`s into $OUTPUT_DIR before using
+      // this, so a relative path would break the later `cp`. Absolute survives.
+      "VAGRANTFILE_TEMPLATE=${abspath("${path.root}/../box-vagrantfile.qemu.rb")}",
     ]
     inline = [
       "set -x",

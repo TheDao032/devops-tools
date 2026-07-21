@@ -325,7 +325,9 @@ build {
       // now `templates/bosch/`. box-vagrantfile.qemu.rb is shared and lives one
       // level up in `templates/`, so reference it via `../`. Do NOT hardcode a
       // `templates/…` prefix — that double-prefixes and fails in Packer 1.15.x.
-      "VAGRANTFILE_TEMPLATE=${path.root}/../box-vagrantfile.qemu.rb",
+      // abspath(): the shell-local script `cd`s into $OUTPUT_DIR before using
+      // this, so a relative path would break the later `cp`. Absolute survives.
+      "VAGRANTFILE_TEMPLATE=${abspath("${path.root}/../box-vagrantfile.qemu.rb")}",
     ]
     inline = [
       "set -x",
