@@ -179,12 +179,46 @@ mkinitcpio -P
 # boot. The removable path always works.
 grub-install --target=arm64-efi --efi-directory=/boot/efi --removable --boot-directory=/boot --recheck
 
-# Boot by LABEL so the vda(final)/vdb(builder) rename never matters.
+# Keep /etc/default/grub coherent (documents intent; a future manual grub-mkconfig
+# would at least get the right cmdline), but it is NOT authoritative — we write a
+# static grub.cfg below instead of running grub-mkconfig. See why.
 sed -i 's|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX="root=LABEL=ROOT rw"|' /etc/default/grub || \\
   echo 'GRUB_CMDLINE_LINUX="root=LABEL=ROOT rw"' >> /etc/default/grub
-# os-prober is pointless in a single-OS image and just noisy.
 grep -q '^GRUB_DISABLE_OS_PROBER' /etc/default/grub || echo 'GRUB_DISABLE_OS_PROBER=true' >> /etc/default/grub
-grub-mkconfig -o /boot/grub/grub.cfg
+
+# WHY A STATIC grub.cfg INSTEAD OF grub-mkconfig:
+#   ALARM's linux-aarch64 kernel is installed as /boot/Image (NO version suffix)
+#   with its initramfs at /boot/initramfs-linux.img. grub-mkconfig's 10_linux
+#   derives the initramfs filename from the *version* embedded in the kernel
+#   filename — and for a kernel literally named "Image" that derivation fails, so
+#   the generated menuentry gets a `linux` line but SILENTLY NO `initrd` line.
+#   Booting with no initramfs means no udev/systemd in early userspace, so
+#   root=LABEL=ROOT cannot be resolved and the kernel panics:
+#     "VFS: Unable to mount root fs on unknown-block(0,0)".
+#   grub-mkconfig also bakes in the builder's transient root=/dev/vdb2. A single-
+#   kernel appliance image doesn't need probing, so we hand-write a minimal,
+#   deterministic config that loads BOTH the kernel and the initramfs and finds
+#   root by LABEL (survives the builder-vdb -> final-vda rename). Kernel/initramfs
+#   names are stable across pacman -Syu, so this survives the stage-2 upgrade.
+#   No video insmods on purpose: edk2's arm64 build has no efi_uga/efi_gop combo
+#   grub-mkconfig kept trying to load ("efi_uga.mod not found"); a text menu on
+#   serial needs none of it.
+cat > /boot/grub/grub.cfg <<'GRUBCFG'
+# STATIC config written by install-alarm.sh — do NOT run grub-mkconfig over this
+# (it drops the initrd line for ALARM's /boot/Image kernel; the box won't boot).
+set default=0
+set timeout=3
+insmod part_gpt
+insmod ext2
+insmod fat
+insmod search_fs_label
+search --no-floppy --label ROOT --set=root
+
+menuentry 'Arch Linux ARM (aarch64)' {
+    linux  /boot/Image root=LABEL=ROOT rw loglevel=3
+    initrd /boot/initramfs-linux.img
+}
+GRUBCFG
 
 # ----- locale / hostname / clock -----
 echo 'en_US.UTF-8 UTF-8' > /etc/locale.gen
