@@ -13,6 +13,13 @@
     name: "{{ base_packages_redhat }}"
     state: present
 
+- name: Install base packages (Archlinux)
+  when: ansible_facts['os_family'] == "Archlinux"
+  community.general.pacman:
+    name: "{{ base_packages_archlinux }}"
+    state: present
+    update_cache: true          # pacman -Sy before install (refresh the sync DB)
+
 - name: Disable swap for the current boot
   ansible.builtin.command: swapoff -a
   changed_when: false

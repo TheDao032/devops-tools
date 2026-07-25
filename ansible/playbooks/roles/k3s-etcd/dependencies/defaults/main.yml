@@ -6,3 +6,6 @@ base_packages_debian:
 base_packages_redhat:
   - curl
   - ca-certificates
+base_packages_archlinux:
+  - curl
+  - ca-certificates

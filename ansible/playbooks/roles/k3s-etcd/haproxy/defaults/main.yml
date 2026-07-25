@@ -4,6 +4,8 @@ haproxy_packages_debian:
   - haproxy
 haproxy_packages_redhat:
   - haproxy
+haproxy_packages_archlinux:
+  - haproxy
 haproxy_config_path: /etc/haproxy/haproxy.cfg
 
 # Front-end bind. Defaults to this host's cluster IP so the LB listens on the

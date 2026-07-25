@@ -13,6 +13,13 @@
     name: "{{ haproxy_packages_redhat }}"
     state: present
 
+- name: Install HAProxy (Archlinux)
+  when: ansible_facts['os_family'] == "Archlinux"
+  community.general.pacman:
+    name: "{{ haproxy_packages_archlinux }}"
+    state: present
+    update_cache: true
+
 - name: Render HAProxy config for the k3s API
   ansible.builtin.template:
     src: k3s.haproxy.cfg.j2
