@@ -191,7 +191,7 @@ grep -q '^GRUB_DISABLE_OS_PROBER' /etc/default/grub || echo 'GRUB_DISABLE_OS_PRO
 #   with its initramfs at /boot/initramfs-linux.img. grub-mkconfig's 10_linux
 #   derives the initramfs filename from the *version* embedded in the kernel
 #   filename — and for a kernel literally named "Image" that derivation fails, so
-#   the generated menuentry gets a `linux` line but SILENTLY NO `initrd` line.
+#   the generated menuentry gets a 'linux' line but SILENTLY NO 'initrd' line.
 #   Booting with no initramfs means no udev/systemd in early userspace, so
 #   root=LABEL=ROOT cannot be resolved and the kernel panics:
 #     "VFS: Unable to mount root fs on unknown-block(0,0)".
@@ -246,6 +246,16 @@ systemctl enable sshd qemu-guest-agent haveged
 # cloud-init left INSTALLED but its services enabled so a NoCloud seed works on
 # consumers; harmless when no seed is present (it no-ops).
 systemctl enable cloud-init cloud-init-local cloud-config cloud-final 2>/dev/null || true
+# ...BUT cloud-init must NOT manage the network — systemd-networkd owns it via
+# 20-wired.network above. On a seedless boot (the Packer bake AND a plain
+# vagrant-qemu 'up' with no NoCloud seed) cloud-init otherwise generates its own
+# fallback .network files and reconfigures networking on first boot; anything that
+# needs DNS during that churn window races onto systemd-resolved's compiled-in
+# public fallback servers (9.9.9.9/1.1.1.1), which qemu SLIRP can't route (it only
+# proxies DNS via 10.0.2.3) → intermittent "Could not resolve host". Disabling
+# cloud-init's network stage makes networkd authoritative and kills the race.
+mkdir -p /etc/cloud/cloud.cfg.d
+printf 'network:\n  config: disabled\n' > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
 
 # ----- bootstrap user (Packer's SSH contract) -----
 # Match the Ubuntu base convention: a 'packer' user, key-authed, passwordless sudo.

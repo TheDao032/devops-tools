@@ -106,6 +106,16 @@ locals {
   // sudo -S is used for parity with the Ubuntu lines; the packer user has
   // NOPASSWD sudo so the echoed string is simply ignored.
   provision_inline = [
+    # Wait for the network to settle BEFORE pacman. The base enables cloud-init,
+    # but the bake supplies no NoCloud seed, so cloud-init reconfigures networking
+    # on first boot. sshd comes up fast (virtio-rng), so packer can connect and run
+    # pacman mid-churn — while systemd-resolved is transiently pointed at its
+    # compiled-in public fallback DNS (9.9.9.9) instead of the qemu SLIRP resolver
+    # (10.0.2.3, the only DNS SLIRP actually routes) → "Could not resolve host".
+    # `cloud-init status --wait` blocks until that churn is done; the getent loop
+    # then confirms the per-link resolver is live before we hit the mirrors.
+    "command -v cloud-init >/dev/null 2>&1 && sudo cloud-init status --wait || true",
+    "for i in $(seq 1 30); do getent hosts mirror.archlinuxarm.org >/dev/null 2>&1 && break; sleep 2; done",
     "set -e",
     "echo '${var.ssh_username}' | sudo -S pacman -Syu --noconfirm",
     "echo '${var.ssh_username}' | sudo -S pacman -S --noconfirm --needed openssh sudo qemu-guest-agent",
