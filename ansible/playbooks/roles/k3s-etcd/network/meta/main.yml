@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  role_name: network
+  author: nthedao
+  description: >-
+    Rename the vmnet/socket-mcast cluster NIC to a stable name (k3scl0) with a
+    static IP, using the guest's native network stack (netplan on Debian,
+    systemd-networkd on Arch/RHEL), and write the cluster /etc/hosts. Replaces
+    provision/common.sh; distro logic is fact-driven (ansible_facts.os_family).
+  min_ansible_version: "2.12"
+dependencies: []

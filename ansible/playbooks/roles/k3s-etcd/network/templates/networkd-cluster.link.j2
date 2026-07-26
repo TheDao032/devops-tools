@@ -1,0 +1,7 @@
+# {{ ansible_managed }}
+# Rename the cluster NIC to {{ cluster_iface }} by MAC on boot (Arch/RHEL/systemd-networkd).
+[Match]
+MACAddress={{ cluster_mac | lower }}
+
+[Link]
+Name={{ cluster_iface }}

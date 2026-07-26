@@ -18,7 +18,7 @@
         delay: 5
         timeout: 300
 
-- name: Base dependencies on all nodes
+- name: Base dependencies + cluster network on all nodes
   hosts: all
   become: true
   become_user: root
@@ -26,7 +26,12 @@
     - name: Ping all nodes
       ansible.builtin.ping:
   roles:
+    # OS prereqs (packages, swap, kernel modules, sysctl) — os_family-branched.
     - role: ../roles/k3s-etcd/dependencies
+    # Rename the 2nd NIC -> k3scl0 + static IP + /etc/hosts. Replaces the old
+    # provision/common.sh shell provisioner; netplan vs systemd-networkd is chosen
+    # by ansible_facts.os_family. Must run before etcd/haproxy/k3s.
+    - role: ../roles/k3s-etcd/network
 
 - name: External etcd datastore
   hosts: etcd

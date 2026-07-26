@@ -9,7 +9,7 @@
 #   k3s-agent-2   .22   k3s agent   (worker)
 #
 # vagrant-qemu has NO private_network support, so inter-VM networking is a 2nd NIC
-# on a QEMU socket-multicast L2 segment (see provision/common.sh for in-guest setup).
+# on a QEMU socket-multicast L2 segment (in-guest setup: roles/k3s-etcd/network).
 
 require 'yaml'
 
@@ -27,6 +27,9 @@ end
 host_arch  = norm_arch(`uname -m`.strip)
 is_darwin  = (RbConfig::CONFIG['host_os'] =~ /darwin/)
 guest_arch = norm_arch(ENV['K3S_ARCH'] || cfg['arch'] || host_arch)
+# distro selects which row of the boxes[distro][arch] matrix to use. Env wins so
+# you can flip distro/arch without editing config.yaml: DISTRO=ubuntu K3S_ARCH=x86_64
+distro     = (ENV['DISTRO'] || cfg['distro'] || 'ubuntu').to_s.downcase
 
 # native virt when guest==host, else slow emulation (tcg)
 accel = (guest_arch == host_arch) ? (is_darwin ? 'hvf' : 'kvm') : 'tcg'
@@ -36,9 +39,13 @@ cpu      = (accel == 'tcg') ? (guest_arch == 'aarch64' ? 'cortex-a72' : 'max') :
 deb_arch = (guest_arch == 'aarch64') ? 'arm64' : 'amd64'
 qemu_dir = is_darwin ? '/opt/homebrew/share/qemu' : '/usr/share/qemu'
 
-box     = cfg['box'][guest_arch]
-box_ver = (cfg['box_version'] || {})[guest_arch]
-raise "config.yaml: no box defined for arch '#{guest_arch}'" if box.nil? || box.empty?
+# boxes[distro][arch] = { name:, version: } — adding a distro/arch cell is DATA, not code.
+box_entry = ((cfg['boxes'] || {})[distro] || {})[guest_arch] || {}
+box       = box_entry['name']
+box_ver   = box_entry['version']
+raise "config.yaml: no box for distro='#{distro}' arch='#{guest_arch}' " \
+      "— set boxes.#{distro}.#{guest_arch}.name (bake the box first if it doesn't exist)" \
+      if box.nil? || box.to_s.empty?
 
 if accel == 'tcg'
   warn "[k3s-qemu] WARNING: guest #{guest_arch} != host #{host_arch} → TCG emulation (slow). " \
@@ -109,10 +116,10 @@ Vagrant.configure('2') do |config|
         end
       end
 
-      # lab networking plumbing (rename vmnet NIC → k3scl0, static IP, /etc/hosts).
-      # Runs per-VM at boot, BEFORE Ansible (which pins flannel to k3scl0).
-      m.vm.provision 'network', type: 'shell', path: 'provision/common.sh',
-                     args: [SUBNET, node_mac, node_ip, node[:name]]
+      # NOTE: cluster-NIC rename + static IP + /etc/hosts is no longer a per-VM shell
+      # provisioner — it's the roles/k3s-etcd/network Ansible role (distro-agnostic via
+      # os_family facts), which runs first in the play below. cluster_mac is handed to it
+      # as a host_var so it can find the 2nd NIC regardless of distro NIC-naming.
 
       # Provision k3s via the Ansible roles (roles/k3s-etcd/*). Runs ONCE, on the
       # last VM, against ALL hosts — so cross-host group vars (etcd/infra/server
@@ -130,8 +137,12 @@ Vagrant.configure('2') do |config|
             'server' => NODES.select { |n| n[:role] == 'server' }.map { |n| n[:name] },
             'agent'  => NODES.select { |n| n[:role] == 'agent' }.map { |n| n[:name] },
           }
-          # Each node's cluster-LAN IP → consumed by the roles for etcd/HAProxy/flannel.
-          a.host_vars = NODES.map { |n| [n[:name], { 'cluster_ip' => "#{SUBNET}.#{n[:octet]}" }] }.to_h
+          # Each node's cluster-LAN IP + 2nd-NIC MAC → consumed by the network role
+          # (find/rename the NIC) and etcd/HAProxy/flannel (bind to cluster_ip).
+          a.host_vars = NODES.map { |n| [n[:name], {
+            'cluster_ip'  => "#{SUBNET}.#{n[:octet]}",
+            'cluster_mac' => "52:54:00:ab:cd:#{format('%02d', n[:octet])}",
+          }] }.to_h
           # config.yaml stays the single source of truth for versions/token.
           a.extra_vars = {
             'k3s_version'            => cfg['k3s_version'],

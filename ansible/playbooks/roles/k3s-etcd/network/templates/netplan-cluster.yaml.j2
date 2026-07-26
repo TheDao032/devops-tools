@@ -1,0 +1,12 @@
+# {{ ansible_managed }}
+# Cluster NIC for {{ inventory_hostname }} — renamed by MAC + static IP (Debian/netplan).
+network:
+  version: 2
+  ethernets:
+    {{ cluster_iface }}:
+      match:
+        macaddress: "{{ cluster_mac | lower }}"
+      set-name: {{ cluster_iface }}
+      addresses: [{{ cluster_ip }}/{{ cluster_prefix }}]
+      dhcp4: false
+      dhcp6: false

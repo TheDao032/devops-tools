@@ -1,13 +1,18 @@
 # k3s HA lab on QEMU (vagrant-qemu)
 
 A 5-VM k3s cluster using **external etcd** as the datastore and **HAProxy** as the
-API load-balancer, driven by the `vagrant-qemu` provider. Works on Apple Silicon
-(arm64 + HVF) and on x86_64 Linux (KVM); arch is parameterized.
+API load-balancer, driven by the `vagrant-qemu` provider. Works across a
+**distro × arch matrix** — pick `distro` (ubuntu/debian/archlinux/rhel) and `arch`
+(aarch64/x86_64) in `config.yaml` (or `DISTRO=` / `K3S_ARCH=` env). Apple Silicon
+uses HVF, x86_64 Linux uses KVM.
 
-k3s/etcd/HAProxy are provisioned by the **Ansible roles** in
+Everything OS-specific is **fact-driven in Ansible** (`ansible_facts.os_family` /
+`ansible_architecture`) — there are no per-distro scripts to edit. k3s/etcd/HAProxy
+**and the cluster-NIC networking** are all provisioned by the **Ansible roles** in
 `ansible/playbooks/roles/k3s-etcd/` (via Vagrant's `ansible` provisioner, run once
-against all VMs). Vagrant itself only does VM boot + lab networking
-(`provision/common.sh` → renames the vmnet NIC to `k3scl0`, static IP, `/etc/hosts`).
+against all VMs). The `network` role renames the vmnet NIC to `k3scl0` + static IP +
+`/etc/hosts`, choosing netplan (Debian) or systemd-networkd (Arch/RHEL) by fact.
+Vagrant itself only boots the VMs and wires the 2nd NIC.
 
 ## Topology
 
@@ -47,8 +52,11 @@ is intentionally disabled.
 - `qemu` + `vagrant` + the **vagrant-qemu** plugin (`vagrant plugin install vagrant-qemu`)
 - **`ansible` on the host** (`brew install ansible`) — Vagrant's `ansible` provisioner
   runs the playbook from your Mac against the guests.
-- Your Packer-baked box installed: `nthedao2705/ubuntu2204-cisl1-arm64` (arm64)
-  - For x86_64, bake an amd64 box and set its name in `config.yaml` (`box.x86_64`)
+- A published/installed box for the `distro`+`arch` you select — see the
+  `boxes[distro][arch]` matrix in `config.yaml`. Baked cells today: `archlinux/aarch64`
+  (`nthedao2705/archlinux-arm64`) and `ubuntu/aarch64`. To add a cell (e.g. any distro on
+  `x86_64`, or `debian`/`rhel`): bake+publish the box, drop its tag into the matrix — no
+  Vagrantfile or script edits.
 - **macOS only — `socket_vmnet` for inter-VM networking** (QEMU can't do multi-VM L2 on
   macOS by itself; see "How the networking works"). One-time setup:
   ```bash
@@ -100,9 +108,10 @@ per-role CPU/RAM.
 
 `vagrant-qemu` has **no `private_network` support** — only user-mode SLIRP (NAT) with
 SSH port-forwarding. That NAT NIC can't reach the other VMs, so each VM gets a
-**second NIC** on a shared cluster LAN. `provision/common.sh` renames that NIC to
-`k3scl0` (matched by MAC via netplan `set-name`) and gives it a static `192.168.105.x`
-address; k3s/flannel are pinned to `k3scl0`.
+**second NIC** on a shared cluster LAN. The `roles/k3s-etcd/network` Ansible role
+renames that NIC (found by its `cluster_mac`) to `k3scl0` and gives it a static
+`192.168.105.x` address — via **netplan** (Debian) or **systemd-networkd** (Arch/RHEL),
+chosen by `os_family`; k3s/flannel are pinned to `k3scl0`.
 
 - **NIC 0** (`enp0s1`): user-mode NAT — SSH + outbound internet only.
 - **NIC 1** (`k3scl0`): the cluster LAN (etcd, API, flannel VXLAN, pod traffic).
@@ -141,10 +150,13 @@ Diagnose L2 reachability with `vagrant ssh k3s-server-1 -c "ping -c2 192.168.105
 ```
 k3s/
 ├── Vagrantfile              # 5-node def + qemu provider + 2nd-NIC wiring + ansible provisioner
-├── config.yaml             # all tunables (source of truth for versions/token)
-├── fetch-kubeconfig.sh     # host helper → ./kubeconfig pointed at the VIP
-└── provision/
-    └── common.sh           # lab networking only: rename vmnet NIC → k3scl0, static IP, /etc/hosts
+├── config.yaml             # all tunables: distro + arch selectors, boxes[distro][arch] matrix,
+│                           #   versions/token/network/nodes (source of truth)
+└── fetch-kubeconfig.sh     # host helper → ./kubeconfig pointed at the VIP
+
+# In-guest setup (incl. cluster-NIC networking) lives in the Ansible roles:
+#   ansible/playbooks/roles/k3s-etcd/{dependencies,network,etcd,haproxy,server,agent}/
+# All OS/arch differences are handled there by facts — no per-distro scripts here.
 ```
 
 k3s/etcd/HAProxy + kernel prereqs are the **Ansible roles**, not shell scripts:

@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+# Static IP for {{ inventory_hostname }}'s cluster NIC (Arch/RHEL/systemd-networkd).
+# Matches on the stable name so the box's default `Name=en*` DHCP rule never grabs it.
+[Match]
+Name={{ cluster_iface }}
+
+[Network]
+Address={{ cluster_ip }}/{{ cluster_prefix }}
+DHCP=no

@@ -6,6 +6,9 @@
 #   ./gen-ssh-config.sh
 # before ansible-playbook. `cluster_ip` is each node's IP on the cluster LAN and is
 # what the roles use for etcd/HAProxy/flannel wiring (NOT the SSH connection).
+# `cluster_mac` is the 2nd NIC's MAC (52:54:00:ab:cd:<ip-octet>, set in the
+# Vagrantfile) — the network role finds/renames that NIC to k3scl0 by it. Keep these
+# in sync with vagrant/vagrant-files/k3s/Vagrantfile.
 #
 # In this lab etcd + HAProxy live on the SAME box (k3s-lb), so it is in both
 # the `etcd` and `infra` groups.
@@ -14,14 +17,19 @@ all:
   hosts:
     k3s-lb:
       cluster_ip: 192.168.105.10
+      cluster_mac: "52:54:00:ab:cd:10"
     k3s-server-1:
       cluster_ip: 192.168.105.11
+      cluster_mac: "52:54:00:ab:cd:11"
     k3s-server-2:
       cluster_ip: 192.168.105.12
+      cluster_mac: "52:54:00:ab:cd:12"
     k3s-agent-1:
       cluster_ip: 192.168.105.21
+      cluster_mac: "52:54:00:ab:cd:21"
     k3s-agent-2:
       cluster_ip: 192.168.105.22
+      cluster_mac: "52:54:00:ab:cd:22"
   children:
     etcd:
       hosts:

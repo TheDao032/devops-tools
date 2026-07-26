@@ -6,15 +6,28 @@
 # aarch64 | x86_64   (env K3S_ARCH wins; default = host arch)
 arch: aarch64
 
-# Your Packer-baked boxes, per guest arch. vagrant-qemu consumes the libvirt artifact.
-box:
-  aarch64: nthedao2705/archlinux-arm64          # Arch Linux ARM (rolling), packer-baked; k3s-etcd lab (all 5 VMs)
-  x86_64:  nthedao2705/ubuntu2204-cisl1-amd64   # placeholder — bake this before using x86_64
+# ubuntu | debian | archlinux | rhel   (env DISTRO wins). Selects which row of the
+# boxes[distro][arch] matrix below is used for ALL 5 lab VMs. The OS-specific logic
+# (packages, network stack) is handled by Ansible facts, not per-distro scripts.
+distro: archlinux
 
-# Pin box versions (leave "" to take latest released).
-box_version:
-  aarch64: "2026-07-25.3"        # published to Vagrant Cloud (both qemu+libvirt); "" = latest released
-  x86_64:  ""
+# Box matrix: boxes[<distro>][<arch>] = { name: <vagrant-cloud tag>, version: <pin|""> }.
+# vagrant-qemu consumes the libvirt artifact. Adding a distro/arch = a DATA entry here
+# (bake + publish the box first); no Vagrantfile or script edits. Empty name = not baked
+# yet → the Vagrantfile raises a clear error if you select that cell. "" version = latest.
+boxes:
+  ubuntu:
+    aarch64: { name: "nthedao2705/ubuntu2404-cisl1-arm64", version: "" }
+    x86_64:  { name: "nthedao2705/ubuntu2404-cisl1-amd64", version: "" }   # bake to enable
+  archlinux:
+    aarch64: { name: "nthedao2705/archlinux-arm64",        version: "2026-07-25.3" }
+    x86_64:  { name: "nthedao2705/archlinux-amd64",        version: "" }   # bake to enable
+  debian:
+    aarch64: { name: "", version: "" }                                     # bake to enable
+    x86_64:  { name: "", version: "" }                                     # bake to enable
+  rhel:
+    aarch64: { name: "", version: "" }                                     # bake to enable
+    x86_64:  { name: "", version: "" }                                     # bake to enable
 
 # Component versions
 k3s_version:  "v1.36.2+k3s1"     # stable channel = k8s 1.36.2 (https://github.com/k3s-io/k3s/releases)

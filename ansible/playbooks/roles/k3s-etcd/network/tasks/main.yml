@@ -1,0 +1,87 @@
+---
+# tasks file for k3s-etcd/network — rename the cluster NIC → {{ cluster_iface }}
+# with a static IP, distro-agnostically. Runs BEFORE etcd/haproxy/k3s (which pin
+# to cluster_ip / --flannel-iface={{ cluster_iface }}).
+
+- name: Locate the cluster NIC by MAC ({{ cluster_mac | default('UNSET') }})
+  ansible.builtin.shell: |
+    set -o pipefail
+    for a in /sys/class/net/*/address; do
+      if [ "$(cat "$a")" = "{{ cluster_mac | lower }}" ]; then
+        basename "$(dirname "$a")"; break
+      fi
+    done
+  args:
+    executable: /bin/bash
+  register: _cluster_nic
+  changed_when: false
+  failed_when: false
+
+- name: Fail early if the cluster NIC (MAC {{ cluster_mac | default('UNSET') }}) is missing
+  ansible.builtin.fail:
+    msg: >-
+      No NIC with MAC {{ cluster_mac | default('UNSET') }} on {{ inventory_hostname }}.
+      Is cluster_mac set as a host_var, and does the 2nd NIC exist?
+  when: (_cluster_nic.stdout | default('') | trim) == ""
+
+- name: Remember the cluster NIC's current name
+  ansible.builtin.set_fact:
+    cluster_nic_current: "{{ _cluster_nic.stdout | trim }}"
+
+# ── Debian/Ubuntu: netplan ───────────────────────────────────────────────────
+- name: Render netplan for {{ cluster_iface }} (Debian)
+  when: ansible_facts['os_family'] == "Debian"
+  ansible.builtin.template:
+    src: netplan-cluster.yaml.j2
+    dest: /etc/netplan/99-k3s-cluster.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: apply netplan
+
+# ── Arch / RHEL: systemd-networkd ────────────────────────────────────────────
+# .link renames by MAC on future boots (udev); .network holds the static addr and
+# keeps the box's default `Name=en*` rule off it (k3scl0 doesn't match en*).
+- name: Render systemd-networkd units for {{ cluster_iface }} (Arch/RedHat)
+  when: ansible_facts['os_family'] in ["Archlinux", "RedHat"]
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - { src: "networkd-cluster.link.j2",    dest: "/etc/systemd/network/25-{{ cluster_iface }}.link" }
+    - { src: "networkd-cluster.network.j2", dest: "/etc/systemd/network/25-{{ cluster_iface }}.network" }
+  notify: reload networkd
+
+- name: Apply the rendered network config now (run handlers before the imperative step)
+  ansible.builtin.meta: flush_handlers
+
+# Make {{ cluster_iface }} exist + carry ONLY the static IP for THIS boot. netplan
+# set-name / the .link file only fire on device (re)appearance, and the NIC is
+# already up — so rename imperatively if needed. The addr flush also drops any
+# stray DHCP lease the box's boot-time `en*` rule grabbed before the rename.
+# Idempotent + last-writer so it wins over whatever the stack just did.
+- name: Ensure {{ cluster_iface }} is renamed + has only the static IP {{ cluster_ip }}
+  ansible.builtin.shell: |
+    set -e
+    if ! ip link show {{ cluster_iface }} >/dev/null 2>&1; then
+      ip link set "{{ cluster_nic_current }}" down || true
+      ip link set "{{ cluster_nic_current }}" name {{ cluster_iface }}
+    fi
+    ip addr flush dev {{ cluster_iface }} 2>/dev/null || true
+    ip addr add {{ cluster_ip }}/{{ cluster_prefix }} dev {{ cluster_iface }} 2>/dev/null || true
+    ip link set {{ cluster_iface }} up
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Write the cluster /etc/hosts (no DNS in the lab)
+  ansible.builtin.blockinfile:
+    path: /etc/hosts
+    marker: "# {mark} ANSIBLE MANAGED — k3s-etcd cluster"
+    block: |
+      {% for h in groups['all'] | sort %}
+      {{ hostvars[h]['cluster_ip'] }} {{ h }}
+      {% endfor %}

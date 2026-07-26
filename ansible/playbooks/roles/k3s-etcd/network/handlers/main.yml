@@ -1,0 +1,9 @@
+---
+# handlers file for k3s-etcd/network
+- name: apply netplan
+  ansible.builtin.command: netplan apply
+  changed_when: false
+
+- name: reload networkd
+  ansible.builtin.command: networkctl reload
+  changed_when: false

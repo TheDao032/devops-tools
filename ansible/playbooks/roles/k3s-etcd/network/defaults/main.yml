@@ -1,0 +1,14 @@
+---
+# defaults file for k3s-etcd/network
+#
+# Renames the per-node "cluster" NIC (the 2nd, vmnet/socket-mcast NIC) to a stable
+# name and gives it a static IP, using whichever network stack the guest ships
+# (netplan on Debian/Ubuntu, systemd-networkd on Arch/RHEL). Replaces the old
+# provision/common.sh shell provisioner — the OS split now lives in Ansible facts,
+# not a hand-branched bash script.
+#
+# Per-host inputs (set as host_vars by the Vagrantfile, or the inventory for real
+# hosts): cluster_ip (this node's cluster-LAN IP) and cluster_mac (the MAC of the
+# 2nd NIC, used to locate it distro-agnostically via /sys/class/net).
+cluster_iface: k3scl0        # stable name k3s pins flannel to (--flannel-iface)
+cluster_prefix: 24           # CIDR mask of the cluster LAN
