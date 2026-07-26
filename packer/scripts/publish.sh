@@ -162,6 +162,10 @@ VAGRANT_CLOUD_ORG="${VAGRANT_CLOUD_ORG:-${DEFAULT_ORG}}"
 BOX_NAME="${BOX_NAME:-${DEFAULT_BOX_NAME}}"
 IMAGE_NAME_PREFIX="${IMAGE_NAME_PREFIX:-${TENANT}-${BOX_NAME}}"
 BOX_TAG="${VAGRANT_CLOUD_ORG}/${BOX_NAME}"
+# Short description used on `box create`. Default matches the CIS-hardened Ubuntu
+# lines; OVERRIDE via env for boxes that aren't Ubuntu/hardened (e.g. the nthedao
+# archlinux-arm64 lab box: SHORT_DESCRIPTION="Arch Linux ARM (rolling) arm64, k3s lab box").
+SHORT_DESCRIPTION="${SHORT_DESCRIPTION:-${OS_LABEL} ${ARCH}, CIS Level 1 hardened (${TENANT})}"
 
 # ---------- preflight ----------
 
@@ -404,7 +408,7 @@ else
     desc_args+=(--description-from-file "${BOX_DESCRIPTION_FILE}")
   fi
   run vagrant cloud box create "${BOX_TAG}" \
-    --short-description "${OS_LABEL} ${ARCH}, CIS Level 1 hardened (${TENANT})" \
+    --short-description "${SHORT_DESCRIPTION}" \
     --private \
     ${desc_args[@]+"${desc_args[@]}"}
 fi

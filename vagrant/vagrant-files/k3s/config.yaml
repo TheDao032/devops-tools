@@ -8,12 +8,12 @@ arch: aarch64
 
 # Your Packer-baked boxes, per guest arch. vagrant-qemu consumes the libvirt artifact.
 box:
-  aarch64: nthedao2705/ubuntu2404-cisl1-arm64   # Packer-baked 24.04 LTS; local box until published to Vagrant Cloud
+  aarch64: nthedao2705/archlinux-arm64          # Arch Linux ARM (rolling), packer-baked; k3s-etcd lab (all 5 VMs)
   x86_64:  nthedao2705/ubuntu2204-cisl1-amd64   # placeholder — bake this before using x86_64
 
-# Pin box versions (leave "" to take latest installed).
+# Pin box versions (leave "" to take latest released).
 box_version:
-  aarch64: ""                    # "" = use the locally-added box; pin to "2026-07-21.1" once published to Vagrant Cloud
+  aarch64: "2026-07-25.3"        # published to Vagrant Cloud (both qemu+libvirt); "" = latest released
   x86_64:  ""
 
 # Component versions

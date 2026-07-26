@@ -24,12 +24,16 @@ done
 [ -n "$CUR" ] || { echo "[common] FATAL: no NIC with MAC ${NODE_MAC_LC}"; ip -o link; exit 1; }
 echo "[common] cluster NIC is currently '${CUR}'"
 
-# Down it first so netplan can rename it live (set-name on a busy iface fails).
+# Down it first so the rename can happen live (set-name on a busy iface fails).
 ip link set "$CUR" down 2>/dev/null || true
 
-# Rename to a stable name (k3scl0) + assign static IP. Matching by MAC + set-name
-# means the box's primary netplan (match en*/driver virtio_net) won't grab this NIC.
-cat >/etc/netplan/99-k3s-cluster.yaml <<EOF
+# Rename to a stable name (k3scl0) + assign a static IP. k3scl0 deliberately does
+# NOT match the box's primary `en*` rule, so neither netplan (Ubuntu) nor
+# systemd-networkd (Arch) grabs this NIC for DHCP. Branch on which network stack
+# the box ships (netplan is Ubuntu-only; Arch Linux ARM uses systemd-networkd).
+if command -v netplan >/dev/null 2>&1; then
+  # ---- Debian/Ubuntu: netplan set-name + static ----
+  cat >/etc/netplan/99-k3s-cluster.yaml <<EOF
 network:
   version: 2
   ethernets:
@@ -41,9 +45,39 @@ network:
       dhcp4: false
       dhcp6: false
 EOF
-chmod 600 /etc/netplan/99-k3s-cluster.yaml
-netplan apply || true
-sleep 2
+  chmod 600 /etc/netplan/99-k3s-cluster.yaml
+  netplan apply || true
+  sleep 2
+else
+  # ---- Arch Linux ARM: systemd-networkd (no netplan) ----
+  # The box's bundled 20-wired.network matches `Name=en*` (DHCP). Rename the
+  # cluster NIC to k3scl0 (escapes that match) and give it a static addr.
+  #   .link    → rename by MAC on every FUTURE boot (udev/systemd-udevd)
+  #   .network → hold the static addr (survives reboot; keeps networkd off en*)
+  #   imperative rename+addr → make k3scl0 exist THIS boot without a reboot
+  #     (the .link only fires on device-appearance, and the iface is already up).
+  cat >/etc/systemd/network/25-k3scl0.link <<EOF
+[Match]
+MACAddress=${NODE_MAC_LC}
+
+[Link]
+Name=k3scl0
+EOF
+  cat >/etc/systemd/network/25-k3scl0.network <<EOF
+[Match]
+Name=k3scl0
+
+[Network]
+Address=${NODE_IP}/24
+DHCP=no
+EOF
+  ip link set "$CUR" name k3scl0 2>/dev/null || true
+  ip addr flush dev k3scl0 2>/dev/null || true
+  ip addr add "${NODE_IP}/24" dev k3scl0 2>/dev/null || true
+  ip link set k3scl0 up 2>/dev/null || true
+  networkctl reload 2>/dev/null || systemctl restart systemd-networkd 2>/dev/null || true
+  sleep 2
+fi
 
 if ip link show k3scl0 >/dev/null 2>&1; then
   IFACE="k3scl0"

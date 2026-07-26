@@ -63,10 +63,15 @@ Vagrant.configure('2') do |config|
   config.vm.box_version   = box_ver unless box_ver.nil? || box_ver.to_s.empty?
   config.vm.synced_folder '.', '/vagrant', disabled: true   # vagrant-qemu has no virtfs share
   config.vm.boot_timeout  = 600
-  config.ssh.insert_key   = true
-  # If this box was baked WITHOUT the vagrant insecure key, switch to your bake key:
-  #   config.ssh.private_key_path = ['~/.ssh/packer_ed25519']
-  #   config.ssh.insert_key       = false
+  # The packer-baked boxes (ubuntu + archlinux) authorize ONLY the bake key
+  # (packer/keys/packer_ed25519) in the `packer` user's authorized_keys — NOT
+  # vagrant's insecure key. So point ssh at the bake key and DON'T insert/rotate
+  # (insert_key=false). The insecure key is a fallback for any box that ships it.
+  config.ssh.insert_key       = false
+  config.ssh.private_key_path = [
+    File.expand_path('../../../packer/keys/packer_ed25519', __dir__),
+    '~/.vagrant.d/insecure_private_key',
+  ]
 
   NODES.each do |node|
     config.vm.define node[:name] do |m|
