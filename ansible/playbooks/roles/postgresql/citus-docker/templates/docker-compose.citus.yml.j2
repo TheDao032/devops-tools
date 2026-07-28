@@ -69,6 +69,9 @@ services:
     volumes:
       - {{ citus_remote_dir }}/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
       - {{ citus_remote_dir }}/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      # Terraform (on-prem/shared/database/postgresql) writes databases.ini here; the base
+      # pgbouncer.ini %include's it. ro is fine — TF writes the HOST path, pgbouncer only reads.
+      - {{ citus_remote_dir }}/pgbouncer.d:/etc/pgbouncer/pgbouncer.d:ro
     networks: [citus-net]
 
 networks:

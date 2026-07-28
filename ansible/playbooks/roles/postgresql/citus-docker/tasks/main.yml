@@ -72,6 +72,9 @@
     - "{{ citus_remote_dir }}"
     - "{{ citus_remote_dir }}/node"
     - "{{ citus_remote_dir }}/pgbouncer"
+    # Terraform (on-prem/shared/database/postgresql) owns databases.ini in here; pgbouncer
+    # bind-mounts this dir and the base pgbouncer.ini %include's the file.
+    - "{{ citus_remote_dir }}/pgbouncer.d"
 
 - name: Copy the image build contexts (Dockerfiles + entrypoint)
   ansible.builtin.copy:
@@ -93,6 +96,18 @@
     - { src: "pgbouncer.ini.j2",            dest: "{{ citus_remote_dir }}/pgbouncer.ini" }
     - { src: "userlist.txt.j2",             dest: "{{ citus_remote_dir }}/userlist.txt" }
     - { src: "register-workers.sql.j2",     dest: "{{ citus_remote_dir }}/register-workers.sql" }
+
+# The base pgbouncer.ini %include's pgbouncer.d/databases.ini, which must EXIST before pgbouncer
+# starts (a missing %include target aborts startup). Seed an empty placeholder — force:false so we
+# NEVER clobber the real content Terraform later writes there (Terraform owns this file).
+- name: Seed the Terraform-owned pgbouncer include placeholder (never overwrite)
+  ansible.builtin.copy:
+    dest: "{{ citus_remote_dir }}/pgbouncer.d/databases.ini"
+    content: |
+      ; Placeholder — managed by Terraform (on-prem/shared/database/postgresql).
+      ; Empty until the first `terraform apply` populates the [databases] section.
+    mode: "0644"
+    force: false
 
 # ── 3. Preflight: the host ports must be free (or already ours) ──────────────
 # A leftover bare-metal Postgres from postgres.mode=single squats on :5432 and makes

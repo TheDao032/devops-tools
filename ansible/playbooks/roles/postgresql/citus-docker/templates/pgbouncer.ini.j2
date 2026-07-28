@@ -4,6 +4,10 @@
 [databases]
 {{ pg_app_db }} = host={{ citus_coordinator_name }} port=5432 dbname={{ pg_app_db }}
 * = host={{ citus_coordinator_name }} port=5432
+# Extra databases are managed OUT-OF-BAND by Terraform (on-prem/shared/database/postgresql),
+# which owns this single included file and SIGHUPs pgbouncer after writing it. pgbouncer's
+# %include takes ONE filename (no glob), so it's a single combined file — added here ONCE.
+%include /etc/pgbouncer/pgbouncer.d/databases.ini
 
 [pgbouncer]
 listen_addr = 0.0.0.0
