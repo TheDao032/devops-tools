@@ -47,6 +47,33 @@
   roles:
     - role: ../roles/k3s-etcd/haproxy
 
+# PostgreSQL on the lb node (NOT in-cluster). Toggle with postgres.enabled (pg_enabled) and
+# postgres.mode (pg_mode) in config.yaml. Services connect at the lb's cluster IP.
+#   pg_mode == 'single' -> bare-metal Postgres: `dependencies` (os_family-branched incl.
+#                          Archlinux) installs it, `single-node` opens it on the LAN + makes
+#                          the app db/role. One instance on :5432.
+#   pg_mode == 'citus'  -> `citus-docker`: Alpine/aarch64-native Citus dev cluster (coordinator
+#                          + N workers + pgbouncer) as Docker containers. NO repmgr. Direct
+#                          coordinator :5432 (scram), pooled pgbouncer :6432 (trust). Chosen
+#                          because citusdata's apt repo + official image are amd64-only.
+- name: PostgreSQL on the lb node (single bare-metal OR dockerized Citus cluster)
+  hosts: infra
+  become: true
+  become_user: root
+  roles:
+    - role: ../roles/postgresql/dependencies
+      when:
+        - pg_enabled | default(false) | bool
+        - (pg_mode | default('single')) == 'single'
+    - role: ../roles/postgresql/single-node
+      when:
+        - pg_enabled | default(false) | bool
+        - (pg_mode | default('single')) == 'single'
+    - role: ../roles/postgresql/citus-docker
+      when:
+        - pg_enabled | default(false) | bool
+        - (pg_mode | default('single')) == 'citus'
+
 - name: k3s control-plane servers (external datastore)
   hosts: server
   become: true

@@ -1,0 +1,30 @@
+---
+# defaults for postgresql/single-node — turns the base install (dependencies role) into a
+# usable standalone Postgres: listens on the LAN + owns one application database/role.
+# Overridable from the k3s lab's config.yaml (via the Vagrantfile ansible extra_vars).
+
+# Application database + login role that services connect with.
+pg_app_db: "app"
+pg_app_user: "app"
+pg_app_password: "app" # LAB ONLY — override for anything real.
+
+# What Postgres listens on. "*" = all interfaces (simplest for a lab, so services reach it via
+# the lb's cluster-LAN IP). Narrow to the cluster IP for a tighter setup.
+pg_listen_addresses: "*"
+
+# PostgreSQL major version — only used to locate the conf dir on Debian/RedHat (Arch is
+# versionless). Keep in sync with the dependencies role.
+psql_version: 16
+
+# Per-OS locations, selected by ansible_facts.os_family.
+_psql_conf_dir_map:
+  Debian: "/etc/postgresql/{{ psql_version }}/main"
+  RedHat: "/var/lib/pgsql/{{ psql_version }}/data"
+  Archlinux: "/var/lib/postgres/data"
+_psql_service_map:
+  Debian: "postgresql"
+  RedHat: "postgresql-{{ psql_version }}"
+  Archlinux: "postgresql"
+psql_conf_dir: "{{ _psql_conf_dir_map[ansible_facts['os_family']] }}"
+psql_service_name: "{{ _psql_service_map[ansible_facts['os_family']] }}"
+psql_unix_socket: "/run/postgresql"

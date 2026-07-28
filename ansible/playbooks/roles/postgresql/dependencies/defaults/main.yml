@@ -1,2 +1,14 @@
 ---
 # defaults file for dependencies
+
+# PostgreSQL major version — used in Debian/RedHat package names + conf paths (Arch is
+# versionless, ignores it). Override from the caller (config.yaml postgres.version).
+psql_version: 16
+
+# pg_hba.conf trust CIDRs (referenced by templates/pg_hba.conf.j2). The caller (the k3s lab's
+# Vagrantfile extra_vars, or an inventory) overrides these with the real cluster LAN + k3s
+# pod/service CIDRs. Safe localhost-only defaults so the template always renders even if a
+# caller forgets to set them.
+server_cidr_range: "127.0.0.1/32"
+docker_network_cidr_range: "127.0.0.1/32"
+docker_default_cidr_range: "127.0.0.1/32"

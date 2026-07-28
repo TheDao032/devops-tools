@@ -144,6 +144,7 @@ Vagrant.configure('2') do |config|
             'cluster_mac' => "52:54:00:ab:cd:#{format('%02d', n[:octet])}",
           }] }.to_h
           # config.yaml stays the single source of truth for versions/token.
+          pg = cfg['postgres'] || {}
           a.extra_vars = {
             'k3s_version'            => cfg['k3s_version'],
             'etcd_version'           => cfg['etcd_version'],
@@ -153,6 +154,22 @@ Vagrant.configure('2') do |config|
             'api_port'               => 6443,
             'load_balancer_port'     => 6443,
             'k3s_disable_components' => cfg['k3s_disable'],
+            # PostgreSQL on the lb node (postgresql play, hosts: infra). mode=single -> one
+            # bare-metal instance; mode=citus -> dockerized Citus cluster (citus-docker role).
+            'pg_enabled'             => pg.fetch('enabled', false),
+            'pg_mode'                => pg.fetch('mode', 'single'),
+            'psql_version'           => pg['version'],
+            'pg_app_db'              => pg['db'],
+            'pg_app_user'            => pg['user'],
+            'pg_app_password'        => pg['password'],
+            'pg_listen_addresses'    => pg['listen'],
+            # citus mode: worker container hostnames (docker DNS) — worker1..workerN.
+            'citus_workers'          => (1..(pg.fetch('workers', 2).to_i)).map { |i| "worker#{i}" },
+            # pg_hba trust CIDRs (template vars): the cluster LAN + k3s pod/service CIDRs so
+            # both other nodes and in-cluster pods can reach Postgres on the lb.
+            'server_cidr_range'         => "#{SUBNET}.0/24",
+            'docker_network_cidr_range' => '10.42.0.0/16', # k3s default pod CIDR
+            'docker_default_cidr_range' => '10.43.0.0/16', # k3s default service CIDR
           }
         end
 

@@ -1,17 +1,28 @@
 ---
 # tasks file for k3s-etcd/dependencies — base prep for every k3s-etcd node
+# retries/until on all three: the package mirrors (esp. ALARM's) intermittently drop a
+# connection mid-refresh, which fails the task on a random subset of nodes and aborts the
+# whole run. Retrying the fetch a few times rides out the transient instead.
 - name: Install base packages (Debian)
   when: ansible_facts['os_family'] == "Debian"
   ansible.builtin.apt:
     name: "{{ base_packages_debian }}"
     state: present
     update_cache: true
+  register: _base_pkgs
+  until: _base_pkgs is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install base packages (RedHat)
   when: ansible_facts['os_family'] == "RedHat"
   ansible.builtin.dnf:
     name: "{{ base_packages_redhat }}"
     state: present
+  register: _base_pkgs
+  until: _base_pkgs is succeeded
+  retries: 3
+  delay: 10
 
 - name: Install base packages (Archlinux)
   when: ansible_facts['os_family'] == "Archlinux"
@@ -19,6 +30,10 @@
     name: "{{ base_packages_archlinux }}"
     state: present
     update_cache: true          # pacman -Sy before install (refresh the sync DB)
+  register: _base_pkgs
+  until: _base_pkgs is succeeded
+  retries: 3
+  delay: 10
 
 - name: Disable swap for the current boot
   ansible.builtin.command: swapoff -a

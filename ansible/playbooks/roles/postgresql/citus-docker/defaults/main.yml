@@ -1,0 +1,42 @@
+---
+# defaults for postgresql/citus-docker
+# A single-VM Citus dev cluster (coordinator + N workers + pgbouncer) run as Docker
+# containers on the k3s-lb node. All images are Alpine/aarch64-native (the citusdata
+# apt repo + official image are amd64-only). NO repmgr — deferred.
+
+# Where the build context + rendered compose/config live on the lb.
+citus_remote_dir: /opt/citus-docker
+
+# Locally-built image tags (built on the lb from the copied Dockerfiles).
+citus_image: citus-node:local
+citus_pgbouncer_image: citus-pgbouncer:local
+
+# Topology. Worker names are docker-DNS hostnames on the compose network; the
+# coordinator registers them with citus_add_node(<name>, 5432).
+citus_coordinator_name: coordinator
+citus_pgbouncer_name: pgbouncer
+citus_workers:
+  - worker1
+  - worker2
+
+# Compose bridge subnet — also the CIDR the nodes TRUST (passwordless) so the
+# coordinator<->worker mesh authenticates without a password. Must not collide with
+# the k3s pod/service CIDRs (10.42/10.43) or the cluster LAN.
+citus_docker_subnet: "172.28.0.0/16"
+
+# Host ports published on the lb (reachable at <lb cluster IP>:<port>).
+citus_coordinator_host_port: 5432    # direct coordinator (scram for app users)
+citus_pgbouncer_host_port: 6432      # pooled entrypoint (pgbouncer)
+
+# Application db/role (created + owned by the entrypoint on first boot).
+pg_app_db: app
+pg_app_user: app
+pg_app_password: app
+
+# Docker packages per OS family. The lb is Arch (pacman: docker + the compose plugin
+# lives in the docker-compose package). Debian/RedHat kept for portability.
+_docker_pkgs:
+  Archlinux: [docker, docker-compose]
+  Debian: [docker.io, docker-compose-plugin]
+  RedHat: [docker, docker-compose-plugin]
+docker_packages: "{{ _docker_pkgs[ansible_facts['os_family']] | default(_docker_pkgs['Debian']) }}"

@@ -37,6 +37,24 @@ all:
     infra:
       hosts:
         k3s-lb:
+      vars:
+        # PostgreSQL/Citus on the lb. The Vagrantfile injects these as extra_vars on the
+        # INLINE path (vagrant up/provision), but the run.sh path uses THIS external
+        # inventory and never sees the Vagrantfile — so without these, pg_enabled defaults
+        # to false and the whole Citus role skips silently. Mirror of config.yaml postgres:.
+        # KEEP IN SYNC with vagrant/vagrant-files/k3s/config.yaml.
+        pg_enabled: true
+        pg_mode: citus            # citus | single
+        psql_version: 16
+        pg_app_db: app
+        pg_app_user: app
+        pg_app_password: app
+        pg_listen_addresses: "*"
+        citus_workers: [worker1, worker2]
+        # pg_hba trust CIDRs — only used by the single-node (bare-metal) path; harmless here.
+        server_cidr_range: "192.168.105.0/24"
+        docker_network_cidr_range: "10.42.0.0/16"
+        docker_default_cidr_range: "10.43.0.0/16"
     server:
       hosts:
         k3s-server-1:

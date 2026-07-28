@@ -54,6 +54,14 @@ export RESOURCE_PROFILE="low"
 # export ANSIBLE_VERBOSITY="vv"
 
 # ---------------------------------------------------------------------------
+# vagrant scenario dir. .envrc sets VAGRANT_CWD to vagrant/vagrant-files/k3s so
+# `vagrant ssh k3s-server-1`, `vagrant status`, `vagrant ssh-config`, etc. work
+# from anywhere in the repo after `up.sh` (no need to cd into the scenario dir).
+# Override only if you run a DIFFERENT vagrant scenario as your default.
+# ---------------------------------------------------------------------------
+# export VAGRANT_CWD="${DEVOPS_TOOLS_ROOT}/vagrant/vagrant-files/<scenario>"
+
+# ---------------------------------------------------------------------------
 # Playbook / inventory overrides. .envrc already sets these to the k3s-etcd
 # bosch scenario (absolute paths). Override only to run a different flow.
 # ---------------------------------------------------------------------------

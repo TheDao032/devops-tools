@@ -91,3 +91,39 @@
         state: restarted
         enabled: true
   when: ansible_facts['os_family'] == "RedHat"
+
+- name: Install PostgreSQL Archlinux OS
+  block:
+    - name: Install PostgreSQL packages (pacman)
+      community.general.pacman:
+        name: "{{ archlinux.common_packages + archlinux.psql_packages }}"
+        state: present
+        update_cache: true
+
+    - name: Check whether the data dir is already initialized
+      ansible.builtin.stat:
+        path: "{{ archlinux.psql_conf_folder_path }}/PG_VERSION"
+      register: pg_data_initialized
+
+    - name: Initialize the PostgreSQL data dir (Arch does NOT auto-initdb)
+      when: not pg_data_initialized.stat.exists
+      become: true
+      become_user: postgres
+      ansible.builtin.command:
+        cmd: "initdb --locale=C.UTF-8 --encoding=UTF8 -D {{ archlinux.psql_conf_folder_path }}"
+
+    - name: Copy pg_hba.conf file for psql configuration from templates
+      ansible.builtin.template:
+        src: pg_hba.conf.j2
+        dest: "{{ archlinux.psql_conf_folder_path }}/pg_hba.conf"
+        owner: postgres
+        group: postgres
+        mode: '0600'
+
+    - name: Systemd start + enable PostgreSQL
+      become: true
+      ansible.builtin.systemd_service:
+        name: "{{ archlinux.psql_service_name }}"
+        state: started
+        enabled: true
+  when: ansible_facts['os_family'] == "Archlinux"

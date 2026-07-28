@@ -1,0 +1,86 @@
+# {{ ansible_managed }}
+# Citus dev cluster on the k3s-lb node (NOT in k8s): 1 coordinator + {{ citus_workers | length }} workers
+# + PgBouncer. All aarch64-native (Alpine). NO repmgr (deferred — single-VM lab).
+#   coordinator  -> host {{ citus_coordinator_host_port }} (direct, scram)
+#   pgbouncer    -> host {{ citus_pgbouncer_host_port }} (pooled, trust)
+# Services in the k3s cluster reach these at <lb cluster IP>:<host port>.
+name: citus
+
+x-node-env: &node-env
+  POSTGRES_DB: "{{ pg_app_db }}"
+  POSTGRES_USER: "{{ pg_app_user }}"
+  POSTGRES_PASSWORD: "{{ pg_app_password }}"
+  # Intra-cluster mesh authenticates by trust on the compose subnet; external = scram.
+  TRUST_CIDR: "{{ citus_docker_subnet }}"
+
+x-node-build: &node-build
+  context: ./node
+  dockerfile: Dockerfile
+
+x-node-health: &node-health
+  test: ["CMD", "pg_isready", "-U", "{{ pg_app_user }}", "-d", "{{ pg_app_db }}"]
+  interval: 5s
+  timeout: 3s
+  retries: 20
+  start_period: 10s
+
+services:
+  {{ citus_coordinator_name }}:
+    build: *node-build
+    image: {{ citus_image }}
+    container_name: {{ citus_coordinator_name }}
+    hostname: {{ citus_coordinator_name }}
+    environment: *node-env
+    healthcheck: *node-health
+    restart: unless-stopped
+    ports:
+      - "{{ citus_coordinator_host_port }}:5432"   # direct coordinator (scram)
+    volumes:
+      - {{ citus_coordinator_name }}-data:/var/lib/postgresql/data
+    networks: [citus-net]
+
+{% for w in citus_workers %}
+  {{ w }}:
+    build: *node-build
+    image: {{ citus_image }}
+    container_name: {{ w }}
+    hostname: {{ w }}
+    environment: *node-env
+    healthcheck: *node-health
+    restart: unless-stopped
+    volumes:
+      - {{ w }}-data:/var/lib/postgresql/data
+    networks: [citus-net]
+
+{% endfor %}
+  {{ citus_pgbouncer_name }}:
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile
+    image: {{ citus_pgbouncer_image }}
+    container_name: {{ citus_pgbouncer_name }}
+    hostname: {{ citus_pgbouncer_name }}
+    restart: unless-stopped
+    depends_on:
+      {{ citus_coordinator_name }}:
+        condition: service_healthy
+    ports:
+      - "{{ citus_pgbouncer_host_port }}:6432"     # pooled entrypoint
+    volumes:
+      - {{ citus_remote_dir }}/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - {{ citus_remote_dir }}/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    networks: [citus-net]
+
+networks:
+  citus-net:
+    name: citus-net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: {{ citus_docker_subnet }}
+
+volumes:
+  {{ citus_coordinator_name }}-data:
+{% for w in citus_workers %}
+  {{ w }}-data:
+{% endfor %}

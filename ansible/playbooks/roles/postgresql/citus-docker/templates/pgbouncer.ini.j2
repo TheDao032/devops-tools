@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+# PgBouncer in front of the Citus coordinator. Pooled clients hit the lb at
+# <lb cluster IP>:{{ citus_pgbouncer_host_port }} -> this pooler -> coordinator:5432.
+[databases]
+{{ pg_app_db }} = host={{ citus_coordinator_name }} port=5432 dbname={{ pg_app_db }}
+* = host={{ citus_coordinator_name }} port=5432
+
+[pgbouncer]
+listen_addr = 0.0.0.0
+listen_port = 6432
+# LAB: trust — clients aren't re-authenticated by the pooler, and the pooler reaches
+# the coordinator over the trusted docker subnet ({{ citus_docker_subnet }}). The DIRECT
+# coordinator port ({{ citus_coordinator_host_port }}) still enforces scram for app users.
+# trust still requires the username to be present in the auth_file (pgbouncer quirk).
+auth_type = trust
+auth_file = /etc/pgbouncer/userlist.txt
+pool_mode = transaction
+max_client_conn = 5000
+default_pool_size = 50
+min_pool_size = 5
+reserve_pool_size = 10
+ignore_startup_parameters = extra_float_digits,options
+admin_users = {{ pg_app_user }}
+stats_users = {{ pg_app_user }}

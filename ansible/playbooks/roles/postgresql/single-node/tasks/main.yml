@@ -1,0 +1,62 @@
+---
+# tasks file for postgresql/single-node — make the base install (dependencies role) usable:
+#   1. listen on the LAN so services reach it via the lb's cluster IP:5432
+#   2. create an application database + login role
+# Assumes the `dependencies` role already installed, initialized, and started Postgres.
+
+- name: Ensure the unix socket dir exists ({{ psql_unix_socket }}, owned by postgres)
+  become: true
+  ansible.builtin.file:
+    path: "{{ psql_unix_socket }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0755"
+
+- name: Set listen_addresses so services can reach Postgres over the cluster LAN
+  ansible.builtin.lineinfile:
+    path: "{{ psql_conf_dir }}/postgresql.conf"
+    regexp: '^\s*#?\s*listen_addresses\s*='
+    line: "listen_addresses = '{{ pg_listen_addresses }}'"
+    insertafter: EOF
+  notify: restart postgresql
+
+# Arch's compiled default is /run/postgresql; pin it explicitly so pg_isready + the
+# community.postgresql modules (login_unix_socket) find the socket deterministically.
+- name: Pin unix_socket_directories to {{ psql_unix_socket }}
+  ansible.builtin.lineinfile:
+    path: "{{ psql_conf_dir }}/postgresql.conf"
+    regexp: '^\s*#?\s*unix_socket_directories\s*='
+    line: "unix_socket_directories = '{{ psql_unix_socket }}'"
+    insertafter: EOF
+  notify: restart postgresql
+
+- name: Apply the config now (restart) before touching the DB
+  ansible.builtin.meta: flush_handlers
+
+- name: Wait for Postgres to accept connections
+  become: true
+  become_user: postgres
+  ansible.builtin.command: pg_isready -h {{ psql_unix_socket }}
+  register: pg_ready
+  until: pg_ready.rc == 0
+  retries: 15
+  delay: 2
+  changed_when: false
+
+- name: Create the application login role
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_user:
+    name: "{{ pg_app_user }}"
+    password: "{{ pg_app_password }}"
+    role_attr_flags: "LOGIN"
+    login_unix_socket: "{{ psql_unix_socket }}"
+
+- name: Create the application database (owned by the app role)
+  become: true
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ pg_app_db }}"
+    owner: "{{ pg_app_user }}"
+    login_unix_socket: "{{ psql_unix_socket }}"

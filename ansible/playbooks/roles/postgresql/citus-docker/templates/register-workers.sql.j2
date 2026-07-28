@@ -1,0 +1,13 @@
+-- {{ ansible_managed }}
+-- Register the Citus cluster topology on the COORDINATOR (run in {{ pg_app_db }}).
+-- Idempotent: set_coordinator_host is upsert-like; each worker is added only if its
+-- (nodename, nodeport) isn't already in pg_dist_node. Hostnames resolve via docker DNS
+-- on the compose network. Mirrors the legacy citus-connect.sh, minus repmgr.
+SELECT citus_set_coordinator_host('{{ citus_coordinator_name }}', 5432);
+
+{% for w in citus_workers %}
+SELECT citus_add_node('{{ w }}', 5432)
+WHERE NOT EXISTS (
+  SELECT 1 FROM pg_dist_node WHERE nodename = '{{ w }}' AND nodeport = 5432
+);
+{% endfor %}

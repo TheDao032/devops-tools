@@ -17,3 +17,16 @@ debian:
     - postgresql-{{ psql_version }}
   psql_conf_folder_path: "/etc/postgresql/{{ psql_version }}/main"
   psql_service_name: "postgresql"
+
+# Arch Linux ships a single, unversioned `postgresql` package (no PGDG repo, no version in
+# the path). Unlike Debian/RedHat it does NOT auto-initialize the data dir — the dependencies
+# task runs `initdb` explicitly. python-psycopg2 is for the community.postgresql db/user modules.
+archlinux:
+  common_packages:
+    - curl
+    - ca-certificates
+  psql_packages:
+    - postgresql
+    - python-psycopg2
+  psql_conf_folder_path: "/var/lib/postgres/data"
+  psql_service_name: "postgresql"

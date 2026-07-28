@@ -1,0 +1,5 @@
+; {{ ansible_managed }}
+; PgBouncer auth_file. auth_type=trust does NOT verify these passwords, but the
+; usernames must be listed for a client to be accepted. Passwords are placeholders.
+"{{ pg_app_user }}" "{{ pg_app_password }}"
+"postgres" "postgres"

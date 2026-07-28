@@ -1,0 +1,10 @@
+---
+galaxy_info:
+  role_name: single_node
+  author: nthedao
+  description: >-
+    Turns the base postgresql/dependencies install into a usable standalone Postgres:
+    sets listen_addresses + unix_socket_directories, then creates one application database
+    and login role. Distro-agnostic via ansible_facts.os_family (Debian/RedHat/Archlinux).
+  min_ansible_version: "2.12"
+dependencies: []

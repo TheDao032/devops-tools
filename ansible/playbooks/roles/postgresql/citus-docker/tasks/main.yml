@@ -1,0 +1,170 @@
+---
+# postgresql/citus-docker — stand up a single-VM Citus dev cluster (coordinator + N
+# workers + pgbouncer) as Docker containers on the lb node. Alpine/aarch64-native.
+# Validated end-to-end on colima 2026-07-28 (shards split across workers; pgbouncer OK).
+
+# ── 1. Docker engine ─────────────────────────────────────────────────────────
+# retries ride out the same intermittent mirror drops that bite the base-package install.
+- name: Install Docker + compose (Archlinux)
+  community.general.pacman:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Archlinux'
+  register: _docker_pkgs_install
+  until: _docker_pkgs_install is succeeded
+  retries: 3
+  delay: 10
+
+- name: Install Docker + compose (Debian)
+  ansible.builtin.apt:
+    name: "{{ docker_packages }}"
+    state: present
+    update_cache: true
+  when: ansible_facts['os_family'] == 'Debian'
+  register: _docker_pkgs_install
+  until: _docker_pkgs_install is succeeded
+  retries: 3
+  delay: 10
+
+- name: Install Docker + compose (RedHat)
+  ansible.builtin.dnf:
+    name: "{{ docker_packages }}"
+    state: present
+  when: ansible_facts['os_family'] == 'RedHat'
+  register: _docker_pkgs_install
+  until: _docker_pkgs_install is succeeded
+  retries: 3
+  delay: 10
+
+- name: Enable + start the Docker daemon
+  ansible.builtin.systemd_service:
+    name: docker
+    state: started
+    enabled: true
+
+# `docker compose` (plugin) vs `docker-compose` (standalone) varies by distro/package;
+# resolve whichever exists rather than assuming. Fail loudly if neither is present.
+- name: Resolve the docker compose command
+  ansible.builtin.shell: |
+    if docker compose version >/dev/null 2>&1; then echo "docker compose";
+    elif docker-compose version >/dev/null 2>&1; then echo "docker-compose";
+    else echo "MISSING"; fi
+  register: _compose_probe
+  changed_when: false
+
+- name: Fail if no docker compose is available
+  ansible.builtin.fail:
+    msg: "Neither 'docker compose' nor 'docker-compose' found on {{ inventory_hostname }}."
+  when: "'MISSING' in _compose_probe.stdout"
+
+- name: Set the compose command fact
+  ansible.builtin.set_fact:
+    citus_compose: "{{ _compose_probe.stdout | trim }}"
+
+# ── 2. Build context + rendered config on the lb ─────────────────────────────
+- name: Create the Citus build-context directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - "{{ citus_remote_dir }}"
+    - "{{ citus_remote_dir }}/node"
+    - "{{ citus_remote_dir }}/pgbouncer"
+
+- name: Copy the image build contexts (Dockerfiles + entrypoint)
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: "Dockerfile",           dest: "{{ citus_remote_dir }}/node/Dockerfile",           mode: "0644" }
+    - { src: "node-entrypoint.sh",   dest: "{{ citus_remote_dir }}/node/node-entrypoint.sh",   mode: "0755" }
+    - { src: "pgbouncer/Dockerfile", dest: "{{ citus_remote_dir }}/pgbouncer/Dockerfile",      mode: "0644" }
+
+- name: Render compose + pgbouncer config + registration SQL
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - { src: "docker-compose.citus.yml.j2", dest: "{{ citus_remote_dir }}/docker-compose.citus.yml" }
+    - { src: "pgbouncer.ini.j2",            dest: "{{ citus_remote_dir }}/pgbouncer.ini" }
+    - { src: "userlist.txt.j2",             dest: "{{ citus_remote_dir }}/userlist.txt" }
+    - { src: "register-workers.sql.j2",     dest: "{{ citus_remote_dir }}/register-workers.sql" }
+
+# ── 3. Preflight: the host ports must be free (or already ours) ──────────────
+# A leftover bare-metal Postgres from postgres.mode=single squats on :5432 and makes
+# `compose up` fail with an opaque "bind 0.0.0.0:5432: address already in use". Turn that
+# into a clear, actionable error. A listener owned by docker-proxy/dockerd is OUR stack on
+# a re-run — that's fine (compose up is idempotent); only a non-Docker owner is a conflict.
+- name: Preflight — inspect listeners on the Citus host ports
+  ansible.builtin.shell: |
+    set -o pipefail
+    line=$(ss -tlnpH "sport = :{{ item }}" 2>/dev/null | head -1)
+    if [ -z "$line" ]; then echo "FREE";
+    elif echo "$line" | grep -qE 'docker-proxy|dockerd'; then echo "DOCKER";
+    else echo "CONFLICT:$line"; fi
+  args:
+    executable: /bin/bash
+  register: _portchecks
+  changed_when: false
+  loop:
+    - "{{ citus_coordinator_host_port }}"
+    - "{{ citus_pgbouncer_host_port }}"
+
+- name: Fail clearly if a Citus host port is held by a non-Docker process
+  ansible.builtin.fail:
+    msg: >-
+      Host port {{ item.item }} on {{ inventory_hostname }} is held by a non-Citus process
+      ({{ item.stdout | replace('CONFLICT:', '') | trim }}). Free it first — most likely a
+      leftover bare-metal Postgres from postgres.mode=single:
+      `sudo systemctl disable --now postgresql && sudo pacman -Rn --noconfirm postgresql`.
+  when: "'CONFLICT' in item.stdout"
+  loop: "{{ _portchecks.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+# ── 4. Bring up the cluster ──────────────────────────────────────────────────
+- name: Build images + start the Citus cluster
+  ansible.builtin.command:
+    cmd: "{{ citus_compose }} -f docker-compose.citus.yml up -d --build --remove-orphans"
+    chdir: "{{ citus_remote_dir }}"
+  register: _compose_up
+  changed_when: >-
+    ('Started' in _compose_up.stderr) or ('Created' in _compose_up.stderr)
+    or ('Recreate' in _compose_up.stderr) or ('Building' in _compose_up.stderr)
+
+- name: Wait for every Citus node to accept connections
+  ansible.builtin.command: "docker exec {{ item }} pg_isready -U {{ pg_app_user }} -d {{ pg_app_db }}"
+  register: _pgready
+  until: _pgready.rc == 0
+  retries: 30
+  delay: 5
+  changed_when: false
+  loop: "{{ [citus_coordinator_name] + citus_workers }}"
+
+# ── 4. Register the topology (Citus node-management needs superuser) ─────────
+- name: Register coordinator + workers in Citus (as postgres superuser)
+  ansible.builtin.shell:
+    cmd: >-
+      docker exec -i {{ citus_coordinator_name }}
+      psql -U postgres -d {{ pg_app_db }} -v ON_ERROR_STOP=1
+      < {{ citus_remote_dir }}/register-workers.sql
+  register: _citus_reg
+  changed_when: false
+
+- name: Read back the active Citus nodes
+  ansible.builtin.command: >-
+    docker exec {{ citus_coordinator_name }}
+    psql -U postgres -d {{ pg_app_db }} -tAc
+    "SELECT nodename FROM pg_dist_node WHERE isactive ORDER BY nodeid"
+  register: _citus_nodes
+  changed_when: false
+
+- name: Show the Citus cluster topology
+  ansible.builtin.debug:
+    msg: >-
+      Citus up on {{ inventory_hostname }} — nodes: {{ _citus_nodes.stdout_lines }}.
+      Direct: <lb>:{{ citus_coordinator_host_port }} (scram) | Pooled: <lb>:{{ citus_pgbouncer_host_port }} (pgbouncer)
