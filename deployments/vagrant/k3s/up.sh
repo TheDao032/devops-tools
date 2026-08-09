@@ -18,6 +18,10 @@
 #
 # NOTE: --no-parallel is NO LONGER forced — pass it yourself when you want it. If a
 # parallel `up` flakes on SSH-port auto-correct, re-run with --no-parallel.
+#
+#   FRESH=1 ./up.sh --no-parallel   # (or `./up.sh --fresh`) full teardown — destroy + prune +
+#                                   # clear .vagrant/machines — BEFORE up. Use after a failed/
+#                                   # interrupted run leaves orphaned VMs holding forwarded ports.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib.sh
@@ -34,6 +38,28 @@ log_info "command    = vagrant up ${*:-<no extra args>}"
 
 # Stay in the scenario dir so the Vagrantfile's relative provision/ paths + .vagrant/ state resolve.
 cd "${SCENARIO}"
-vagrant up "$@"
+
+# ── Preflight: recover from a half-torn-down previous run ──────────────────────
+# A failed/interrupted `vagrant up` can leave a VM that fell out of Vagrant's tracking but is still
+# alive holding its forwarded SSH port → the next `up` tries to re-create that VM on the same host
+# port → "port … already in use". Always prune stale global-status entries (harmless); FRESH=1 or
+# --fresh does a full teardown for a guaranteed clean slate.
+FRESH="${FRESH:-0}"
+fwd_args=()
+for a in "$@"; do
+  case "$a" in
+    --fresh | --recreate) FRESH=1 ;;
+    *) fwd_args+=("$a") ;;
+  esac
+done
+vagrant global-status --prune >/dev/null 2>&1 || true
+if [ "${FRESH}" = "1" ]; then
+  log_info "FRESH → destroy + prune + clear .vagrant/machines before bringing the lab up"
+  vagrant destroy -f >/dev/null 2>&1 || true
+  vagrant global-status --prune >/dev/null 2>&1 || true
+  rm -rf "${SCENARIO}/.vagrant/machines/"* 2>/dev/null || true
+fi
+
+vagrant up ${fwd_args[@]+"${fwd_args[@]}"}
 
 log_success "k3s-etcd lab up. Fetch kubeconfig with: ${SCENARIO}/fetch-kubeconfig.sh"

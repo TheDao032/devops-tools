@@ -77,6 +77,33 @@
     executable: /bin/bash
   changed_when: false
 
+# The imperative rename does NOT make networkd re-evaluate the link against
+# 25-{{ cluster_iface }}.network, and a soft `reload` doesn't reconfigure an already-up link — so
+# networkd keeps the DHCP client it started on the pre-rename NIC at boot and re-adds a vmnet DHCP
+# lease (a 2nd IP inside the static range → duplicate IPs → the .10 etcd node stops being cleanly
+# owned → "etcd datastore unreachable"). Force networkd to reapply DHCP=no + the static Address and
+# release the stray lease. (dhcpcd is not the culprit — networkd's own DHCP client is.)
+- name: Make networkd authoritative on {{ cluster_iface }} (release stray vmnet DHCP lease)
+  ansible.builtin.command: "{{ item }}"
+  loop:
+    - networkctl reload
+    - networkctl reconfigure {{ cluster_iface }}
+  changed_when: false
+  when: ansible_facts['os_family'] in ["Archlinux", "RedHat"]
+
+- name: Verify only the static IP remains on {{ cluster_iface }} (no leftover DHCP lease)
+  ansible.builtin.shell: |
+    set -o pipefail
+    ip -4 -o addr show dev {{ cluster_iface }} | grep -c 'dynamic' || true
+  args:
+    executable: /bin/bash
+  register: _cluster_dhcp_left
+  changed_when: false
+  retries: 5
+  delay: 2
+  until: (_cluster_dhcp_left.stdout | trim | int) == 0
+  when: ansible_facts['os_family'] in ["Archlinux", "RedHat"]
+
 - name: Write the cluster /etc/hosts (no DNS in the lab)
   ansible.builtin.blockinfile:
     path: /etc/hosts

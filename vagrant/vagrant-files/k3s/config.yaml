@@ -74,8 +74,16 @@ network:
 # traefik.containo.us), another reason to self-manage. Set "" to re-enable bundled defaults.
 k3s_disable: "--disable=traefik"
 
+# Taint applied to SERVER (control-plane) nodes only, appended to `k3s server` via
+# k3s_server_extra_args → server-register.sh EXTRA_ARGS. Keeps app workloads OFF the small
+# 2GB control-plane VMs — everything schedules on the 3 agents (a k3s server is schedulable by
+# default, which is what let Keycloak/Vault OOM-wedge server-2). Control-plane components run as
+# the k3s process (not scheduled pods) so they're unaffected; klipper svclb tolerates it.
+# Empty "" = servers stay schedulable (old behaviour).
+k3s_server_taint: "--node-taint=node-role.kubernetes.io/control-plane:NoSchedule"
+
 # Per-role VM resources
 nodes:
   lb:      { cpus: 2, memory: 4096 }   # etcd + HAProxy + Docker (Citus coordinator/2 workers + pgbouncer)
   server:  { cpus: 2, memory: 2048 }
-  agent:   { cpus: 2, memory: 2048 }
+  agent:   { cpus: 2, memory: 3072 }   # 2048 -> 3072 (+1Gi) for Keycloak headroom
