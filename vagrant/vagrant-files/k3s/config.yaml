@@ -83,7 +83,33 @@ k3s_disable: "--disable=traefik"
 k3s_server_taint: "--node-taint=node-role.kubernetes.io/control-plane:NoSchedule"
 
 # Per-role VM resources
+#
+# ── SIZING IS BOUNDED BY THE HOST, NOT BY THE GUESTS (measured 2026-08-20) ──────────────────────
+# Host: Apple M5 Pro, 15 cores (5 perf + 10 eff), 24 GiB RAM. At the PREVIOUS sizing the host was
+# already at its ceiling with the lab running:
+#     free 0.06 GiB · compressed 10.34 GiB · swap 17.58/18.4 GiB (95%) · qemu RSS 4.03 GiB
+# The guests believed they had 17 GiB; macOS was backing the difference with compression + swap.
+# That is why agents reported 78-81% memory while only ~4 GiB was actually resident.
+#
+# CONSEQUENCE — raising guest memory does NOT create capacity. It makes the guests schedule MORE
+# pods, which macOS then pages out: real speed traded for imaginary headroom. Any increase must be
+# FUNDED, either by removing a VM or by freeing host processes. Do not raise these numbers without
+# re-measuring the HOST first (`sysctl vm.swapusage`, `vm_stat`, `ps -Ao rss,comm | grep qemu`).
+#
+# CPU is different: it is not reserved the way memory is, overcommit is safe, and it costs no RAM.
+# Grafana's crash loop (IN-13) was CPU throttling, not memory — 2 vCPU per agent was too thin for a
+# node running the monitoring stack alongside the FitMate services.
+#
+# THIS CHANGE — net -128 MB allocated, so it adds NO swap pressure:
+#   k3s-server-2 REMOVED            -2048 MB   (see NODES in the Vagrantfile)
+#   agent 3072 -> 3712 MB  x3       +1920 MB
+#   agent 2 -> 3 vCPU x3, lb 2 -> 3 vCPU   (12 -> 15 vCPU total = host core count)
+# Agents gain +21% RAM and +50% CPU without asking the host for one extra byte.
 nodes:
-  lb:      { cpus: 2, memory: 4096 }   # etcd + HAProxy + Docker (Citus coordinator/2 workers + pgbouncer)
+  lb:      { cpus: 3, memory: 4096 }   # etcd + HAProxy + Docker (Citus coordinator/2 workers + pgbouncer)
+  # SINGLE control-plane node now. etcd is EXTERNAL (on lb), so the 2nd server only ever provided
+  # API-server redundancy — with no etcd quorum to protect, that is not worth 2 GiB on this host.
+  # Trade-off accepted: if this VM is down the API is unavailable until it restarts. Workloads keep
+  # running (kubelet is independent); only scheduling/API access pauses. Fine for a dev lab.
   server:  { cpus: 2, memory: 2048 }
-  agent:   { cpus: 2, memory: 3072 }   # 2048 -> 3072 (+1Gi) for Keycloak headroom
+  agent:   { cpus: 3, memory: 3712 }   # 2048 -> 3072 (Keycloak) -> 3712 + 3 vCPU (monitoring, IN-13)
