@@ -59,12 +59,17 @@ NET_DEV = 'virtio-net-pci'  # NOT the plugin default 'virtio-net-device' (mmio �
 
 NODES = [
   { name: 'k3s-lb',       role: 'lb',     octet: 10, res: cfg['nodes']['lb']     },
+  # SINGLE control-plane node (2026-08-20). k3s-server-2 (.12) was REMOVED to fund the agents'
+  # memory increase on a host that had no spare RAM — see the sizing note in config.yaml.
+  # etcd is EXTERNAL (on k3s-lb), so the 2nd server was never protecting a quorum; it only added
+  # API-server redundancy. Trade-off: while this VM is down the API is unavailable, but workloads
+  # keep running (kubelet is independent of the API server) — acceptable for a dev lab.
+  # To restore HA later, re-add the .12 entry AND bump etcd/control-plane sizing accordingly.
   { name: 'k3s-server-1', role: 'server', octet: 11, res: cfg['nodes']['server'] },
-  { name: 'k3s-server-2', role: 'server', octet: 12, res: cfg['nodes']['server'] },
   { name: 'k3s-agent-1',  role: 'agent',  octet: 21, res: cfg['nodes']['agent']  },
   { name: 'k3s-agent-2',  role: 'agent',  octet: 22, res: cfg['nodes']['agent']  },
   # agent-3 (.23): 3rd worker so Vault's 3 replicas (hard hostname anti-affinity) have 3 distinct
-  # schedulable nodes once both servers are tainted, + capacity for the FitMate services. MUST stay
+  # schedulable nodes once the server is tainted, + capacity for the FitMate services. MUST stay
   # LAST in NODES — the Ansible play only triggers on NODES.last, so `vagrant up k3s-agent-3` runs it.
   { name: 'k3s-agent-3',  role: 'agent',  octet: 23, res: cfg['nodes']['agent']  },
 ]
