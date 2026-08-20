@@ -192,6 +192,11 @@ Vagrant.configure('2') do |config|
         # executes the script through its shebang, and the script guards every edge itself.
         m.trigger.after :up do |t|
           t.name = 'vault-activate'
+          # Settle wait: the trigger fires the instant the last VM boots, but the k3s
+          # API server (etcd + HAProxy + servers) needs a moment before kubectl works.
+          t.ruby do |env, machine|
+            sleep 30
+          end
           t.run  = { path: File.join(__dir__, 'vault-activate.sh') }
         end
       end

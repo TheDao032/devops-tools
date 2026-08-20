@@ -38,11 +38,38 @@ if [[ ! -f "$KUBECONFIG" ]]; then
 fi
 
 # ── 1. Is Vault even deployed here? ──────────────────────────────────────────
-# Fresh destroy+up has NO Vault until the Terragrunt k3s-resources unit is applied.
-if ! kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 \
-   || ! kubectl -n "$NAMESPACE" get pod vault-0 >/dev/null 2>&1; then
-  log "Vault not deployed in namespace '$NAMESPACE' yet — nothing to do."
-  log "Deploy Vault (terragrunt run -- apply), then run ./vault-activate.sh (idempotent)."
+# Right after `vagrant up` the k3s API server is often still settling, so a one-shot
+# kubectl here would misread "API not ready" as "Vault not deployed". Instead: wait
+# (bounded) for the API to answer at all, THEN decide. Fresh destroy+up has NO Vault
+# until the Terragrunt k3s-resources unit is applied — only a definite NotFound from
+# an answering API counts as "not deployed".
+printf '[vault-activate] waiting for the k3s API / Vault deployment'
+deployed=""
+for _ in $(seq 1 20); do
+  # (a) API not answering at all yet → keep waiting.
+  if ! kubectl get namespace >/dev/null 2>&1; then
+    printf '.'; sleep 10; continue
+  fi
+  # (b) API answers AND Vault is there → proceed to §2.
+  if kubectl get namespace "$NAMESPACE" >/dev/null 2>&1 \
+     && kubectl -n "$NAMESPACE" get pod vault-0 >/dev/null 2>&1; then
+    deployed=yes; printf ' \xE2\x9C\x93\n'; break
+  fi
+  # (c) API answers but Vault is missing — only a definite NotFound means "not
+  # deployed"; any other error (RBAC, transient apiserver hiccup) → retry.
+  ns_err="$(kubectl get namespace "$NAMESPACE" 2>&1 >/dev/null || true)"
+  pod_err="$(kubectl -n "$NAMESPACE" get pod vault-0 2>&1 >/dev/null || true)"
+  if [[ "$ns_err" == *NotFound* || "$pod_err" == *NotFound* ]]; then
+    echo
+    log "Vault not deployed in namespace '$NAMESPACE' yet — nothing to do."
+    log "Deploy Vault (terragrunt run -- apply), then run ./vault-activate.sh (idempotent)."
+    exit 0
+  fi
+  printf '.'; sleep 10
+done
+if [[ -z "$deployed" ]]; then
+  echo
+  log "k3s API never became ready — run ./vault-activate.sh by hand later."
   exit 0
 fi
 
