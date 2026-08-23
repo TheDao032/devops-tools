@@ -85,9 +85,19 @@ echo
 # ── 3. Read init state ───────────────────────────────────────────────────────
 # `vault status` EXITS 2 while sealed/uninitialized but still prints valid JSON, so
 # capture with `|| true` (never trip set -e) and parse separately — same pattern as
-# vault-unseal.sh's seal_state().
-status_json="$(kubectl -n "$NAMESPACE" exec vault-0 -- vault status -format=json 2>/dev/null || true)"
-init_state="$(printf '%s' "$status_json" | jq -r '.initialized // "unknown"' 2>/dev/null || echo unknown)"
+# vault-unseal.sh's seal_state(). Pod Running ≠ vault API answering yet: right after
+# boot `kubectl exec` can still fail for a few seconds (kubelet exec wiring / Raft
+# quorum forming), so retry a bounded number of times before giving up.
+init_state=unknown
+for attempt in 0 1 2 3; do
+  if (( attempt > 0 )); then
+    log "vault status not readable yet (attempt $attempt) — retrying in 5s"
+    sleep 5
+  fi
+  status_json="$(kubectl -n "$NAMESPACE" exec vault-0 -- vault status -format=json 2>/dev/null || true)"
+  init_state="$(printf '%s' "$status_json" | jq -r '.initialized // "unknown"' 2>/dev/null || echo unknown)"
+  [[ "$init_state" != "unknown" ]] && break
+done
 
 case "$init_state" in
   false)
