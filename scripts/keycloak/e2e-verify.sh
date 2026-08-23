@@ -38,10 +38,21 @@ SERVICES="trainee,trainer" # payment excluded deliberately — see NOTE below
 
 usage() {
   cat >&2 <<'USAGE'
-usage: e2e-verify.sh --env <dev|stg> --mint-host <public|cluster> [--service <a,b>]
+usage: e2e-verify.sh --env <dev|stg> --mint-host <split|cluster|public> [--service <a,b>]
 
-  --mint-host public    mint through https://auth-<env>.fitmate.me  (what a REAL user does)
-  --mint-host cluster   mint through http://keycloak.k3s.fitmate    (what in-cluster callers do)
+  --mint-host split     mint through the PUBLIC hostname but resolved straight to Traefik,
+                        bypassing Cloudflare. THE ONE TO USE. Produces the same issuer a
+                        browser gets, because Traefik picks its route (and its pinned
+                        X-Forwarded-* headers) from the Host header, not from the source.
+
+  --mint-host cluster   mint through http://keycloak.k3s.fitmate. Expected to FAIL since
+                        IN-16: services accept only the public issuer now. Its failure is
+                        the proof the issuer change took effect — run it deliberately.
+
+  --mint-host public    mint through Cloudflare. CANNOT SUCCEED from a script: Cloudflare
+                        Access challenges any non-browser caller and returns a login page
+                        instead of a token. Kept so the limitation is documented, not
+                        rediscovered. Use `split`.
 
 There is no default. Choosing it for you is how IN-16 stayed hidden.
 
@@ -63,6 +74,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "${ENV}" && -n "${MINT_HOST}" ]] || usage
+# Validate the mode BEFORE anything else. Otherwise a typo'd --mint-host surfaces as
+# "VAULT_ADDR and VAULT_TOKEN must be set", which sends you to debug credentials over a flag.
+case "${MINT_HOST}" in
+  split|cluster|public) ;;
+  *) echo "--mint-host must be 'split', 'cluster' or 'public' (got '${MINT_HOST}')" >&2; usage ;;
+esac
 [[ "${ENV}" == "dev" || "${ENV}" == "stg" ]] || { echo "--env must be dev or stg" >&2; exit 2; }
 [[ -n "${VAULT_ADDR:-}" && -n "${VAULT_TOKEN:-}" ]] || {
   echo "VAULT_ADDR and VAULT_TOKEN must be set" >&2; exit 2; }
@@ -71,16 +88,42 @@ for bin in jq curl kubectl; do
   command -v "$bin" >/dev/null || { echo "missing dependency: $bin" >&2; exit 2; }
 done
 
-REALM="fitmate-${ENV}"
-case "${MINT_HOST}" in
-  public)  KC_BASE="https://auth-${ENV}.fitmate.me" ;;
-  cluster) KC_BASE="http://keycloak.k3s.fitmate" ;;
-  *) echo "--mint-host must be 'public' or 'cluster'" >&2; exit 2 ;;
-esac
-
 log()  { printf '  %s\n' "$*"; }
 head_() { printf '\n=== %s ===\n' "$*"; }
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
+
+REALM="fitmate-${ENV}"
+PUBLIC_HOST="auth-${ENV}.fitmate.me"
+CANONICAL_ISSUER="https://${PUBLIC_HOST}/realms/${REALM}"
+
+# RESOLVE is passed to curl only in split mode. Declared empty otherwise and always expanded
+# with the ${arr[@]+...} guard — macOS ships bash 3.2, where "${arr[@]}" on an empty array is
+# an error under `set -u`.
+RESOLVE=()
+
+case "${MINT_HOST}" in
+  public)
+    KC_BASE="https://${PUBLIC_HOST}"
+    ;;
+  cluster)
+    KC_BASE="http://keycloak.k3s.fitmate"
+    ;;
+  split)
+    # Same URL a browser uses, but curl connects to Traefik directly instead of asking DNS
+    # (which would answer with Cloudflare). The Host header still says the public name, so
+    # Traefik matches the keycloak-auth-<env> HTTPRoute and applies its pinned X-Forwarded-*
+    # headers — which is what makes Keycloak stamp the canonical https issuer even though
+    # this hop is plain HTTP on :80. Port 80 here is the transport; the `https` in the issuer
+    # comes from the pinned header (IN-20), not from the connection.
+    TRAEFIK_LB="$(kubectl -n traefik get svc traefik \
+      -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || true)"
+    [[ -n "${TRAEFIK_LB:-}" ]] || fail "could not read the Traefik LoadBalancer IP — is kubectl pointed at the right cluster?"
+    KC_BASE="http://${PUBLIC_HOST}"
+    RESOLVE=(--resolve "${PUBLIC_HOST}:80:${TRAEFIK_LB}")
+    ;;
+  *) echo "--mint-host must be 'split', 'cluster' or 'public'" >&2; exit 2 ;;
+esac
+
 
 # b64 decode tolerant of JWT's unpadded base64url.
 b64url() { local d="${1//-/+}"; d="${d//_//}"; printf '%s' "${d}$(printf '%*s' $(( (4 - ${#d} % 4) % 4 )) '' | tr ' ' '=')" | base64 -d 2>/dev/null; }
@@ -101,6 +144,7 @@ vault_get() { # path key -> value on stdout; prints the attempted path on failur
 head_ "Configuration"
 log "env         ${ENV}   realm ${REALM}"
 log "mint host   ${MINT_HOST} → ${KC_BASE}"
+[[ ${#RESOLVE[@]} -gt 0 ]] && log "resolve     ${PUBLIC_HOST} → ${TRAEFIK_LB} (Cloudflare bypassed)"
 log "services    ${SERVICES}"
 # Provenance. A `terragrunt apply` run from a stale branch succeeds and silently does nothing,
 # which then surfaces here as "missing secret — apply first" and sends you round the loop again.
@@ -122,9 +166,34 @@ USER_PASSWORD="$(vault_get "${ENV}/keycloak/fitmate/trainee1/creds" password)" \
 log "client secret  OK (${#CLIENT_SECRET} chars)"
 log "user password  OK (${#USER_PASSWORD} chars)"
 
+# ── 1b. split mode ONLY: prove this path stamps the CANONICAL issuer before trusting it ───────
+#
+# Without this check, split mode is just "a way to reach Keycloak" and a future header regression
+# would make it silently verify the wrong thing. That already happened once: pinning
+# X-Forwarded-Proto without X-Forwarded-Port produced https://auth-dev.fitmate.me:80/... which is
+# a different issuer to every service on the cluster. A green PASS from this harness must never be
+# reachable while that is true.
+if [[ "${MINT_HOST}" == "split" ]]; then
+  head_ "1b. Verifying the split path stamps the canonical issuer"
+  DISCO_ISS="$(curl -sf ${RESOLVE[@]+"${RESOLVE[@]}"} --max-time 10 \
+    "${KC_BASE}/realms/${REALM}/.well-known/openid-configuration" 2>/dev/null \
+    | jq -r '.issuer' 2>/dev/null || true)"
+  [[ -n "${DISCO_ISS}" ]] || fail "could not fetch the discovery document via ${TRAEFIK_LB} — is the HTTPRoute applied?"
+  log "discovery issuer  ${DISCO_ISS}"
+  log "canonical issuer  ${CANONICAL_ISSUER}"
+  if [[ "${DISCO_ISS}" != "${CANONICAL_ISSUER}" ]]; then
+    fail "split path issuer does NOT match the canonical value.
+       got:      ${DISCO_ISS}
+       expected: ${CANONICAL_ISSUER}
+       The pinned X-Forwarded-Host/Proto/Port on the keycloak-auth-${ENV} HTTPRoute are wrong or
+       unapplied (IN-20). Any result from this mode would be meaningless until that is fixed."
+  fi
+  log "match — this path is equivalent to the browser path for issuer purposes"
+fi
+
 # ── 2. mint a token by password grant ─────────────────────────────────────────────────────────
 head_ "2. Minting a user token (password grant, client fitmate-e2e-test)"
-TOKEN_RESPONSE="$(curl -sS -X POST \
+TOKEN_RESPONSE="$(curl -sS ${RESOLVE[@]+"${RESOLVE[@]}"} -X POST \
   "${KC_BASE}/realms/${REALM}/protocol/openid-connect/token" \
   -H 'Content-Type: application/x-www-form-urlencoded' \
   -d 'grant_type=password' \
@@ -139,8 +208,19 @@ ACCESS_TOKEN="$(jq -er '.access_token' <<<"${TOKEN_RESPONSE}" 2>/dev/null)" || {
   ERR="$(jq -r '.error_description // .error // "unparseable response"' <<<"${TOKEN_RESPONSE}" 2>/dev/null || echo "unparseable response")"
   if [[ "${MINT_HOST}" == "public" ]] && grep -qi 'cloudflare\|<html' <<<"${TOKEN_RESPONSE}"; then
     fail "got an HTML page, not a token — Cloudflare Access is gating the token endpoint.
-       This is the second-order problem in the website contract: a machine call to the public
-       host meets the Access login page. Needs split-horizon DNS or an Access service token."
+
+       THIS IS EXPECTED AND IS NOT A FAULT. Access challenges any caller that is not a
+       logged-in browser, and a script is exactly that. No infrastructure change will make
+       --mint-host public succeed, and it should not: weakening Access to satisfy a test
+       would remove the only control currently keeping the IN-20 header-forgery hole off
+       the public internet.
+
+       Use --mint-host split instead. Same hostname, same issuer, resolved straight to
+       Traefik so Cloudflare is not in the path.
+
+       (The same wall will meet the website's server-side token refresh, which calls this
+       endpoint from the Next.js pod. That needs real split-horizon DNS in-cluster — a
+       separate change, tracked on IN-16.)"
   fi
   fail "no access_token: ${ERR}"
 }
@@ -218,7 +298,13 @@ done
 
 head_ "Result"
 if [[ "${FAILED}" -eq 0 && "${MISMATCH}" -eq 0 ]]; then
-  echo "PASS — a token minted via the ${MINT_HOST} host is accepted by: ${SERVICES}"
+  echo "PASS — a token minted via the ${MINT_HOST} path is accepted by: ${SERVICES}"
+  if [[ "${MINT_HOST}" == "split" ]]; then
+    # Say precisely what was and was not exercised. A PASS that overstates its scope is the
+    # same failure this harness exists to prevent, just wearing a green colour.
+    echo "       Issuer verified identical to the browser path (checked in step 1b)."
+    echo "       NOT exercised: Cloudflare edge, the tunnel, and the Access policy itself."
+  fi
   exit 0
 fi
 if [[ "${MISMATCH}" -eq 1 ]]; then
