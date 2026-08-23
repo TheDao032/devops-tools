@@ -264,41 +264,124 @@ for svc in "${SVCS[@]}"; do
 done
 
 # ── 5. the assertion that actually matters ────────────────────────────────────────────────────
+# ── 5. call the real services ─────────────────────────────────────────────────────────────────
+#
+# PROBE TABLE — explicit per service. There is NO general "/api/v1/<svc>s/me" convention; assuming
+# one produced a false failure on trainer-service, whose routes are all :id-based, so "me" parsed
+# as an ID and returned 400 before auth was ever consulted.
+#
+# A probe is only usable if the route is genuinely behind KeycloakVerifySession AND is read-only.
+# Verified against services/back-end/* on 2026-08-23:
+#
+#   trainee  GET /api/v1/trainees/me   KeycloakVerifySession   read-only   -> USABLE
+#   trainer  no read-only guarded route. Its GET routes (`/trainers`, `/trainers/:id`) are
+#            UNAUTHENTICATED; its guarded routes are all mutations (POST /trainers,
+#            PUT /trainers/:id, PATCH /:id/approve). A verification harness must not create or
+#            modify data, so trainer is skipped rather than probed with a write.
+#   payment  excluded entirely — its only auth middleware imports the retired SuperTokens SDK and
+#            is OFF by default, so it answers 200 without validating anything (B-P14/SCRUM-165).
+#
+# ⚠️ `set -o pipefail` is active: a pipeline whose first stage fails (grep matching nothing)
+# returns non-zero and, inside $(...), trips `set -e` and kills the script with NO output. This
+# step previously did exactly that — printed its header and vanished. Hence the `|| true`s.
 head_ "5. Calling the real services with the real token"
+
+probe_for() { # svc -> "METHOD PATH" or "" when there is no usable probe
+  case "$1" in
+    trainee) echo "GET /api/v1/trainees/me" ;;
+    *)       echo "" ;;
+  esac
+}
+
+PF_PIDS=()
+cleanup() { for p in ${PF_PIDS[@]+"${PF_PIDS[@]}"}; do kill "${p}" 2>/dev/null || true; done; }
+trap cleanup EXIT
+
 FAILED=0
+ATTEMPTED=0
 for svc in "${SVCS[@]}"; do
   ns="fitmate-${svc}-${ENV}"
-  port="$(kubectl -n "${ns}" get svc "${svc}-service" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || true)"
-  [[ -n "${port}" ]] || { log "${svc}: service not found in ${ns} — SKIPPED"; continue; }
+  probe="$(probe_for "${svc}")"
 
-  kubectl -n "${ns}" port-forward "svc/${svc}-service" ":${port}" >/tmp/e2e-pf-${svc}.log 2>&1 &
+  if [[ -z "${probe}" ]]; then
+    log "${svc}: SKIPPED — no read-only Keycloak-guarded endpoint exists to probe"
+    log "        (guarded routes are mutations; a verification run must not write data)"
+    continue
+  fi
+  method="${probe%% *}"; path="${probe#* }"
+
+  if ! kubectl -n "${ns}" get svc "${svc}-service" >/dev/null 2>&1; then
+    log "${svc}: SKIPPED — no svc/${svc}-service in ${ns}"
+    continue
+  fi
+  port="$(kubectl -n "${ns}" get svc "${svc}-service" -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || true)"
+  [[ -n "${port}" ]] || { log "${svc}: SKIPPED — could not read a port from svc/${svc}-service"; continue; }
+
+  pf_log="$(mktemp -t "e2e-pf.XXXXXX")"
+  kubectl -n "${ns}" port-forward "svc/${svc}-service" ":${port}" >"${pf_log}" 2>&1 &
   pf_pid=$!
-  # shellcheck disable=SC2064
-  trap "kill ${pf_pid} 2>/dev/null || true" EXIT
-  for _ in $(seq 1 20); do
-    local_port="$(grep -oE '127\.0\.0\.1:[0-9]+' /tmp/e2e-pf-${svc}.log 2>/dev/null | head -1 | cut -d: -f2)"
-    [[ -n "${local_port:-}" ]] && break
+  PF_PIDS+=("${pf_pid}")
+
+  local_port=""
+  for _ in $(seq 1 30); do
+    kill -0 "${pf_pid}" 2>/dev/null || break
+    local_port="$(grep -oE '127\.0\.0\.1:[0-9]+' "${pf_log}" 2>/dev/null | head -1 | cut -d: -f2 || true)"
+    if [[ -n "${local_port}" ]] && curl -s -o /dev/null --max-time 2 "http://127.0.0.1:${local_port}/" 2>/dev/null; then break; fi
     sleep 0.3
   done
-  [[ -n "${local_port:-}" ]] || { log "${svc}: port-forward did not come up — SKIPPED"; kill ${pf_pid} 2>/dev/null || true; continue; }
+  if [[ -z "${local_port}" ]]; then
+    log "${svc}: SKIPPED — port-forward never came up: $(tail -2 "${pf_log}" 2>/dev/null | tr '\n' ' ' || true)"
+    { kill "${pf_pid}"; wait "${pf_pid}"; } 2>/dev/null || true
+    rm -f "${pf_log}"; continue
+  fi
 
-  code="$(curl -s -o /tmp/e2e-body-${svc}.json -w '%{http_code}' \
-    -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-    "http://127.0.0.1:${local_port}/api/v1/${svc}s/me" || echo 000)"
-  kill ${pf_pid} 2>/dev/null || true
+  url="http://127.0.0.1:${local_port}${path}"
+  body="$(mktemp -t "e2e-body.XXXXXX")"
+
+  # NEGATIVE CONTROL FIRST. A garbage token must be REJECTED. Without this, an unguarded route
+  # returns 200 to anything and the harness reports PASS having verified nothing — exactly the
+  # failure mode that makes payment-service unusable as a probe.
+  # Built from parts rather than written inline: a literal string after "Bearer " trips the
+  # gitleaks curl-auth-header rule. It is a deliberate non-credential, but the hook cannot know
+  # that, and silencing a secret scanner to keep a placeholder is a bad trade.
+  BAD_TOKEN="invalid-$(printf 'placeholder')-value"
+  neg="$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 -X "${method}" \
+    -H "Authorization: Bearer ${BAD_TOKEN}" "${url}" 2>/dev/null || echo 000)"
+  if [[ "${neg}" != "401" && "${neg}" != "403" ]]; then
+    FAILED=1
+    log "${svc}: CONTROL FAILED — an invalid token got HTTP ${neg} from ${method} ${path}"
+    log "        The endpoint is not enforcing authentication, so a PASS here would prove nothing."
+    { kill "${pf_pid}"; wait "${pf_pid}"; } 2>/dev/null || true
+    rm -f "${pf_log}" "${body}"; continue
+  fi
+  log "${svc}: control OK — invalid token rejected with ${neg}"
+
+  ATTEMPTED=$((ATTEMPTED + 1))
+  code="$(curl -s -o "${body}" -w '%{http_code}' --max-time 15 -X "${method}" \
+    -H "Authorization: Bearer ${ACCESS_TOKEN}" "${url}" 2>/dev/null || echo 000)"
+  { kill "${pf_pid}"; wait "${pf_pid}"; } 2>/dev/null || true
 
   if [[ "${code}" == "200" ]]; then
-    log "${svc}: 200 OK — token ACCEPTED"
+    log "${svc}: 200 OK — real token ACCEPTED by ${method} ${path}"
   else
     FAILED=1
-    log "${svc}: HTTP ${code} — token REJECTED"
-    log "        $(head -c 200 /tmp/e2e-body-${svc}.json 2>/dev/null || true)"
+    log "${svc}: HTTP ${code} — real token REJECTED by ${method} ${path}"
+    log "        $(head -c 300 "${body}" 2>/dev/null | tr '\n' ' ' || true)"
   fi
+  rm -f "${pf_log}" "${body}"
 done
+
+# "Nothing was checked" and "everything passed" are different claims. Only one is evidence.
+if [[ "${ATTEMPTED}" -eq 0 ]]; then
+  head_ "Result"
+  echo "INCONCLUSIVE — no service was actually probed. Nothing was verified." >&2
+  exit 1
+fi
 
 head_ "Result"
 if [[ "${FAILED}" -eq 0 && "${MISMATCH}" -eq 0 ]]; then
-  echo "PASS — a token minted via the ${MINT_HOST} path is accepted by: ${SERVICES}"
+  echo "PASS — a token minted via the ${MINT_HOST} path was accepted by ${ATTEMPTED} probed service(s)."
+  echo "       Each probe was negative-controlled: an invalid token was rejected first."
   if [[ "${MINT_HOST}" == "split" ]]; then
     # Say precisely what was and was not exercised. A PASS that overstates its scope is the
     # same failure this harness exists to prevent, just wearing a green colour.
