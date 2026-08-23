@@ -30,6 +30,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 ENV=""
 MINT_HOST=""
 SERVICES="trainee,trainer" # payment excluded deliberately — see NOTE below
@@ -83,22 +85,40 @@ fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 # b64 decode tolerant of JWT's unpadded base64url.
 b64url() { local d="${1//-/+}"; d="${d//_//}"; printf '%s' "${d}$(printf '%*s' $(( (4 - ${#d} % 4) % 4 )) '' | tr ' ' '=')" | base64 -d 2>/dev/null; }
 
-vault_get() { # path key -> value on stdout
-  curl -sf -H "X-Vault-Token: ${VAULT_TOKEN}" \
-    "${VAULT_ADDR}/v1/fitmate/data/$1" | jq -er ".data.data[\"$2\"]"
+vault_get() { # path key -> value on stdout; prints the attempted path on failure
+  local out
+  if ! out="$(curl -sf -H "X-Vault-Token: ${VAULT_TOKEN}" "${VAULT_ADDR}/v1/fitmate/data/$1" 2>/dev/null)"; then
+    printf '  vault read FAILED: fitmate/data/%s (path absent, or token lacks access)\n' "$1" >&2
+    return 1
+  fi
+  if ! jq -er ".data.data[\"$2\"]" <<<"${out}" 2>/dev/null; then
+    printf '  vault path fitmate/data/%s exists but has no key %s. Keys present: %s\n' \
+      "$1" "$2" "$(jq -r '.data.data | keys | join(", ")' <<<"${out}" 2>/dev/null)" >&2
+    return 1
+  fi
 }
 
 head_ "Configuration"
 log "env         ${ENV}   realm ${REALM}"
 log "mint host   ${MINT_HOST} → ${KC_BASE}"
 log "services    ${SERVICES}"
+# Provenance. A `terragrunt apply` run from a stale branch succeeds and silently does nothing,
+# which then surfaces here as "missing secret — apply first" and sends you round the loop again.
+# Printing what the config came from makes that visible at a glance.
+if ENVS_DIR="$(cd "${SCRIPT_DIR}/../../../devops-terragrunt-environments" 2>/dev/null && pwd)"; then
+  log "env config  $(git -C "${ENVS_DIR}" branch --show-current 2>/dev/null)@$(git -C "${ENVS_DIR}" rev-parse --short HEAD 2>/dev/null)$(git -C "${ENVS_DIR}" diff --quiet 2>/dev/null || echo ' (DIRTY)')"
+fi
 
 # ── 1. credentials (never printed) ────────────────────────────────────────────────────────────
 head_ "1. Fetching credentials from Vault"
 CLIENT_SECRET="$(vault_get "${ENV}/e2e/keycloak/creds" KEYCLOAK_CLIENTSECRET)" \
-  || fail "harness client secret missing at fitmate/${ENV}/e2e/keycloak/creds — apply the keycloak unit first"
-USER_PASSWORD="$(vault_get "keycloak/fitmate/trainee1/creds" password)" \
-  || fail "trainee1 password missing — apply ${ENV}/vault-secrets first"
+  || fail "harness client secret not readable at fitmate/${ENV}/e2e/keycloak/creds — apply <env>/keycloak/fitmate, and check the repo is on the MERGED branch (see provenance above)"
+# NOTE the ${ENV}/ prefix. vault-secrets writes APP-level secrets under fitmate/data/<env>/*
+# (path_prefix "<env>/"), so the key as written in env.hcl — "keycloak/fitmate/trainee1/creds" —
+# is NOT the Vault path. Omitting the prefix reads a path that never existed and reports it as
+# "not applied", which sends you to re-run an apply that was already correct.
+USER_PASSWORD="$(vault_get "${ENV}/keycloak/fitmate/trainee1/creds" password)" \
+  || fail "trainee1 password not readable at fitmate/${ENV}/keycloak/fitmate/trainee1/creds"
 log "client secret  OK (${#CLIENT_SECRET} chars)"
 log "user password  OK (${#USER_PASSWORD} chars)"
 
