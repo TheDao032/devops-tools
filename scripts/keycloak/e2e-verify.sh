@@ -166,6 +166,44 @@ USER_PASSWORD="$(vault_get "${ENV}/keycloak/fitmate/trainee1/creds" password)" \
 log "client secret  OK (${#CLIENT_SECRET} chars)"
 log "user password  OK (${#USER_PASSWORD} chars)"
 
+# ── the LOGIN IDENTIFIER is the email, not the username ───────────────────────────────────────
+# trainee1's username is "trainee1" and its email is "trainee1@fitmate.local". Those are two
+# different strings, and which one the password grant accepts is decided by a REALM flag:
+#
+#   registration_email_as_username = false  ->  username works, email works (if login_with_email)
+#   registration_email_as_username = true   ->  username FAILS, only the email resolves
+#
+# ADR-050 sets that flag true (the V3 auth design collects no username on any screen), so sending
+# "trainee1" stops working the moment it applies. Measured on a scratch realm, 2026-08-24:
+#
+#   registrationEmailAsUsername=true, grant by "trainee1"              -> invalid_grant
+#   registrationEmailAsUsername=true, grant by "trainee1@fitmate.local" -> token OK
+#
+# ⚠️ The failure is reported as "Invalid user credentials" — indistinguishable from a wrong
+# password. Anyone hitting it would go hunting for Vault drift or a stale initial_password and
+# find nothing wrong, because nothing is: the identifier simply no longer resolves.
+#
+# 🔴 THIS CHANGE HAS A MERGE ORDER. The email only resolves once login_with_email_allowed is on.
+# Measured against LIVE fitmate-dev before that flag shipped:
+#
+#   by "trainee1"               -> TOKEN OK
+#   by "trainee1@fitmate.local" -> Invalid user credentials
+#
+# So the sequence is:
+#   1. environments PR #41  (login_with_email_allowed = true) -> BOTH identifiers now resolve
+#   2. THIS change                                            -> switch to the email, safely
+#   3. environments, ADR-050 (registration_email_as_username) -> the username stops resolving
+#
+# Step 1 opens a window in which either identifier works; steps 2 and 3 must both land inside it.
+# Merging this BEFORE step 1 breaks the harness immediately. If that happens, the override below
+# restores it without a revert.
+#
+# Kept as a variable rather than inlined: this is realm seed data (the `users` block in
+# on-prem/fitmate/<env>/keycloak/fitmate/terragrunt.hcl), so the next person to change the
+# fixture's email has one obvious place to look.
+E2E_LOGIN_IDENTIFIER="${E2E_LOGIN_IDENTIFIER:-trainee1@fitmate.local}"
+log "login id       ${E2E_LOGIN_IDENTIFIER} (email, not username — see note above)"
+
 # ── 1b. split mode ONLY: prove this path stamps the CANONICAL issuer before trusting it ───────
 #
 # Without this check, split mode is just "a way to reach Keycloak" and a future header regression
@@ -199,7 +237,7 @@ TOKEN_RESPONSE="$(curl -sS ${RESOLVE[@]+"${RESOLVE[@]}"} -X POST \
   -d 'grant_type=password' \
   -d 'client_id=fitmate-e2e-test' \
   --data-urlencode "client_secret=${CLIENT_SECRET}" \
-  -d 'username=trainee1' \
+  --data-urlencode "username=${E2E_LOGIN_IDENTIFIER}" \
   --data-urlencode "password=${USER_PASSWORD}" \
   -d 'scope=openid' 2>&1)" || fail "token request failed to connect"
 
@@ -221,6 +259,30 @@ ACCESS_TOKEN="$(jq -er '.access_token' <<<"${TOKEN_RESPONSE}" 2>/dev/null)" || {
        (The same wall will meet the website's server-side token refresh, which calls this
        endpoint from the Next.js pod. That needs real split-horizon DNS in-cluster — a
        separate change, tracked on IN-16.)"
+  fi
+  # "Invalid user credentials" is what Keycloak returns for BOTH a wrong password and an
+  # identifier that no longer resolves. Those need opposite fixes, so name the second one here
+  # rather than letting the reader assume the first and go hunting through Vault.
+  if grep -qi 'invalid user credentials' <<<"${ERR}"; then
+    fail "no access_token: ${ERR}
+
+       This means one of TWO things, and Keycloak reports them identically:
+
+       (a) the password really is wrong — the Vault value drifted from the realm, or
+           keycloak/fitmate was applied with a fresh initial_password; or
+       (b) '${E2E_LOGIN_IDENTIFIER}' does not resolve to a user in realm ${REALM}.
+
+       Check (b) FIRST — it is the cheaper test and the likelier cause after a realm change.
+       Which identifier the password grant accepts depends on realm flags:
+
+         login_with_email_allowed       false -> the email is REJECTED, use the username
+         registration_email_as_username true  -> the username is REJECTED, use the email
+
+       Read the realm's actual state before touching any secret:
+         curl -s -H \"Authorization: Bearer \$TOK\" \"\${KC}/admin/realms/${REALM}\" \\
+           | jq '{loginWithEmailAllowed, registrationEmailAsUsername}'
+
+       Override without editing this script:  E2E_LOGIN_IDENTIFIER=trainee1 $0 ..."
   fi
   fail "no access_token: ${ERR}"
 }
