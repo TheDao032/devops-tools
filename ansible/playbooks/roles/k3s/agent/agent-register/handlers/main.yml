@@ -1,2 +1,10 @@
 ---
 # handlers file for agent-register
+- name: Restart k3s-agent
+  ansible.builtin.systemd:
+    name: k3s-agent
+    state: restarted
+    daemon_reload: true
+  # Skipped on a first provision: agent-register.sh installs and starts k3s afterwards,
+  # which reads the drop-in on its own. Only re-runs with a changed drop-in restart.
+  when: k3s_agent_unit.stat.exists | default(false)
