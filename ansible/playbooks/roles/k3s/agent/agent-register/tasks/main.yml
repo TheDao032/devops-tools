@@ -7,6 +7,37 @@
     mode: '0755'
   with_items: "{{ k3s_agent_scripts }}"
 
+# ── containerd image-pull stall watchdog ────────────────────────────────────────────────
+# Must be in place BEFORE k3s installs, so the very first containerd start already has it.
+# k3s's generated config.toml carries
+#   imports = ["/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/*.toml"]
+# so a drop-in merges cleanly and we never own (or fight) the generated file.
+# Rationale + the measured incident are documented in files/10-image-pull-progress.toml.
+- name: Ensure the containerd drop-in directory exists
+  ansible.builtin.file:
+    path: "{{ k3s_containerd_dropin_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+# Does the agent unit already exist? On a FIRST provision it does not, and the restart
+# handler must NOT fire — agent-register.sh below installs and starts k3s, which picks the
+# drop-in up on its own. On a RE-RUN the unit exists and a changed drop-in needs a restart.
+- name: Check whether the k3s-agent unit is already installed
+  ansible.builtin.stat:
+    path: /etc/systemd/system/k3s-agent.service
+  register: k3s_agent_unit
+
+- name: Install the containerd image-pull progress-timeout drop-in
+  ansible.builtin.copy:
+    src: 10-image-pull-progress.toml
+    dest: "{{ k3s_containerd_dropin_dir }}/10-image-pull-progress.toml"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart k3s-agent
+
 - name: k3s agent register
   block:
     - name: Check if K3s agent service exists

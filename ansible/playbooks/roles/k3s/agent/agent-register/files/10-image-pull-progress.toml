@@ -1,0 +1,30 @@
+# containerd CRI drop-in — image pull stall watchdog.
+#
+# Merged by k3s automatically: the generated config.toml carries
+#   imports = ["/var/lib/rancher/k3s/agent/etc/containerd/config-v3.toml.d/*.toml"]
+# so this file needs NO `version =` line and does NOT override the generated config.
+#
+# WHY 90s, and why this is a TIGHTENING and not a loosening:
+# containerd's default image_pull_progress_timeout is 5m0s. That is EXACTLY equal to the
+# go-service chart's `migrate.activeDeadlineSeconds: 300`. A pull that goes half-open
+# (ESTABLISHED socket to the GHCR CDN, zero bytes, keepalive only) therefore has its
+# watchdog fire at the same instant the Job's deadline kills the pod — so kubelet never
+# receives an ErrImagePull to back off from, never retries, and the ArgoCD hook parks.
+# Measured on this lab 2026-09-04: trainee-service's migrate hook stalled ~16 minutes this
+# way; booking-service hit the identical pattern earlier on the same node.
+#
+# This value does NOT cap how long a pull may take. It caps how long a pull may make
+# ZERO progress. A slow-but-moving pull is unaffected (payment-service pulled for 2m07s
+# and inquiry-service for 1m36s on this node in the same window, both fine). Cutting the
+# watchdog to 90s means a wedged pull surfaces as a real error well inside the 300s Job
+# deadline, kubelet backs off and retries, and the retry succeeds — which is exactly how
+# booking-service recovered on its own (13.6s for the same 29MB image).
+#
+# Root environmental cause this mitigates: these VMs reach the internet through QEMU's
+# user-mode SLIRP NAT (enp0s1 = 10.0.2.15/24; the cluster LAN is the separate k3scl0 NIC).
+# SLIRP is a userspace TCP stack and drops long-lived TLS flows without closing them, so
+# containerd is left holding a connection that will never deliver a byte or an error.
+# A pull-through registry mirror would remove the dependency on SLIRP entirely and is the
+# better long-term fix; that is a new component and needs its own proposal.
+[plugins.'io.containerd.cri.v1.images']
+  image_pull_progress_timeout = '90s'
