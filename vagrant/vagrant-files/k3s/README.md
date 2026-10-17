@@ -73,6 +73,17 @@ is intentionally disabled.
 cd vagrant-files/k3s
 
 vagrant up                      # boots all 5 in order: lb → servers → agents
+
+# IN-33 — then hold macOS idle-sleep off for as long as the lab runs:
+./scripts/lab-guard.sh --daemon   # exits by itself when the VMs stop
+./scripts/lab-guard.sh --status   # is it holding?
+./scripts/lab-guard.sh --stop     # release now
+
+# IN-33 safety net (optional, one-time): flush the VMs if the Mac sleeps anyway —
+# e.g. the lab was started without the guard, or you close the lid deliberately.
+./scripts/install-sleep-hook.sh            # installs sleepwatcher + ~/.sleep
+./scripts/install-sleep-hook.sh --status
+./scripts/install-sleep-hook.sh --uninstall
 # or one at a time while iterating:
 vagrant up k3s-lb
 vagrant up k3s-server-1 k3s-server-2
@@ -176,3 +187,46 @@ inventory: `inventories/local/k3s/qemu/` (run `gen-ssh-config.sh` first).
 > static in `config.yaml`. Fine on an isolated lab LAN — do **not** ship this as-is.
 > For real use: TLS + client certs on the datastore endpoint, a secret-managed token,
 > and a second LB + keepalived (or an external LB) to remove the HAProxy SPOF.
+
+## 🔴 The tell: "every pod restarted at once but the nodes are Ready"
+
+If every pod's restart count increments **together** while `kubectl get nodes` has shown
+`Ready` for days, **the host slept**. This is not a Kubernetes fault and no amount of
+in-cluster investigation will explain it.
+
+```bash
+pmset -g log | grep -E "Entering Sleep|Wake from"   # check this FIRST
+```
+
+Measured consequences of an unattended sleep on this lab:
+
+- a 250-minute hole in Prometheus scrape coverage — zero **samples**, not zero values
+- ~53 containers restarting simultaneously across every namespace
+- Vault **re-sealing**, which silently stops ExternalSecrets syncing
+- external DNS dying while every site still returns 200 (2026-10-17, IN-49) — the
+  cluster looks healthy and nothing can deploy
+- IN-31: an unclean stop corrupted etcd irreparably
+
+Unsealing Vault or re-syncing ArgoCD *before* dealing with the sleep just means doing it
+all again after the next nap.
+
+**Note:** AC power is already `sleep 0`; every measured sleep was **on battery**. The guard
+uses `caffeinate -i`, which blocks *idle* sleep only — closing the lid or choosing Sleep
+still works, so it cannot strand the Mac awake in a bag. It is scoped to the guard process:
+kill it and macOS returns to normal with nothing left behind.
+
+### Why the sleep hook does not `vagrant halt`
+
+A macOS sleep hook runs on a budget of roughly **30 seconds**. A graceful halt of five VMs
+does not reliably finish in that window, and **a halt cut off mid-write is exactly the
+unclean stop that destroyed etcd in IN-31** — the hook would cause the failure it exists to
+prevent.
+
+So it does the bounded, safe thing: `sync` on every node, flushing dirty pages so a frozen
+VM resumes consistent. Measured 2026-10-17: **5/5 nodes flushed in 2.1s**, and it degrades
+well — an unreachable node is logged by name and the others still flush.
+
+It is a damage-limiter. **Keeping the lab awake (`lab-guard.sh`) is still the primary fix.**
+
+`launchd` cannot do this: `man launchd.plist` has no pre-sleep trigger — its only
+sleep-related behaviour is coalescing missed interval firings on wake. Hence sleepwatcher.
