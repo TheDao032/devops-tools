@@ -78,6 +78,12 @@ vagrant up                      # boots all 5 in order: lb → servers → agent
 ./scripts/lab-guard.sh --daemon   # exits by itself when the VMs stop
 ./scripts/lab-guard.sh --status   # is it holding?
 ./scripts/lab-guard.sh --stop     # release now
+
+# IN-33 safety net (optional, one-time): flush the VMs if the Mac sleeps anyway —
+# e.g. the lab was started without the guard, or you close the lid deliberately.
+./scripts/install-sleep-hook.sh            # installs sleepwatcher + ~/.sleep
+./scripts/install-sleep-hook.sh --status
+./scripts/install-sleep-hook.sh --uninstall
 # or one at a time while iterating:
 vagrant up k3s-lb
 vagrant up k3s-server-1 k3s-server-2
@@ -208,3 +214,19 @@ all again after the next nap.
 uses `caffeinate -i`, which blocks *idle* sleep only — closing the lid or choosing Sleep
 still works, so it cannot strand the Mac awake in a bag. It is scoped to the guard process:
 kill it and macOS returns to normal with nothing left behind.
+
+### Why the sleep hook does not `vagrant halt`
+
+A macOS sleep hook runs on a budget of roughly **30 seconds**. A graceful halt of five VMs
+does not reliably finish in that window, and **a halt cut off mid-write is exactly the
+unclean stop that destroyed etcd in IN-31** — the hook would cause the failure it exists to
+prevent.
+
+So it does the bounded, safe thing: `sync` on every node, flushing dirty pages so a frozen
+VM resumes consistent. Measured 2026-10-17: **5/5 nodes flushed in 2.1s**, and it degrades
+well — an unreachable node is logged by name and the others still flush.
+
+It is a damage-limiter. **Keeping the lab awake (`lab-guard.sh`) is still the primary fix.**
+
+`launchd` cannot do this: `man launchd.plist` has no pre-sleep trigger — its only
+sleep-related behaviour is coalescing missed interval firings on wake. Hence sleepwatcher.
