@@ -73,6 +73,11 @@ is intentionally disabled.
 cd vagrant-files/k3s
 
 vagrant up                      # boots all 5 in order: lb → servers → agents
+
+# IN-33 — then hold macOS idle-sleep off for as long as the lab runs:
+./scripts/lab-guard.sh --daemon   # exits by itself when the VMs stop
+./scripts/lab-guard.sh --status   # is it holding?
+./scripts/lab-guard.sh --stop     # release now
 # or one at a time while iterating:
 vagrant up k3s-lb
 vagrant up k3s-server-1 k3s-server-2
@@ -176,3 +181,30 @@ inventory: `inventories/local/k3s/qemu/` (run `gen-ssh-config.sh` first).
 > static in `config.yaml`. Fine on an isolated lab LAN — do **not** ship this as-is.
 > For real use: TLS + client certs on the datastore endpoint, a secret-managed token,
 > and a second LB + keepalived (or an external LB) to remove the HAProxy SPOF.
+
+## 🔴 The tell: "every pod restarted at once but the nodes are Ready"
+
+If every pod's restart count increments **together** while `kubectl get nodes` has shown
+`Ready` for days, **the host slept**. This is not a Kubernetes fault and no amount of
+in-cluster investigation will explain it.
+
+```bash
+pmset -g log | grep -E "Entering Sleep|Wake from"   # check this FIRST
+```
+
+Measured consequences of an unattended sleep on this lab:
+
+- a 250-minute hole in Prometheus scrape coverage — zero **samples**, not zero values
+- ~53 containers restarting simultaneously across every namespace
+- Vault **re-sealing**, which silently stops ExternalSecrets syncing
+- external DNS dying while every site still returns 200 (2026-10-17, IN-49) — the
+  cluster looks healthy and nothing can deploy
+- IN-31: an unclean stop corrupted etcd irreparably
+
+Unsealing Vault or re-syncing ArgoCD *before* dealing with the sleep just means doing it
+all again after the next nap.
+
+**Note:** AC power is already `sleep 0`; every measured sleep was **on battery**. The guard
+uses `caffeinate -i`, which blocks *idle* sleep only — closing the lid or choosing Sleep
+still works, so it cannot strand the Mac awake in a bag. It is scoped to the guard process:
+kill it and macOS returns to normal with nothing left behind.
